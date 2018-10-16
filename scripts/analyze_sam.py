@@ -21,7 +21,7 @@ def parse_args():
     )
     parser.add_argument(
         '-s', '--seg', type=int,
-        default=0,
+        default=1,
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [0]'
     )
     args = parser.parse_args()
