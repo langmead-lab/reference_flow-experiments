@@ -25,14 +25,14 @@ def parse_args():
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [1]'
     )
     parser.add_argument(
-        '--strat_by_as', type=int,
+        '--by_as', type=int,
         default=0,
-        help='0: normal mode; 1: evaluate with stratification by alignment score [0]'
+        help='0: normal mode; 1: evaluate by alignment score [0]'
     )
     args = parser.parse_args()
     return args
 
-def parse_line(line, strat_by_as):
+def parse_line(line, by_as):
     if line[0] == '@':
         return False, False, 0
     line = line.split()
@@ -40,7 +40,8 @@ def parse_line(line, strat_by_as):
     flag = '{0:012b}'.format(int(line[1]))
     chrm = line[2]
     pos = int(line[3])
-    if strat_by_as > 0:
+    mapq = int(line[4])
+    if by_as > 0:
         if flag[9] is '1': # unaligned
             return name, [chrm, pos, flag], 1
         score = line[11] # AS:i:xx, bt2 format
@@ -50,7 +51,7 @@ def parse_line(line, strat_by_as):
             return
         score = int(score.split(':')[-1])
         return name, [chrm, pos, flag], score
-    return name, [chrm, pos, flag], 0
+    return name, [chrm, pos, flag, mapq], 0
 
 def compare_sam_info(info, ginfo, threshold):
     if __debug__:
@@ -58,16 +59,18 @@ def compare_sam_info(info, ginfo, threshold):
         print (ginfo)
     if info[0] != ginfo[0]:
         # diff chromosome
-        if __debug__: print ("False: chr")
+        if __debug__: print ("False: chr, mapq =", info[3])
         return False
     if info[2][7] != ginfo[2][7]:
         # diff direction
-        if __debug__: print ("False: direction (%s, %s)" % (info[2][7], ginfo[2][7]))
+        if __debug__: 
+            print ("False: direction (%s, %s)" % (info[2][7], ginfo[2][7]), \
+                    "mapq =", info[3])
         return False
     if abs(info[1] - ginfo[1]) > threshold:
-        if __debug__: print ("False: 2")
+        if __debug__: print ("False: distance > threshold, mapq =", info[3])
         return False
-    if __debug__: print ("True")
+    if __debug__: print ("True, mapq =", info[3])
     return True
 
 def analyze_sam(args):
@@ -75,7 +78,7 @@ def analyze_sam(args):
     golden = args.golden
     threshold = args.threshold
     seg = args.seg
-    strat_by_as = args.strat_by_as
+    by_as = args.by_as
     num_reads = 0
     num_correct_reads = 0
     num_incorrect_reads = 0
@@ -99,11 +102,11 @@ def analyze_sam(args):
         print ('Size of database:', len(g_dic))
 
     with open(sam, 'r') as infile:
-        if strat_by_as > 0:
-            cor_strat = {}
-            incor_strat = {}
+        if by_as > 0:
+            dic_cor = {}
+            dic_incor = {}
         for line in infile:
-            name, info, score = parse_line(line, strat_by_as)
+            name, info, score = parse_line(line, by_as)
             if name is False:
                 continue
             if info[2][3] == '1':
@@ -111,24 +114,25 @@ def analyze_sam(args):
                 continue
             comp = compare_sam_info(info, g_dic[name], threshold)
             if __debug__:
-                input()
+                if comp is not True:
+                    input()
             if comp:
                 num_correct_reads += 1
             else:
                 num_incorrect_reads += 1
-            if strat_by_as > 0:
-                if cor_strat.get(score) is None:
-                    cor_strat[score] = 0
-                if incor_strat.get(score) is None:
-                    incor_strat[score] = 0
+            if by_as > 0:
+                if dic_cor.get(score) is None:
+                    dic_cor[score] = 0
+                if dic_incor.get(score) is None:
+                    dic_incor[score] = 0
                 if comp:
-                    cor_strat[score] += 1
+                    dic_cor[score] += 1
                 else:
-                    incor_strat[score] += 1
+                    dic_incor[score] += 1
     
-    if strat_by_as > 0:
-        print (cor_strat)
-        print (incor_strat)
+    if by_as > 0:
+        print (dic_cor)
+        print (dic_incor)
 
     if num_reads != num_correct_reads + num_incorrect_reads:
         print ('Warning: number of reads do not match!')
