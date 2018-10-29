@@ -20,9 +20,16 @@ ht_g_ref=/scratch/groups/blangme2/jacob/vis_exp_chr9_NA19238/hisat_indexes/popco
 ht_g_sam=$dir/alignments/na12878-chr9-phase3_popcov70_hapA-1M-ht2.sam
 
 bt_per_ref=$dir/na12878/indexes/na12878-chr9-phase3_hapA
-bt_per_sam=$dir/alignments/na12878-chr9-phase3_hapA-1M-bt2-per.sam
+bt_per_sam=$dir/alignments/na12878-hapA-chr9-per-bt2.sam
 ht_per_ref=$dir/na12878/indexes/na12878-chr9-phase3_hapA
 ht_per_sam=$dir/alignments/na12878-hapA-chr9-per-ht2.sam
+
+bwa_per_sam=$dir/alignments/na12878-hapA-chr9-bwamem-per.sam
+bwa_sam_9=$dir/alignments/na12878-hapA-chr9-bwamem.sam
+bwa_sam=$dir/alignments/na12878-hapA-wg-bwamem.sam
+bwa_per_ref=$dir/na12878/na12878-chr9-phase3_hapA.fa
+bwa_ref=$ARRAY/indexes/hs37d5.fa
+bwa_ref_9=$dir/chr9/chr9.fa
 
 # Generate target haplotype
 # cd $dir/na12878
@@ -40,12 +47,12 @@ ht_per_sam=$dir/alignments/na12878-hapA-chr9-per-ht2.sam
 #     -o na12878-chr9-phase3_hapA-1M.fq
 
 # Personalized Genome
-#echo "bt2, personalized chr9"
-#time bowtie2 -p 4 -x $bt_per_ref -U $fq -S $bt_per_sam 
-#python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $bt_per_sam
-echo "ht2, C9_PG"
-time hisat2 -p 4 -x $ht_per_ref -U $fq -S $ht_per_sam --no-spliced-alignment
-python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $ht_per_sam
+echo "bt2, personalized chr9"
+time bowtie2 -p 4 -x $bt_per_ref -U $fq -S $bt_per_sam 
+python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $bt_per_sam
+#echo "ht2, C9_PG"
+#time hisat2 -p 4 -x $ht_per_ref -U $fq -S $ht_per_sam --no-spliced-alignment
+#python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $ht_per_sam
 
 #echo "bt2, whole genome"
 #time bowtie2 -p 4 -x $bt_ref -U $fq -S $bt_sam 
@@ -53,13 +60,6 @@ python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $ht_per_sam
 #echo "bt2, chr9"
 #time bowtie2 -p 4 -x $bt_ref_9 -U $fq -S $bt_sam_9
 #python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $bt_sam_9
-
-bwa_per_sam=$dir/alignments/na12878-hapA-chr9-bwamem-per.sam
-bwa_sam_9=$dir/alignments/na12878-hapA-chr9-bwamem.sam
-bwa_sam=$dir/alignments/na12878-hapA-wg-bwamem.sam
-bwa_per_ref=$dir/na12878/na12878-chr9-phase3_hapA.fa
-bwa_ref=$ARRAY/indexes/hs37d5.fa
-bwa_ref_9=$dir/chr9/chr9.fa
 
 #time bwa mem -t 4 $bwa_per_ref $fq > $bwa_per_sam
 #time bwa mem -t 4 $bwa_ref $fq > $bwa_sam
@@ -81,3 +81,16 @@ bwa_ref_9=$dir/chr9/chr9.fa
 #echo "ht2, popcov chr9 genome: 70"
 #time hisat2 -p 4 -x $ht_g_ref -U $fq -S $ht_g_sam --no-spliced-alignment
 #python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $ht_g_sam
+
+# Major allele
+#ht_ref_9_major=$dir/chr9/major_allele/chr9_major
+#ht_maj_sam=$dir/alignments/na12878-hapA-chr9_major-ht2.sam
+#bt_ref_9_major=$dir/chr9/major_allele/chr9_major
+#bt_maj_sam=$dir/alignments/na12878-hapA-chr9_major-bt2.sam
+#bwa_ref_9_major=$dir/chr9/major_allele/chr9_major
+#echo "ht2, chr9 major"
+#time hisat2 -p 4 -x $ht_ref_9_major -U $fq -S $ht_maj_sam --no-spliced-alignment
+#python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $ht_maj_sam
+#echo "bt2, chr9 major"
+#time bowtie2 -p 4 -x $bt_ref_9_major -U $fq -S $bt_maj_sam 
+#python -O $dir/scripts/analyze_sam.py -s 1 -g $g_sam -n $bt_maj_sam
