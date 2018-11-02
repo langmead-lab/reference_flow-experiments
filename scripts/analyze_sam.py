@@ -2,7 +2,7 @@
 Compare aligned sam with synthetic golden data
 '''
 import argparse
-
+import pickle
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -25,14 +25,24 @@ def parse_args():
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [1]'
     )
     parser.add_argument(
-        '--by_as', type=int,
+        '--by_score', type=int,
         default=0,
         help='0: normal mode; 1: evaluate by alignment score [0]'
+    )
+    parser.add_argument(
+        '--by_mapq', type=int,
+        default=0,
+        help='0: normal mode; 1: evaluate by mapping quality [0]'
+    )
+    parser.add_argument(
+        '--secondary', type=int,
+        default=0,
+        help='0: do not consider secondary alignments; 1: consider secondary alignment [0]'
     )
     args = parser.parse_args()
     return args
 
-def parse_line(line, by_as):
+def parse_line(line, by_score):
     if line[0] == '@':
         return False, False, 0
     line = line.split()
@@ -41,7 +51,7 @@ def parse_line(line, by_as):
     chrm = line[2]
     pos = int(line[3])
     mapq = int(line[4])
-    if by_as > 0:
+    if by_score > 0:
         if flag[9] is '1': # unaligned
             return name, [chrm, pos, flag], 1
         score = line[11] # AS:i:xx, bt2 format
@@ -54,9 +64,6 @@ def parse_line(line, by_as):
     return name, [chrm, pos, flag, mapq], 0
 
 def compare_sam_info(info, ginfo, threshold):
-    if __debug__:
-        print (info)
-        print (ginfo)
     if info[0] != ginfo[0]:
         # diff chromosome
         if __debug__: print ("False: chr, mapq =", info[3])
@@ -73,17 +80,9 @@ def compare_sam_info(info, ginfo, threshold):
     if __debug__: print ("True, mapq =", info[3])
     return True
 
-def analyze_sam(args):
-    sam = args.sam
-    golden = args.golden
-    threshold = args.threshold
-    seg = args.seg
-    by_as = args.by_as
-    num_reads = 0
-    num_correct_reads = 0
-    num_incorrect_reads = 0
+def dump_golden_dic(filename, seg):
     g_dic = {}
-    with open(golden, 'r') as gfile:
+    with open(filename, 'r') as gfile:
         for line in gfile:
             name, info, _ = parse_line(line, 0)
             if name is False:
@@ -98,49 +97,115 @@ def analyze_sam(args):
                     return
                 if flag[5] is '1': # is first_seg
                     g_dic[name] = info
-                    num_reads += 1
-        print ('Size of database:', len(g_dic))
+        print ("Size of database built:", len(g_dic))
+    
+    pkl_filename = filename + '.pkl'
+    print ("Dump %s using pickle" % pkl_filename)
+    f = open(pkl_filename, 'wb')
+    pickle.dump(g_dic, f)
+    f.close()
+    return g_dic
 
+def load_golden_dic(pkl_filename):
+    f = open(pkl_filename, 'rb')
+    g_dic = pickle.load(f)
+    f.close()
+    print ('Size of database loaded:', len(g_dic))
+    return g_dic
+
+def analyze_sam(args):
+    sam = args.sam
+    golden = args.golden
+    threshold = args.threshold
+    seg = args.seg
+    by_score = args.by_score
+    by_mapq = args.by_mapq
+    secondary = args.secondary
+
+    num_correct_reads = 0
+    num_incorrect_reads = 0
+    dic_secondary = {}
+    # build golden dictionary
+    # g_dic = dump_golden_dic(golden, seg)
+    # load pre-built golden dictionary
+    g_dic = load_golden_dic(golden + '.pkl')
+    num_syn_reads = len(g_dic)
     with open(sam, 'r') as infile:
-        if by_as > 0:
-            dic_cor = {}
-            dic_incor = {}
+        if by_score > 0:
+            dic_as_cor = {}
+            dic_as_incor = {}
+        if by_mapq > 0:
+            dic_q_cor = {}
+            dic_q_incor = {}
         for line in infile:
-            name, info, score = parse_line(line, by_as)
+            name, info, score = parse_line(line, by_score)
             if name is False:
                 continue
-            if info[2][3] == '1':
-                # neglect secondary alignments
+            if info[2][3] == '1' and secondary == 0: # neglect secondary alignments
                 continue
             comp = compare_sam_info(info, g_dic[name], threshold)
-            if __debug__:
+            if __debug__ & 0:
                 if comp is not True:
+                    print (info)
+                    print (g_dic[name])
                     input()
             if comp:
                 num_correct_reads += 1
             else:
                 num_incorrect_reads += 1
-            if by_as > 0:
-                if dic_cor.get(score) is None:
-                    dic_cor[score] = 0
-                if dic_incor.get(score) is None:
-                    dic_incor[score] = 0
+            if by_score > 0:
+                if dic_as_cor.get(score) is None:
+                    dic_as_cor[score] = 0
+                if dic_as_incor.get(score) is None:
+                    dic_as_incor[score] = 0
                 if comp:
-                    dic_cor[score] += 1
+                    dic_as_cor[score] += 1
                 else:
-                    dic_incor[score] += 1
+                    dic_as_incor[score] += 1
+            if by_mapq > 0:
+                mapq = int(info[3])
+                if dic_q_cor.get(mapq) is None:
+                    dic_q_cor[mapq] = 0
+                if dic_q_incor.get(mapq) is None:
+                    dic_q_incor[mapq] = 0
+                if comp:
+                    dic_q_cor[mapq] += 1
+                else:
+                    dic_q_incor[mapq] += 1
+            # TODO
+            if secondary > 0:
+                #if dic_secondary.get(name) is None:
+                #    dic_secondary[name] = 0
+                if comp:
+                    if dic_secondary.get(name) != 1:
+                        dic_secondary[name] = 1
+                        if __debug__:
+                            print (info)
+                            print (g_dic[name])
+                            print ("SEC: precision +=1")
+                            input()
+                    # elif dic_secondary.get(name) == 1:
+                    #     print (info)
+                    #     print (g_dic[name])
     
-    if by_as > 0:
-        print (dic_cor)
-        print (dic_incor)
+    num_reads = num_correct_reads + num_incorrect_reads
 
-    if num_reads != num_correct_reads + num_incorrect_reads:
+    if num_syn_reads != num_correct_reads + num_incorrect_reads:
         print ('Warning: number of reads do not match!')
-        print ('Total reads = %d, correct reads = %d, incorrect reads = %d' % \
-                (num_reads, num_correct_reads, num_incorrect_reads))
+        print ('Synthesized reads = %d, correct reads = %d, incorrect reads = %d' % \
+                (num_syn_reads, num_correct_reads, num_incorrect_reads))
         # return 
-    print ('Alignment accuracy = %f (%d/%d)' % \
+    print ('Alignment sensitivity = %f (%d/%d)' % \
         (100 * float(num_correct_reads) / num_reads, num_correct_reads, num_reads))
+    
+    if by_score > 0:
+        print (dic_as_cor)
+        print (dic_as_incor)
+    if by_mapq > 0:
+        print (dic_q_cor)
+        print (dic_q_incor)
+    if secondary > 0:
+        print (len(dic_secondary))
 
 if __name__ == '__main__':
     args = parse_args()
