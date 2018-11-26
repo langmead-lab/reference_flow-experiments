@@ -3,6 +3,7 @@ Compare aligned sam with synthetic golden data
 '''
 import argparse
 import pickle
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -23,6 +24,11 @@ def parse_args():
         '-s', '--seg', type=int,
         default=1,
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [1]'
+    )
+    parser.add_argument(
+        '--haploid', type=int,
+        default=1,
+        help='1: haploid input, 2: diploid input [1]'
     )
     parser.add_argument(
         '--by_score', type=int,
@@ -106,18 +112,23 @@ def dump_golden_dic(filename, seg):
     f.close()
     return g_dic
 
-def load_golden_dic(pkl_filename):
-    f = open(pkl_filename, 'rb')
-    g_dic = pickle.load(f)
-    f.close()
-    print ('Size of database loaded:', len(g_dic))
-    return g_dic
+def load_golden_dic(filename, seg):
+    pkl_filename = filename + '.pkl'
+    if os.path.isfile(pkl_filename):
+        f = open(pkl_filename, 'rb')
+        g_dic = pickle.load(f)
+        f.close()
+        print ('Size of database loaded:', len(g_dic))
+        return g_dic
+    else:
+        return dump_golden_dic(filename, seg)
 
 def analyze_sam(args):
     sam = args.sam
     golden = args.golden
     threshold = args.threshold
     seg = args.seg
+    haploid = args.haploid
     by_score = args.by_score
     by_mapq = args.by_mapq
     secondary = args.secondary
@@ -128,7 +139,7 @@ def analyze_sam(args):
     # build golden dictionary
     # g_dic = dump_golden_dic(golden, seg)
     # load pre-built golden dictionary
-    g_dic = load_golden_dic(golden + '.pkl')
+    g_dic = load_golden_dic(golden, seg)
     num_syn_reads = len(g_dic)
     with open(sam, 'r') as infile:
         if by_score > 0:
