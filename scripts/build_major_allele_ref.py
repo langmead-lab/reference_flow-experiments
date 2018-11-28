@@ -1,6 +1,6 @@
 import sys
 
-vcf_fname = "/home-1/cnaechy1@jhu.edu/scratch/relaxing/na12878/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf"
+vcf_fname = "/scratch/groups/blangme2/naechyun/relaxing/na12878/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf"
 indiv = "NA12878"
 
 def get_info(line):
@@ -67,7 +67,7 @@ with open(vcf_fname, 'r') as vcf_f:
             vcf_d = get_info(line)
             #print (vcf_d['af'])
             #print ("[%s] %d / %d (%f): %r" % \
-            #        (line[1], cnt_var, cnt_total, float(cnt_var) / cnt_total, alt_is_major))
+                    (line[1], cnt_var, cnt_total, float(cnt_var) / cnt_total, alt_is_major))
             if vcf_d['type'] is 'single':
                 print ("%s\t%s\t%s\t%s\t%s" % \
                     (vcf_d['rsid'], vcf_d['type'], vcf_d['chrom'], vcf_d['pos'], vcf_d['alt']))
