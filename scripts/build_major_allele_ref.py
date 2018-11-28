@@ -1,3 +1,14 @@
+'''
+Last update: 2018/11/28 by Nae-Chyun Chen
+
+Parses vcf from 1KG and builds a major allele reference.
+Current version only reports snps.
+
+Inputs:
+    1. vcf file name
+    2. indiv
+        ignore variants existing in this sample
+'''
 import sys
 
 vcf_fname = "/scratch/groups/blangme2/naechyun/relaxing/na12878/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf"
