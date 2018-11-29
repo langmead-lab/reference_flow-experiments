@@ -1,9 +1,61 @@
 '''
-Compare aligned sam with synthetic golden data
+Last update: 2018/11/28 by Nae-Chyun Chen
+
+Analyzes aligned sam with synthetic golden data
+and measures sensitivity
 '''
 import argparse
 import pickle
 import os
+
+class SamInfo:
+    '''
+    Records information of a sam line
+    '''
+    pos = 0
+    chrm = ''
+    flag = 0
+    mapq = 0
+    score = 0
+
+    def __init__(self, pos, chrm, flag, mapq, score):
+        self.pos = int(pos)
+        self.chrm = chrm
+        self.flag = int(flag)
+        self.mapq = int(mapq)
+        self.score = int(score)
+    
+    def print(self):
+        print ('pos =', self.pos)
+        print ('chrm =', self.chrm)
+        print ('flag =', self.flag)
+        print ('mapq =', self.mapq)
+        print ('score =', self.score)
+
+    def is_unaligned(self):
+        if self.flag & 4: return True
+        return False
+
+    def is_rc(self):
+        if self.flag & 16: return True
+        return False
+
+    def is_first_seq(self):
+        if self.flag & 64: return True
+        return False
+
+    def is_secondary(self):
+        if self.flag & 256: return True
+        return False
+
+    def update_score(self, raw_score):
+        if raw_score.startswith('AS:') is False:
+            print ('Error: incorrect AS information!')
+            print (raw_score)
+            return False
+        self.score = int(raw_score.split(':')[-1])
+        return True
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -50,58 +102,57 @@ def parse_args():
 
 def parse_line(line, by_score):
     if line[0] == '@':
-        return False, False, 0
+        return False, False
     line = line.split()
     name = line[0]
-    flag = '{0:012b}'.format(int(line[1]))
+    flag = int(line[1])
     chrm = line[2]
     pos = int(line[3])
     mapq = int(line[4])
+    info = SamInfo(pos, chrm, flag, mapq, 0)
+
     if by_score > 0:
-        if flag[9] is '1': # unaligned
-            return name, [chrm, pos, flag], 1
-        score = line[11] # AS:i:xx, bt2 format
-        if score.startswith('AS:') is False:
-            print ('Error: incorrect AS information!')
-            print (line)
-            return
-        score = int(score.split(':')[-1])
-        return name, [chrm, pos, flag], score
-    return name, [chrm, pos, flag, mapq], 0
+        if info.is_unaligned():
+            info.score = 1
+            return name, info
+        if info.update_score(line[11]):
+            return name, info
+        else:
+            return False
+    return name, info
 
 def compare_sam_info(info, ginfo, threshold):
-    if info[0] != ginfo[0]:
+    if info.chrm != ginfo.chrm:
         # diff chromosome
-        if __debug__: print ("False: chr, mapq =", info[3])
+        if __debug__: print ("False: chr, mapq =", info.mapq)
         return False
-    if info[2][7] != ginfo[2][7]:
+    if (info.is_rc() ^ ginfo.is_rc()) is True:
         # diff direction
         if __debug__: 
-            print ("False: direction (%s, %s)" % (info[2][7], ginfo[2][7]), \
-                    "mapq =", info[3])
+            print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), \
+                    "mapq =", info.mapq)
         return False
-    if abs(info[1] - ginfo[1]) > threshold:
-        if __debug__: print ("False: distance > threshold, mapq =", info[3])
+    if abs(info.pos - ginfo.pos) > threshold:
+        if __debug__: print ("False: distance > threshold, mapq =", info.mapq)
         return False
-    if __debug__: print ("True, mapq =", info[3])
+    if __debug__: print ("True, mapq =", info.mapq)
     return True
 
 def dump_golden_dic(filename, seg):
     g_dic = {}
     with open(filename, 'r') as gfile:
         for line in gfile:
-            name, info, _ = parse_line(line, 0)
+            name, info = parse_line(line, 0)
             if name is False:
                 continue
-            flag = info[2]
             if seg == 1:
-                if name in g_dic and flag[5] is '1':
+                if name in g_dic and info.is_first_seq():
                     print ("Error: duplicated reads in golden!")
                     print (name)
-                    print (info)
-                    print (g_dic[name])
+                    info.print()
+                    g_dic[name].print()
                     return
-                if flag[5] is '1': # is first_seg
+                if info.is_first_seq():
                     g_dic[name] = info
         print ("Size of database built:", len(g_dic))
     
@@ -149,10 +200,10 @@ def analyze_sam(args):
             dic_q_cor = {}
             dic_q_incor = {}
         for line in infile:
-            name, info, score = parse_line(line, by_score)
+            name, info = parse_line(line, by_score)
             if name is False:
                 continue
-            if info[2][3] == '1' and secondary == 0: # neglect secondary alignments
+            if info.is_secondary() and secondary == 0: # neglect secondary alignments
                 continue
             comp = compare_sam_info(info, g_dic[name], threshold)
             if __debug__ & 0:
@@ -165,24 +216,23 @@ def analyze_sam(args):
             else:
                 num_incorrect_reads += 1
             if by_score > 0:
-                if dic_as_cor.get(score) is None:
-                    dic_as_cor[score] = 0
-                if dic_as_incor.get(score) is None:
-                    dic_as_incor[score] = 0
+                if dic_as_cor.get(info.score) is None:
+                    dic_as_cor[info.score] = 0
+                if dic_as_incor.get(info.score) is None:
+                    dic_as_incor[info.score] = 0
                 if comp:
-                    dic_as_cor[score] += 1
+                    dic_as_cor[info.score] += 1
                 else:
-                    dic_as_incor[score] += 1
+                    dic_as_incor[info.score] += 1
             if by_mapq > 0:
-                mapq = int(info[3])
-                if dic_q_cor.get(mapq) is None:
-                    dic_q_cor[mapq] = 0
-                if dic_q_incor.get(mapq) is None:
-                    dic_q_incor[mapq] = 0
+                if dic_q_cor.get(info.mapq) is None:
+                    dic_q_cor[info.mapq] = 0
+                if dic_q_incor.get(info.mapq) is None:
+                    dic_q_incor[info.mapq] = 0
                 if comp:
-                    dic_q_cor[mapq] += 1
+                    dic_q_cor[info.mapq] += 1
                 else:
-                    dic_q_incor[mapq] += 1
+                    dic_q_incor[info.mapq] += 1
             # TODO
             if secondary > 0:
                 #if dic_secondary.get(name) is None:
@@ -191,8 +241,8 @@ def analyze_sam(args):
                     if dic_secondary.get(name) != 1:
                         dic_secondary[name] = 1
                         if __debug__:
-                            print (info)
-                            print (g_dic[name])
+                            info.print()
+                            g_dic[name].print()
                             print ("SEC: precision +=1")
                             input()
                     # elif dic_secondary.get(name) == 1:
