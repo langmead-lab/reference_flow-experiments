@@ -23,7 +23,8 @@ class SamInfo:
         self.chrm = chrm
         self.flag = int(flag)
         self.mapq = int(mapq)
-        self.score = int(score)
+        self.update_score(score)
+#        self.score = int(score)
     
     def print(self):
         print ('pos =', self.pos)
@@ -49,12 +50,15 @@ class SamInfo:
         return False
 
     def update_score(self, raw_score):
-        if raw_score.startswith('AS:') is False:
+        if self.is_unaligned():
+            self.score = 1
+            return
+        elif raw_score.startswith('AS:') is False:
+            self.score = 1
             print ('Error: incorrect AS information!')
-            print (raw_score)
-            return False
+            input ()
+            return
         self.score = int(raw_score.split(':')[-1])
-        return True
 
 
 def parse_args():
@@ -109,16 +113,17 @@ def parse_line(line, by_score):
     chrm = line[2]
     pos = int(line[3])
     mapq = int(line[4])
-    info = SamInfo(pos, chrm, flag, mapq, 0)
+    info = SamInfo(pos, chrm, flag, mapq, line[11])
+#    info = SamInfo(pos, chrm, flag, mapq, 0)
 
-    if by_score > 0:
-        if info.is_unaligned():
-            info.score = 1
-            return name, info
-        if info.update_score(line[11]):
-            return name, info
-        else:
-            return False
+#    if by_score > 0:
+#        if info.is_unaligned():
+#            info.score = 1
+#            return name, info
+#        if info.update_score(line[11]):
+#            return name, info
+#        else:
+#            return False
     return name, info
 
 def compare_sam_info(info, ginfo, threshold):
