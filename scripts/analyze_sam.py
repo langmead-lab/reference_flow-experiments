@@ -1,5 +1,5 @@
 '''
-Last update: 2018/11/28 by Nae-Chyun Chen
+Last update: 2018/11/29 by Nae-Chyun Chen
 
 Analyzes aligned sam with synthetic golden data
 and measures sensitivity
@@ -26,12 +26,14 @@ class SamInfo:
         self.update_score(score)
 #        self.score = int(score)
     
-    def print(self):
-        print ('pos =', self.pos)
-        print ('chrm =', self.chrm)
-        print ('flag =', self.flag)
-        print ('mapq =', self.mapq)
-        print ('score =', self.score)
+    def print(self,
+            pos=True, chrm=True,
+            flag=True, mapq=True, score=True):
+        if pos: print ('pos =', self.pos)
+        if chrm: print ('chrm =', self.chrm)
+        if flag: print ('flag =', self.flag)
+        if mapq: print ('mapq =', self.mapq)
+        if score: print ('score =', self.score)
 
     def is_unaligned(self):
         if self.flag & 4: return True
@@ -55,8 +57,8 @@ class SamInfo:
             return
         elif raw_score.startswith('AS:') is False:
             self.score = 1
-            print ('Error: incorrect AS information!')
-            input ()
+#            print ('Warning: incorrect AS information!')
+#            input ()
             return
         self.score = int(raw_score.split(':')[-1])
 
@@ -114,16 +116,6 @@ def parse_line(line, by_score):
     pos = int(line[3])
     mapq = int(line[4])
     info = SamInfo(pos, chrm, flag, mapq, line[11])
-#    info = SamInfo(pos, chrm, flag, mapq, 0)
-
-#    if by_score > 0:
-#        if info.is_unaligned():
-#            info.score = 1
-#            return name, info
-#        if info.update_score(line[11]):
-#            return name, info
-#        else:
-#            return False
     return name, info
 
 def compare_sam_info(info, ginfo, threshold):
