@@ -1,22 +1,59 @@
 '''
-Last update: 2018/11/29 by Nae-Chyun Chen
+Last update: 2018/12/10 by Nae-Chyun Chen
 
 Compares a diploid-to-diploid sam and 
 checks if the multi-mapped regions are 
 identical in two personalized refs
 '''
-
+import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info
 
 # inputs
-read_len = 100
-threshold = 10
+#read_len = 100
+#threshold = 10
 #sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/na12878-chr9-AB2AB-bt2.sam'
-sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/processed/na12878-chr9-lowAB2AB-bt2.sam'
-diff_snp_fn = '/scratch/groups/blangme2/naechyun/relaxing/na12878/diff_AB.snp'
-golden_fn = '/scratch/groups/blangme2/naechyun/relaxing/syn_reads/diploid/na12878-chr9-phase3-1M.fq.sam'
+#sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/processed/na12878-chr9-lowAB2AB-bt2.sam'
+#diff_snp_fn = '/scratch/groups/blangme2/naechyun/relaxing/na12878/diff_AB.snp'
+#golden_fn = '/scratch/groups/blangme2/naechyun/relaxing/syn_reads/diploid/na12878-chr9-phase3-1M.fq.sam'
 
-def build_diff_dic():
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-n', '--sam',
+        help='aligned sam file'
+    )
+    parser.add_argument(
+        '-g', '--golden',
+        help='golden sam file'
+    )
+    parser.add_argument(
+        '-t', '--threshold', type=int,
+        default=10,
+        help='max allowed distance for a correct mapping [10]'
+    )
+    parser.add_argument(
+        '-r', '--read_len', type=int,
+        default=100,
+        help='read length [100]'
+    )
+    parser.add_argument(
+        '-d', '--diff',
+        help='the snp file specifying the differences between two haplotypes'
+    )
+    parser.add_argument(
+        '--indelA',
+        default=None,
+        help='the file specifying the indel positions for hapA \n if notspecified, doesnt consider indels [None]'
+    )
+    parser.add_argument(
+        '--indelB',
+        default=None,
+        help='the file specifying the indel positions for hapB \n if notspecified, doesnt consider indels [None]'
+    )
+    args = parser.parse_args()
+    return args
+
+def build_diff_dic(diff_snp_fn):
     # build dictionary
     diff_snp_dic = {}
     with open(diff_snp_fn, 'r') as diff_snp_f:
@@ -54,8 +91,16 @@ def show_info(name, info, g_info, dip_flag):
         g_info.print(flag=False, mapq=False, score=False)
         input ()
 
-def analyze_mutimapped_regions():
-    diff_snp_dic = build_diff_dic()
+def analyze_mutimapped_regions(args):
+    sam_fn = args.sam
+    golden_fn = args.golden
+    threshold = args.threshold
+    read_len = args.read_len
+    diff_snp_fn = args.diff
+    indelA_fn = args.indelA
+    indelB_fn = args.indelB
+
+    diff_snp_dic = build_diff_dic(diff_snp_fn)
     golden_dic = load_golden_dic(golden_fn, 1)
     with open(sam_fn, 'r') as sam_f:
         total_counts = 0
@@ -125,15 +170,20 @@ def analyze_mutimapped_regions():
                     golden_dic[name].print(flag=False, mapq=False, score=False)
                     input ('comp=%s\n' % comp)
 
-    print ('Correct hap:', correct_hap_counts)
-    print ('Incorrect hap (identical):', incorrect_hap_id_counts) 
-    print ('Incorrect hap (with varaints):', incorrect_hap_nid_counts)
-    print ('Unaligned:', unaligned_counts)
+    print ('\n------ Alignment category distribution ------')
+    print ('Correct hap [c]:', correct_hap_counts)
+    print ('Incorrect hap (identical) [i]:', incorrect_hap_id_counts) 
+    print ('Incorrect hap (with varaints) [n]:', incorrect_hap_nid_counts)
+    print ('Unaligned [u]:', unaligned_counts)
     print ('Total:', total_counts)
-    print ('#TruePos:', num_tp)
-    print ('#False_c:', num_f_c)
-    print ('#False_i:', num_f_i)
-    print ('#False_n:', num_f_n)
+
+    print ('\n------ Alignment accuracy ------')
+    print ('True: %d (%.2f%%)' % (num_tp, 100*float(num_tp)/total_counts))
+    print ('False_c: %d (%.2f%%)' % (num_f_c, 100*float(num_f_c)/total_counts))
+    print ('False_i: %d (%.2f%%)' % (num_f_i, 100*float(num_f_i)/total_counts))
+    print ('False_n: %d (%.2f%%)' % (num_f_n, 100*float(num_f_n)/total_counts))
+    print ('False_u: %d (%.2f%%)' % (unaligned_counts, 100*float(unaligned_counts)/total_counts))
 
 if __name__ == '__main__':
-    analyze_mutimapped_regions()
+    args = parse_args()
+    analyze_mutimapped_regions(args)
