@@ -77,13 +77,21 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
                     alleleB = int(row[col][2])
 
                     if alleleA > 0:
-                        f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
+                        #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
+                        f_var.write(
+                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA), str(offsetB) )
+                        )
                         if indels:
                             offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
                         else:
                             hapA[loc+offsetA-1] = alts[alleleA-1]
                     if alleleB > 0:
-                        f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
+                        #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
+                        f_var.write(
+                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB), str(offsetA) )
+                        )
                         if indels:
                             offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                         else:

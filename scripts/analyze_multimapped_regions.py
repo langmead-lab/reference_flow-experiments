@@ -1,5 +1,5 @@
 '''
-Last update: 2018/12/10 by Nae-Chyun Chen
+Last update: 2018/12/12 by Nae-Chyun Chen
 
 Compares a diploid-to-diploid sam and 
 checks if the multi-mapped regions are 
@@ -15,6 +15,78 @@ from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info
 #sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/processed/na12878-chr9-lowAB2AB-bt2.sam'
 #diff_snp_fn = '/scratch/groups/blangme2/naechyun/relaxing/na12878/diff_AB.snp'
 #golden_fn = '/scratch/groups/blangme2/naechyun/relaxing/syn_reads/diploid/na12878-chr9-phase3-1M.fq.sam'
+
+class VarInfo():
+    '''
+    Records information of a var line
+    '''
+    strand = ''
+    chrm = ''
+    vtype = ''
+    ref_pos = 0
+    alt_pos = 0
+    ref_allele = ''
+    alt_allele = ''
+    offset = 0
+    cor_offset = 0 # the offset of the other strand
+    line = ''
+
+    def __init__(self, line):
+        self.line = line[: line.find('\\')]
+        line = line.split()
+        self.strand = line[0]
+        self.chrm = line[1]
+        self.vtype = line[2]
+        self.ref_pos = int(line[3])
+        self.alt_pos = int(line[4])
+        self.ref_allele = line[5]
+        self.alt_allele = line[6]
+        self.offset = int(line[7])
+        self.cor_offset = int(line[8])
+    
+    def is_indel(self):
+        return (self.vtype == 'INDEL')
+
+    def is_ins(self):
+        if self.vtype == 'SNP':
+            return False
+        if len(self.ref_allele) == len(self.alt_allele):
+            print ('Error: incorrectly specified indel')
+            print (self.line)
+            exit()
+        if len(self.ref_allele) > len(self.alt_allele):
+            return False
+        return True
+
+    def is_del(self):
+        if self.vtype == 'SNP':
+            return False
+        if len(self.ref_allele) == len(self.alt_allele):
+            print ('Error: incorrectly specified indel')
+            print (self.line)
+            exit()
+        if len(self.ref_allele) < len(self.alt_allele):
+            return False
+        return True
+
+#    def samepos_diffvar(self, a):
+#        if a.ref_pos == self.ref_pos \
+#            and a.alt_allele != self.alt_allele:
+#            return True
+#        return False
+
+    def samevar(self, a):
+        if type(a) != type(self):
+            return False
+        if a.vtype == self.vtype and \
+            a.ref_pos == self.ref_pos and \
+            a.alt_allele == self.alt_allele:
+            return True
+        return False
+
+    def write_erg(self, main_strand):
+
+        return erg
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -41,17 +113,41 @@ def parse_args():
         help='the snp file specifying the differences between two haplotypes'
     )
     parser.add_argument(
-        '--indelA',
+        '--var',
         default=None,
-        help='the file specifying the indel positions for hapA \n if notspecified, doesnt consider indels [None]'
-    )
-    parser.add_argument(
-        '--indelB',
-        default=None,
-        help='the file specifying the indel positions for hapB \n if notspecified, doesnt consider indels [None]'
+        help='the file specifying the variants'
     )
     args = parser.parse_args()
     return args
+
+def build_var_dic(var_fn):
+    '''
+    Build a dictionary for the .var file
+    
+    var file format:
+    STRAND CHRM TYPE REFPOS ALTPOS REF ALT OFFSET
+
+    key:
+        STRAND_CHRM_ALTPOS (str)
+    value:
+        TYPE, REFPOS, REF, ALT, OFFSET (list)
+    '''
+    var_dic = {}
+    with open(var_fn, 'r') as var_f:
+        for line in var_f:
+            line = line.split()
+            strand = line[0]
+            chrm = line[1]
+            vtype = line[2]
+            ref_pos = line[3]
+            alt_pos = line[4]
+            ref_allele = line[5]
+            alt_allele = line[6]
+            offset = line[7]
+            key = strand + '_' + chrm + '_' + alt_pos
+            var_dic[key] = vtype, ref_pos, ref_allele, alt_allele, offset
+            input (var_dic)
+    return var_dic
 
 def build_diff_dic(diff_snp_fn):
     # build dictionary
@@ -70,7 +166,7 @@ def diploid_compare(info, g_info, threshold, dip_flag):
     if dip_flag in ['c', 'n']:
         return compare_sam_info(info, g_info, threshold)
     # check the other haplotype
-    elif dip_flag is 'i':
+    elif dip_flag == 'i':
         info.chrm = '9A'
         comp1 = compare_sam_info(info, g_info, threshold)
         info.chrm = '9B'
@@ -97,9 +193,9 @@ def analyze_mutimapped_regions(args):
     threshold = args.threshold
     read_len = args.read_len
     diff_snp_fn = args.diff
-    indelA_fn = args.indelA
-    indelB_fn = args.indelB
+    var_fn = args.var
 
+    var_dic = build_var_dic(var_fn)
     diff_snp_dic = build_diff_dic(diff_snp_fn)
     golden_dic = load_golden_dic(golden_fn, 1)
     with open(sam_fn, 'r') as sam_f:
@@ -115,7 +211,7 @@ def analyze_mutimapped_regions(args):
         for line in sam_f:
             name, info = parse_line(line, 0)
             # headers
-            if name is False:
+            if name == False:
 #                print (line[:line.find('\\')])
                 continue
 #            if info.mapq < 10:
@@ -141,24 +237,22 @@ def analyze_mutimapped_regions(args):
                             input ()'''
                         break
                 # aligned to incorrect haplotype and two haps are NOT equal
-                if identical_haplotypes is False:
+                if identical_haplotypes == False:
                     comp = diploid_compare(info, golden_dic[name], threshold, 'n')
                     dip_flag = 'n'
                     incorrect_hap_nid_counts += 1
-                    if comp is False: num_f_n += 1
+                    if comp == False: num_f_n += 1
                 else:
                     dip_flag = 'i'
                     comp = diploid_compare(info, golden_dic[name], threshold, 'i')
                     incorrect_hap_id_counts += 1
-                    if comp is False: num_f_i += 1
+                    if comp == False: num_f_i += 1
             else:
                 dip_flag = 'c'
                 comp = diploid_compare(info, golden_dic[name], threshold, 'c')
                 correct_hap_counts += 1
-                if comp is False:
+                if comp == False:
                     num_f_c += 1
-                    #if total_counts > 1284737:
-                    #    show_info(name, info, golden_dic[name], 'c')
             if comp:
                 num_tp += 1
             else:
