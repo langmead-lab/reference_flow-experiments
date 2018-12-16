@@ -17,23 +17,40 @@ class SamInfo:
     flag = 0
     mapq = 0
     score = 0
+    offset = 0
 
-    def __init__(self, pos, chrm, flag, mapq, score):
-        self.pos = int(pos)
-        self.chrm = chrm
-        self.flag = int(flag)
-        self.mapq = int(mapq)
-        self.update_score(score)
-#        self.score = int(score)
+    def __init__(self, line):
+        self.flag = int(line[1])
+        self.pos = int(line[3])
+        self.mapq = int(line[4])
+        self.chrm = line[2]
+        if self.chrm.find('erg') > 0:
+            tmp = self.chrm.split('-')
+            self.offset = int(tmp[2])
+            self.chrm = tmp[0]
+            self.pos += self.offset - 1
+            print (self.chrm)
+            input (self.offset)
+        self.update_score(line[11])
+
+#    def __init__(self, pos, chrm, flag, mapq, score):
+#        self.pos = int(pos)
+#        self.chrm = chrm
+#        self.flag = int(flag)
+#        self.mapq = int(mapq)
+#        self.update_score(score)
+#        self.offset = 0
     
     def print(self,
             pos=True, chrm=True,
-            flag=True, mapq=True, score=True):
+            flag=True, mapq=True,
+            score=True, offset=True):
         if pos: print ('pos =', self.pos)
         if chrm: print ('chrm =', self.chrm)
         if flag: print ('flag =', self.flag)
         if mapq: print ('mapq =', self.mapq)
         if score: print ('score =', self.score)
+        if offset: print ('offset =', self.offset)
 
     def is_unaligned(self):
         if self.flag & 4: return True
@@ -108,14 +125,15 @@ def parse_args():
 
 def parse_line(line, by_score):
     if line[0] == '@':
-        return False, False
+        return 'header', False
     line = line.split()
     name = line[0]
-    flag = int(line[1])
-    chrm = line[2]
-    pos = int(line[3])
-    mapq = int(line[4])
-    info = SamInfo(pos, chrm, flag, mapq, line[11])
+    info = SamInfo(line)
+#    flag = int(line[1])
+#    chrm = line[2]
+#    pos = int(line[3])
+#    mapq = int(line[4])
+#    info = SamInfo(pos, chrm, flag, mapq, line[11])
     return name, info
 
 def compare_sam_info(info, ginfo, threshold):

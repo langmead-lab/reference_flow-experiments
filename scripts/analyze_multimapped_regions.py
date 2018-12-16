@@ -1,5 +1,5 @@
 '''
-Last update: 2018/12/12 by Nae-Chyun Chen
+Last update: 2018/12/16 by Nae-Chyun Chen
 
 Compares a diploid-to-diploid sam and 
 checks if the multi-mapped regions are 
@@ -7,14 +7,6 @@ identical in two personalized refs
 '''
 import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info
-
-# inputs
-#read_len = 100
-#threshold = 10
-#sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/na12878-chr9-AB2AB-bt2.sam'
-#sam_fn = '/scratch/groups/blangme2/naechyun/relaxing/alignments/diploid/processed/na12878-chr9-lowAB2AB-bt2.sam'
-#diff_snp_fn = '/scratch/groups/blangme2/naechyun/relaxing/na12878/diff_AB.snp'
-#golden_fn = '/scratch/groups/blangme2/naechyun/relaxing/syn_reads/diploid/na12878-chr9-phase3-1M.fq.sam'
 
 class VarInfo():
     '''
@@ -144,9 +136,10 @@ def build_var_dic(var_fn):
             ref_allele = line[5]
             alt_allele = line[6]
             offset = line[7]
-            key = strand + '_' + chrm + '_' + alt_pos
-            var_dic[key] = vtype, ref_pos, ref_allele, alt_allele, offset
-            input (var_dic)
+            c_offset = line[8]
+            v_key = strand + '_' + chrm + '_' + alt_pos
+            var_dic[v_key] = vtype, ref_pos, ref_allele, alt_allele, offset, c_offset
+#            input (var_dic)
     return var_dic
 
 def build_diff_dic(diff_snp_fn):
@@ -159,13 +152,14 @@ def build_diff_dic(diff_snp_fn):
             line = line.split()
             pos = int(line[0])
             diff_snp_dic[pos] = line[1], line[2]
+#            input (diff_snp_dic)
     return diff_snp_dic
 
 def diploid_compare(info, g_info, threshold, dip_flag):
-    # don't check the other haplotype
+    # don't check the other strand
     if dip_flag in ['c', 'n']:
         return compare_sam_info(info, g_info, threshold)
-    # check the other haplotype
+    # check the other strand
     elif dip_flag == 'i':
         info.chrm = '9A'
         comp1 = compare_sam_info(info, g_info, threshold)
@@ -183,6 +177,7 @@ def show_info(name, info, g_info, dip_flag):
         print (dip_flag)
         print ('info')
         info.print(flag=False, mapq=False, score=False)
+        print (' ')
         print ('golden')
         g_info.print(flag=False, mapq=False, score=False)
         input ()
@@ -211,7 +206,7 @@ def analyze_mutimapped_regions(args):
         for line in sam_f:
             name, info = parse_line(line, 0)
             # headers
-            if name == False:
+            if name == 'header':
 #                print (line[:line.find('\\')])
                 continue
 #            if info.mapq < 10:
@@ -223,19 +218,26 @@ def analyze_mutimapped_regions(args):
                 unaligned_counts += 1
                 dip_flag = 'u'
                 comp = False
+            # TODO: this condition should be more generic
             elif (name.find('hapA') > 0 and info.chrm != '9A') \
                 or (name.find('hapB') > 0 and info.chrm != '9B'):
                 identical_haplotypes = True
+                v_id_hap = True
+                if name.find('hapB') > 0:
+                    seq_source = 'A_9_'
+                else:
+                    seq_source = 'B_9_'
                 for i in range(info.pos, info.pos + read_len):
+                    k = seq_source + str(i)
+                    if var_dic.get(k) != None:
+                        v_id_hap = False
+                    print (k, var_dic.get(k))
                     if diff_snp_dic.get(i) != None:
                         identical_haplotypes = False
-                        '''if __debug__:
-                            print (incorrect_hap_nid_counts)
-                            print ('name =', name)
-                            info.print()
-                            print (i, diff_snp_dic[i])
-                            input ()'''
                         break
+                print ('compare var_dic and diff_snp_dic')
+                print (v_id_hap, identical_haplotypes)
+                input ()
                 # aligned to incorrect haplotype and two haps are NOT equal
                 if identical_haplotypes == False:
                     comp = diploid_compare(info, golden_dic[name], threshold, 'n')
@@ -257,9 +259,10 @@ def analyze_mutimapped_regions(args):
                 num_tp += 1
             else:
                 if __debug__:
-                    print (dip_flag)
+                    print ('dip_flag =', dip_flag)
                     print ('info')
                     info.print(flag=False, mapq=False, score=False)
+                    print ()
                     print ('golden')
                     golden_dic[name].print(flag=False, mapq=False, score=False)
                     input ('comp=%s\n' % comp)

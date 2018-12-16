@@ -9,27 +9,12 @@ def read_genome(fn):
         # seq[0] is empty to fit vcf coordinate (starting from 1)
         seq = '^'
         for line in f:
+            line = line[: line.find('\\')]
+            print (line)
             if line.startswith('>') == False:
-                seq += line[:line.find('\\')]
+                seq += line
     return seq
-'''
-def write_erg(var_list, genome, start_p, f_len, main_var_list):
-    print ('write_erg (%d vars)' % len(var_list))
-    print (var_list[0].ref_pos)
-    for i, v in enumerate(var_list):
-        main_allele_len = len(v.ref_allele)
-        for j, vm in enumerate(main_var_list):
-            if v.samepos_diffvar(vm):
-                main_allele_len = len(vm.alt_allele)
-        first_end_p = start_p + f_len
-        second_start_p = first_end_p + main_allele_len
-        second_end_p = second_start_p + f_len
-        erg = genome[start_p: first_end_p]
-        erg += v.alt_allele
-        erg += genome[second_start_p: second_end_p]
-        print (erg)
-    input ()
-'''
+
 def write_erg(var_list, main_genome, f_len):
     '''
     Write one ERG seq
@@ -38,6 +23,7 @@ def write_erg(var_list, main_genome, f_len):
     main_pos_list = []
     erg_start_pos = 0
     offset = 0
+    chrm = var_list[0].chrm
     for i, v in enumerate(var_list):
         if v.strand == MAIN_STRAND:
             # v: ref hapA
@@ -60,8 +46,8 @@ def write_erg(var_list, main_genome, f_len):
         erg += erg_alt_allele
     erg += main_genome[main_pos_list[-1] + 1 : main_pos_list[-1] + 1 + f_len]
     print (
-        '>hapB-%s-%s' % 
-        (erg_start_pos + offset, main_pos_list[-1] + 1 + f_len + offset)
+        '>%sB-erg-%s-%s' % 
+        (chrm, erg_start_pos + offset, main_pos_list[-1] + 1 + f_len + offset)
     )
     print (erg)
 
@@ -135,8 +121,8 @@ def parse_args():
     )
     parser.add_argument(
         '-f', '--flanking_len', type=int,
-        default=50,
-        help='the length of flanking regions, total length of an erg is 2*f+1 [50]'
+        default=100,
+        help='the length of flanking regions, total length of an erg is 2*f+1 [100]'
     )
     args = parser.parse_args()
     return args
