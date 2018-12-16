@@ -7,78 +7,7 @@ identical in two personalized refs
 '''
 import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info
-
-class VarInfo():
-    '''
-    Records information of a var line
-    '''
-    strand = ''
-    chrm = ''
-    vtype = ''
-    ref_pos = 0
-    alt_pos = 0
-    ref_allele = ''
-    alt_allele = ''
-    offset = 0
-    cor_offset = 0 # the offset of the other strand
-    line = ''
-
-    def __init__(self, line):
-        self.line = line[: line.find('\\')]
-        line = line.split()
-        self.strand = line[0]
-        self.chrm = line[1]
-        self.vtype = line[2]
-        self.ref_pos = int(line[3])
-        self.alt_pos = int(line[4])
-        self.ref_allele = line[5]
-        self.alt_allele = line[6]
-        self.offset = int(line[7])
-        self.cor_offset = int(line[8])
-    
-    def is_indel(self):
-        return (self.vtype == 'INDEL')
-
-    def is_ins(self):
-        if self.vtype == 'SNP':
-            return False
-        if len(self.ref_allele) == len(self.alt_allele):
-            print ('Error: incorrectly specified indel')
-            print (self.line)
-            exit()
-        if len(self.ref_allele) > len(self.alt_allele):
-            return False
-        return True
-
-    def is_del(self):
-        if self.vtype == 'SNP':
-            return False
-        if len(self.ref_allele) == len(self.alt_allele):
-            print ('Error: incorrectly specified indel')
-            print (self.line)
-            exit()
-        if len(self.ref_allele) < len(self.alt_allele):
-            return False
-        return True
-
-#    def samepos_diffvar(self, a):
-#        if a.ref_pos == self.ref_pos \
-#            and a.alt_allele != self.alt_allele:
-#            return True
-#        return False
-
-    def samevar(self, a):
-        if type(a) != type(self):
-            return False
-        if a.vtype == self.vtype and \
-            a.ref_pos == self.ref_pos and \
-            a.alt_allele == self.alt_allele:
-            return True
-        return False
-
-    def write_erg(self, main_strand):
-
-        return erg
+from build_erg import build_erg
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -142,6 +71,13 @@ def build_var_dic(var_fn):
 #            input (var_dic)
     return var_dic
 
+def build_offset_index(var_fn):
+    main_index, alt_index = \
+        build_erg('', var_fn, hap_mode=1, f_len=100, mode='index') 
+    print (len(main_index))
+    print (len(alt_index))
+    input ()
+
 def build_diff_dic(diff_snp_fn):
     # build dictionary
     diff_snp_dic = {}
@@ -190,7 +126,8 @@ def analyze_mutimapped_regions(args):
     diff_snp_fn = args.diff
     var_fn = args.var
 
-    var_dic = build_var_dic(var_fn)
+    #var_dic = build_var_dic(var_fn)
+    build_offset_index(var_fn)
     diff_snp_dic = build_diff_dic(diff_snp_fn)
     golden_dic = load_golden_dic(golden_fn, 1)
     with open(sam_fn, 'r') as sam_f:
@@ -228,12 +165,16 @@ def analyze_mutimapped_regions(args):
                 else:
                     seq_source = 'B_9_'
                 for i in range(info.pos, info.pos + read_len):
-                    k = seq_source + str(i)
+                    pos_on_ref = i + info.offset
+                    k = seq_source + str(pos_on_ref)
+                    print ('show pos_on_ref')
+                    input (k)
                     if var_dic.get(k) != None:
                         v_id_hap = False
-                    print (k, var_dic.get(k))
+                        print ('var_dic', k, var_dic.get(k))
                     if diff_snp_dic.get(i) != None:
                         identical_haplotypes = False
+                        print ('diff_dic', i, diff_snp_dic.get(i))
                         break
                 print ('compare var_dic and diff_snp_dic')
                 print (v_id_hap, identical_haplotypes)
