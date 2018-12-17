@@ -86,8 +86,11 @@ def write_erg(var_list, main_genome, f_len, test_genome):
     '''
     erg = ''
     main_pos_list = []
+    main_allele_list = []
     erg_start_pos = 0
     offset = 0
+    offset_init = 0
+    indel_diff = 0
     # assume same chromosom
     chrm = var_list[0].chrm
 
@@ -95,49 +98,63 @@ def write_erg(var_list, main_genome, f_len, test_genome):
         if v.strand == MAIN_STRAND:
             # v: ref hapA
             main_pos = v.alt_pos
-            main_pos_list.append(main_pos)
             erg_main_allele = v.alt_allele
             erg_alt_allele = v.ref_allele
             offset = -v.offset + v.cor_offset
+            indel_diff += len(erg_main_allele) - len(erg_alt_allele)
         else:
             # v: ref hapB
             main_pos = v.alt_pos - v.offset + v.cor_offset
-            main_pos_list.append(main_pos)
             erg_main_allele = v.ref_allele
             erg_alt_allele = v.alt_allele
             offset = v.offset - v.cor_offset
+            indel_diff += len(erg_main_allele) - len(erg_alt_allele)
+        main_pos_list.append(main_pos)
+        main_allele_list.append(erg_main_allele)
         if i == 0:
             erg_start_pos = main_pos - f_len
             erg += main_genome[main_pos - f_len : main_pos]
+            offset_init = offset
         else:
             erg += main_genome[
-                main_pos_list[i-1] + 1 : main_pos
+                main_pos_list[i-1] + len(main_allele_list[i-1]) : 
+                main_pos
             ]
         erg += erg_alt_allele
-    erg += main_genome[main_pos_list[-1] + 1 : main_pos_list[-1] + 1 + f_len]
+    erg += main_genome[
+        main_pos + len(erg_main_allele) : 
+        main_pos + len(erg_main_allele) + f_len
+    ]
 
-    erg_start_pos = erg_start_pos + offset
-    erg_end_pos = main_pos_list[-1] + 1 + f_len + offset
+    erg_start_pos = erg_start_pos + offset_init# - indel_diff
+    erg_end_pos = main_pos_list[-1] + len(erg_alt_allele) + f_len + offset
 
     if test_genome:
         full_g = test_genome[erg_start_pos : erg_end_pos]
-        if erg == full_g:
-            print ('pass')
-            return
-        print ('not pass')
-        print (erg_start_pos, erg_end_pos)
-        print ('seq:\t', erg)
-        print ('f_seq:\t', full_g)
-        for i, v in enumerate(var_list):
-            print (v.line)
-        input()
+        print (
+            '>%sB-erg-%s-%s' % 
+            (chrm, erg_start_pos, erg_end_pos)
+        )
+        print (full_g)
+        #if erg == full_g:
+        #    print ('pass')
+        #    return
+        #print ('fail')
 
-    # write erg
-    print (
-        '>%sB-erg-%s-%s' % 
-        (chrm, erg_start_pos, erg_end_pos)
-    )
-    print (erg)
+        #print (erg_start_pos, erg_end_pos)
+        #print ('offset_init', offset_init, 'offset', offset)
+        #print ('erg:\t', erg)
+        #print ('f_seq:\t', full_g)
+        #for i, v in enumerate(var_list):
+        #    print (v.line)
+        #input()
+    else:
+        # write erg
+        print (
+            '>%sB-erg-%s-%s' % 
+            (chrm, erg_start_pos, erg_end_pos)
+        )
+        print (erg)
 
 def build_index(var_list, main_index, alt_index):
     existed_pos_list = []
