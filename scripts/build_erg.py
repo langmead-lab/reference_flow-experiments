@@ -80,79 +80,71 @@ def read_genome(fn, print_main=False):
                 seq += line
     return seq
 
-def write_erg(var_list, main_genome, f_len, test_genome):
+def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     '''
     Write one ERG seq
     '''
     erg = ''
-    main_pos_list = []
-    main_allele_list = []
-    erg_start_pos = 0
-    offset = 0
     offset_init = 0
-    indel_diff = 0
     # assume same chromosom
     chrm = var_list[0].chrm
+    
+    # coordinate on REF
+    v = var_list[0]
+    if v.strand == MAIN_STRAND:
+        offset_start = v.cor_offset
+    else:
+        offset_start = v.offset
+    ref_start_pos = v.ref_pos - f_len
 
+    v = var_list[len(var_list) - 1]
+    ins_len = len(v.alt_allele) - len(v.ref_allele)
+    if v.strand == MAIN_STRAND:
+        offset_end = v.cor_offset
+    else:
+        offset_end = v.offset + ins_len
+    ref_end_pos = v.ref_pos + f_len + len(v.alt_allele)
+    erg_ref = ref_genome[ref_start_pos : ref_end_pos]
+    
+    nxt_start_pos = ref_start_pos
     for i, v in enumerate(var_list):
-        if v.strand == MAIN_STRAND:
-            # v: ref hapA
-            main_pos = v.alt_pos
-            erg_main_allele = v.alt_allele
-            erg_alt_allele = v.ref_allele
-            offset = -v.offset + v.cor_offset
-            indel_diff += len(erg_main_allele) - len(erg_alt_allele)
-        else:
+        if v.strand == ALT_STRAND:
             # v: ref hapB
-            main_pos = v.alt_pos - v.offset + v.cor_offset
-            erg_main_allele = v.ref_allele
-            erg_alt_allele = v.alt_allele
-            offset = v.offset - v.cor_offset
-            indel_diff += len(erg_main_allele) - len(erg_alt_allele)
-        main_pos_list.append(main_pos)
-        main_allele_list.append(erg_main_allele)
-        if i == 0:
-            erg_start_pos = main_pos - f_len
-            erg += main_genome[main_pos - f_len : main_pos]
-            offset_init = offset
-        else:
-            erg += main_genome[
-                main_pos_list[i-1] + len(main_allele_list[i-1]) : 
-                main_pos
-            ]
-        erg += erg_alt_allele
-    erg += main_genome[
-        main_pos + len(erg_main_allele) : 
-        main_pos + len(erg_main_allele) + f_len
-    ]
+            ref_pos = v.ref_pos
+            erg += ref_genome[nxt_start_pos : ref_pos]
+            erg += v.alt_allele
+            nxt_start_pos = ref_pos + len(v.ref_allele)
+    if len(erg) == 0:
+        erg = erg_ref
+    else:
+        erg += ref_genome[nxt_start_pos : ref_end_pos]
 
-    erg_start_pos = erg_start_pos + offset_init# - indel_diff
-    erg_end_pos = main_pos_list[-1] + len(erg_alt_allele) + f_len + offset
+    # coordinate on ALT_STRAND
+    alt_start_pos = ref_start_pos + offset_start
+    alt_end_pos = ref_end_pos + offset_end
 
+    # set this True for testing mode
+    TEST_DETAILS = False
     if test_genome:
-        full_g = test_genome[erg_start_pos : erg_end_pos]
-        print (
-            '>%sB-erg-%s-%s' % 
-            (chrm, erg_start_pos, erg_end_pos)
-        )
-        print (full_g)
-        #if erg == full_g:
-        #    print ('pass')
-        #    return
-        #print ('fail')
-
-        #print (erg_start_pos, erg_end_pos)
-        #print ('offset_init', offset_init, 'offset', offset)
-        #print ('erg:\t', erg)
-        #print ('f_seq:\t', full_g)
-        #for i, v in enumerate(var_list):
-        #    print (v.line)
-        #input()
+        full_g = test_genome[alt_start_pos : alt_end_pos]
+        
+        if erg == full_g:
+            print ('pass')
+            return
+        print ('fail')
+        
+        if TEST_DETAILS:
+            print (alt_start_pos, alt_end_pos)
+            print ('erg:\t', erg)
+            print ('f_seq:\t', full_g)
+            for i, v in enumerate(var_list):
+                print (v.line)
+            input()
     else:
         # write erg
         print (
             '>%sB-erg-%s-%s' % 
-            (chrm, erg_start_pos, erg_end_pos)
+            (chrm, alt_start_pos, alt_end_pos)
         )
         print (erg)
 
@@ -179,14 +171,14 @@ def build_index(var_list, main_index, alt_index):
 
 def build_erg(
     main_genome, 
+    ref_genome,
     test_genome,
-    var_fn, 
+    var_list,
     hap_mode, 
     f_len, 
     mode
 ):
-    var_f = open(var_fn, 'r')
-    var_list = []
+    tmp_var_list = []
     # indexes for 'index' mode
     main_index = {}
     alt_index = {}
@@ -195,63 +187,82 @@ def build_erg(
         print ('supported modes = [erg, index]')
         exit()
 
-    for line in var_f:
-        vinfo = VarInfo(line)
-        if len(var_list) > 0:
-            prev_var = var_list[len(var_list) - 1]
+    for vinfo in var_list:
+        if len(tmp_var_list) > 0:
+            prev_var = tmp_var_list[len(tmp_var_list) - 1]
         else:
             prev_var = 0
         if __debug__:
             print (prev_var)
             print (vinfo.line)
-        if vinfo.strand == MAIN_STRAND:
-            if len(var_list) > 0 and \
-                vinfo.alt_pos > prev_var.alt_pos + 2 * f_len:
-                # write previous vars
-                if mode == 'erg':
-                    write_erg(var_list, main_genome, f_len, test_genome)
-                else:
-                    build_index(var_list, main_index, alt_index)
-                # reset
-                var_list = [vinfo]
-            elif len(var_list) > 0:
-                var_list.append(vinfo)
-            else: # len == 0
-                var_list = [vinfo]
-            continue
-        # var not main strand
-        if vinfo.samevar(prev_var):
-            # delete a var if it occurs in both strands
-            if __debug__:
-                print ('samevar')
-                print ('A*', prev_var.line)
-                print ('B*', vinfo.line)
-            del var_list[len(var_list) - 1]
-            continue
-        else:
-            if prev_var == 0:
-                var_list.append(vinfo)
-            elif vinfo.alt_pos > prev_var.alt_pos + 2 * f_len:
-                if mode == 'erg':
-                    write_erg(var_list, main_genome, f_len, test_genome)
-                else:
-                    build_index(var_list, main_index, alt_index)
-                var_list = [vinfo]
+        if len(tmp_var_list) > 0 and \
+            vinfo.ref_pos > prev_var.ref_pos + 2 * f_len:
+            # write previous vars
+            if mode == 'erg':
+                write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
             else:
-                var_list.append(vinfo)
+                build_index(tmp_var_list, main_index, alt_index)
+            # reset
+            tmp_var_list = [vinfo]
+        elif len(tmp_var_list) > 0:
+            tmp_var_list.append(vinfo)
+        else: # len == 0
+            tmp_var_list = [vinfo]
     if mode == 'erg':
-        write_erg(var_list, main_genome, f_len, test_genome)
+        write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
     else:
-        build_index(var_list, main_index, alt_index)
-    var_f.close()
+        build_index(tmp_var_list, main_index, alt_index)
     if mode == 'index':
         return main_index, alt_index
+
+def remove_redundant_vars(var_fn):
+    SHOW_REMOVED = False
+    removed_count = 0
+    var_f = open(var_fn, 'r')
+    del_pos = {MAIN_STRAND:[], ALT_STRAND:[]}
+    del_allele = {MAIN_STRAND:[], ALT_STRAND:[]}
+    var_list = []
+    for line in var_f:
+        v = VarInfo(line)
+        if v.is_del():
+            vd = del_pos[v.strand]
+            if len(vd) > 0 and vd[len(vd) - 1] < v.ref_pos:
+                del_pos[v.strand] = []
+                del_allele[v.strand] = []
+            for i in range(len(v.ref_allele)):
+                del_pos[v.strand].append(v.ref_pos + i)
+                del_allele[v.strand].append(v.ref_allele[i])
+            var_list.append(v)
+            continue
+        if v.ref_pos in del_pos[v.strand]:
+            d = del_allele[v.strand][del_pos[v.strand].index(v.ref_pos)]
+            if d != v.ref_allele:
+                print ('Error: conflict at', v.ref_pos, d)
+                input (v.line)
+                exit()
+            removed_count += 1
+            if SHOW_REMOVED:
+                print ('"%s"' % v.strand, v.ref_pos, d)
+        else:
+            var_list.append(v)
+
+    # Set this True to show remove information
+    SHOW_REMOVE_INFO = False
+    if SHOW_REMOVE_INFO:
+        print (removed_count, 'redundant vars are removed')
+        print ('Num of variants =', len(var_list))
+
+    return var_list
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-m', '--main_genome',
         help='main genome file'
+    )
+    parser.add_argument(
+        '-r', '--ref_genome',
+        help='ref genome file'
     )
     parser.add_argument(
         '-t', '--test_genome',
@@ -279,25 +290,32 @@ def parse_args():
     )
     args = parser.parse_args()
     mg_fn = args.main_genome
+    rg_fn = args.ref_genome
     tg_fn = args.test_genome
     var_fn = args.var
     hap_mode = args.hap
     print_mg = args.print_mg
     f_len = args.flanking_len
 
-    return mg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg
+    return mg_fn, rg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg
 
 if __name__ == '__main__':
-    mg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg = parse_args()
+    mg_fn, rg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg = parse_args()
+
+    ref_genome = read_genome(rg_fn, None)
     main_genome = read_genome(mg_fn, print_mg)
     if tg_fn:
         test_genome = read_genome(tg_fn, None)
     else:
         test_genome = None
+    
+    var_list = remove_redundant_vars(var_fn)
+
     build_erg(
         main_genome=main_genome, 
+        ref_genome=ref_genome,
         test_genome=test_genome, 
-        var_fn=var_fn, 
+        var_list=var_list,
         hap_mode=hap_mode, 
         f_len=f_len, 
         mode='erg'
