@@ -1,12 +1,83 @@
 '''
-Last update: 2018/11/29 by Nae-Chyun Chen
-
 Analyzes aligned sam with synthetic golden data
 and measures sensitivity
 '''
 import argparse
 import pickle
 import os
+
+class Summary:
+    '''
+    Records the summary of analysis
+    '''
+    num_total = 0
+    num_same_strand = 0
+    num_diff_id = 0
+    num_diff_var = 0
+    num_unaligned = 0
+    # If golden is specified:
+    has_answer = True
+    num_true_pos = 0
+    num_false_ss = 0    
+    num_false_id = 0
+    num_false_var = 0
+
+    def __init__(self, has_answer):
+        if has_answer == False:
+            self.num_true_pos = None
+            self.num_false_ss = None   
+            self.num_false_id = None
+            self.num_false_var = None
+            self.has_answer = False
+
+    def add_one(self):
+        self.num_total += 1
+
+    def add_unaligned(self):
+        self.num_unaligned += 1    
+
+    def add_diff_id(self, comp):
+        self.num_diff_id += 1
+        if self.has_answer == False:
+            return
+        if comp:
+            self.num_true_pos += 1
+        else:
+            self.num_false_id += 1
+
+    def add_diff_var(self, comp):
+        self.num_diff_var += 1
+        if self.has_answer == False:
+            return
+        if comp:
+            self.num_true_pos += 1
+        else:
+            self.num_false_var += 1
+
+    def add_same_strand(self, comp):
+        self.num_same_strand += 1
+        if self.has_answer == False:
+            return
+        if comp:
+            self.num_true_pos += 1
+        else:
+            self.num_false_ss += 1
+    
+    def show_summary(self, has_answer):
+        print ('\n------ Alignment category distribution ------')
+        print ('Same strand:', self.num_same_strand)
+        print ('Diff/identical strand:', self.num_diff_id) 
+        print ('Diff strand with variants:', self.num_diff_var)
+        print ('Unaligned:', self.num_unaligned)
+        print ('Total:', self.num_total)
+
+        if has_answer:
+            print ('\n------ Alignment accuracy ------')
+            print ('True: %d (%.2f%%)' % (self.num_true_pos, 100*float(self.num_true_pos)/ self.num_total))
+            print ('False same: %d (%.2f%%)' % (self.num_false_ss, 100*float(self.num_false_ss)/self.num_total))
+            print ('False diff-id: %d (%.2f%%)' % (self.num_false_id, 100*float(self.num_false_id)/self.num_total))
+            print ('False diff-var: %d (%.2f%%)' % (self.num_diff_var, 100*float(self.num_diff_var)/self.num_total))
+            print ('Unaligned: %d (%.2f%%)' % (self.num_unaligned, 100*float(self.num_unaligned)/self.num_total))
 
 class SamInfo:
     '''
@@ -29,8 +100,8 @@ class SamInfo:
             self.offset = int(tmp[2])
             self.chrm = tmp[0]
             self.pos += self.offset - 1
-            print (self.chrm)
-            input (self.offset)
+            # print (self.chrm)
+            # input (self.offset)
         self.update_score(line[11])
 
 #    def __init__(self, pos, chrm, flag, mapq, score):

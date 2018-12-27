@@ -1,3 +1,7 @@
+'''
+Build enhanced reference genome using a 
+pre-identified haplotype and a var file
+'''
 import argparse
 
 # In var file, the strand occurs
@@ -85,7 +89,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     Write one ERG seq
     '''
     erg = ''
-    offset_init = 0
+    # offset_init = 0
     # assume same chromosom
     chrm = var_list[0].chrm
     
@@ -107,7 +111,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     erg_ref = ref_genome[ref_start_pos : ref_end_pos]
     
     nxt_start_pos = ref_start_pos
-    for i, v in enumerate(var_list):
+    for v in var_list:
         if v.strand == ALT_STRAND:
             # v: ref hapB
             ref_pos = v.ref_pos
@@ -148,9 +152,10 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
         )
         print (erg)
 
+# TODO
 def build_index(var_list, main_index, alt_index):
     existed_pos_list = []
-    for i, v in enumerate(var_list):
+    for v in var_list:
         pos = v.alt_pos
         if pos in existed_pos_list:
             continue
@@ -158,14 +163,28 @@ def build_index(var_list, main_index, alt_index):
             existed_pos_list.append(pos)
         c_pos = pos - v.offset + v.cor_offset
         if v.strand == MAIN_STRAND:
+            # MAIN-MAIN: with replacement
             main_index[pos] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
-            alt_index[c_pos] = [pos, v.vtype, v.alt_allele, v.ref_allele]
+            # MAIN-ALT: without replacement
+            if alt_index.get(c_pos) == None:
+                alt_index[c_pos] = [pos, v.vtype, v.alt_allele, v.ref_allele]
         else:
+            # ALT-ALT: with replacement
             alt_index[pos] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
-            main_index[c_pos] = [pos, v.vtype, v.alt_allele, v.ref_allele]
-    if len(main_index) != len(alt_index):
-        for i, v in enumerate(var_list):
+            # ALT-MAIN: without replacement
+            if main_index.get(c_pos) == None:
+                main_index[c_pos] = [pos, v.vtype, v.alt_allele, v.ref_allele]
+    # TODO
+    '''
+    There is index imbalance problem due to 
+    overlapping or conflicting variants
+    '''
+    SHOW_IMBALANCE = False
+    if SHOW_IMBALANCE and (len(main_index) != len(alt_index)):
+        for v in var_list:
             print (v.line)
+        print (main_index)
+        print (alt_index)
         input()
     return main_index, alt_index
 
@@ -178,6 +197,11 @@ def build_erg(
     f_len, 
     mode
 ):
+    '''
+    modes:
+        'erg' - build erg
+        'index' - build indexes for accuracy measurement
+    '''
     tmp_var_list = []
     # indexes for 'index' mode
     main_index = {}
@@ -215,7 +239,10 @@ def build_erg(
     if mode == 'index':
         return main_index, alt_index
 
-def remove_redundant_vars(var_fn):
+def read_var(var_fn, remove_redundant):
+    '''
+    Build a dictionary for the .var file
+    '''
     SHOW_REMOVED = False
     removed_count = 0
     var_f = open(var_fn, 'r')
@@ -224,6 +251,9 @@ def remove_redundant_vars(var_fn):
     var_list = []
     for line in var_f:
         v = VarInfo(line)
+        if remove_redundant == False:
+            var_list.append(v)
+            continue
         if v.is_del():
             vd = del_pos[v.strand]
             if len(vd) > 0 and vd[len(vd) - 1] < v.ref_pos:
@@ -309,7 +339,7 @@ if __name__ == '__main__':
     else:
         test_genome = None
     
-    var_list = remove_redundant_vars(var_fn)
+    var_list = read_var(var_fn, remove_redundant=True)
 
     build_erg(
         main_genome=main_genome, 
