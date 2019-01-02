@@ -100,28 +100,19 @@ class SamInfo:
             self.offset = int(tmp[2])
             self.chrm = tmp[0]
             self.pos += self.offset - 1
-            # print (self.chrm)
-            # input (self.offset)
         self.update_score(line[11])
-
-#    def __init__(self, pos, chrm, flag, mapq, score):
-#        self.pos = int(pos)
-#        self.chrm = chrm
-#        self.flag = int(flag)
-#        self.mapq = int(mapq)
-#        self.update_score(score)
-#        self.offset = 0
     
     def print(self,
             pos=True, chrm=True,
             flag=True, mapq=True,
             score=True, offset=True):
-        if pos: print ('pos =', self.pos)
-        if chrm: print ('chrm =', self.chrm)
-        if flag: print ('flag =', self.flag)
-        if mapq: print ('mapq =', self.mapq)
-        if score: print ('score =', self.score)
-        if offset: print ('offset =', self.offset)
+        if pos:    print ('  pos =', self.pos)
+        if chrm:   print ('  chrm =', self.chrm)
+        if flag:   print ('  flag =', self.flag)
+        if mapq:   print ('  mapq =', self.mapq)
+        if score:  print ('  score =', self.score)
+        if offset: print ('  offset =', self.offset)
+        return
 
     def is_unaligned(self):
         if self.flag & 4: return True
@@ -145,8 +136,6 @@ class SamInfo:
             return
         elif raw_score.startswith('AS:') is False:
             self.score = 1
-#            print ('Warning: incorrect AS information!')
-#            input ()
             return
         self.score = int(raw_score.split(':')[-1])
 
@@ -171,11 +160,11 @@ def parse_args():
         default=1,
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [1]'
     )
-    parser.add_argument(
-        '--haploid', type=int,
-        default=1,
-        help='1: haploid input, 2: diploid input [1]'
-    )
+    # parser.add_argument(
+    #     '--haploid', type=int,
+    #     default=1,
+    #     help='1: haploid input, 2: diploid input [1]'
+    # )
     parser.add_argument(
         '--by_score', type=int,
         default=0,
@@ -200,14 +189,9 @@ def parse_line(line, by_score):
     line = line.split()
     name = line[0]
     info = SamInfo(line)
-#    flag = int(line[1])
-#    chrm = line[2]
-#    pos = int(line[3])
-#    mapq = int(line[4])
-#    info = SamInfo(pos, chrm, flag, mapq, line[11])
     return name, info
 
-def compare_sam_info(info, ginfo, threshold):
+def compare_sam_info(info, ginfo, threshold, offset = 0):
     if info.chrm != ginfo.chrm:
         # diff chromosome
         if __debug__: print ("False: chr, mapq =", info.mapq)
@@ -218,7 +202,7 @@ def compare_sam_info(info, ginfo, threshold):
             print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), \
                     "mapq =", info.mapq)
         return False
-    if abs(info.pos - ginfo.pos) > threshold:
+    if abs(info.pos + offset - ginfo.pos) > threshold:
         if __debug__: print ("False: distance > threshold, mapq =", info.mapq)
         return False
     if __debug__: print ("True, mapq =", info.mapq)
@@ -265,7 +249,7 @@ def analyze_sam(args):
     golden = args.golden
     threshold = args.threshold
     seg = args.seg
-    haploid = args.haploid
+    # haploid = args.haploid
     by_score = args.by_score
     by_mapq = args.by_mapq
     secondary = args.secondary
