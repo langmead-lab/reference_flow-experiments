@@ -7,9 +7,9 @@ import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import build_erg, read_var
 
-MAIN_CHRM = '9A'
+MAIN_CHRM = '9'
 MAIN_HAP = 'hapA'
-ALT_CHRM = '9B'
+ALT_CHRM = '9'
 ALT_HAP = 'hapB'
 STEP = 1000
 
@@ -33,47 +33,23 @@ def parse_args():
         default=100,
         help='read length [100]'
     )
-    # parser.add_argument(
-    #     '-d', '--diff',
-    #     help='the snp file specifying the differences between two haplotypes'
-    # )
+    parser.add_argument(
+        '-d', '--diploid', type=int,
+        default=0,
+        help='specify whether the alignments are from diploid (1) or haploid (0) sample [0]'
+    )
     parser.add_argument(
         '--var',
         default=None,
         help='the file specifying the variants'
     )
     args = parser.parse_args()
+    if args.diploid == 1:
+        global MAIN_CHRM
+        MAIN_CHRM = '9A'
+        global ALT_CHRM
+        ALT_CHRM = '9B'
     return args
-
-# def build_var_dic(var_fn):
-#     '''
-#     Build a dictionary for the .var file
-    
-#     var file format:
-#     STRAND CHRM TYPE REFPOS ALTPOS REF ALT OFFSET
-
-#     key:
-#         STRAND_CHRM_ALTPOS (str)
-#     value:
-#         TYPE, REFPOS, REF, ALT, OFFSET (list)
-#     '''
-#     var_dic = {}
-#     with open(var_fn, 'r') as var_f:
-#         for line in var_f:
-#             line = line.split()
-#             strand = line[0]
-#             chrm = line[1]
-#             vtype = line[2]
-#             ref_pos = line[3]
-#             alt_pos = line[4]
-#             ref_allele = line[5]
-#             alt_allele = line[6]
-#             offset = line[7]
-#             c_offset = line[8]
-#             v_key = strand + '_' + chrm + '_' + alt_pos
-#             var_dic[v_key] = vtype, ref_pos, ref_allele, alt_allele, offset, c_offset
-#             # input (var_dic)
-#     return var_dic
 
 def build_offset_index(var_list):
     '''
