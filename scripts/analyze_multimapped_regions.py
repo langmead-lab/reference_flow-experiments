@@ -124,10 +124,10 @@ def diploid_compare(
     alt_offset_index = {}
 ):
     # don't check the other strand
-    if dip_flag in ['c', 'n']:
+    if dip_flag in ['c']: #, 'n']:
         return compare_sam_info(info, g_info, threshold)
     # check the other strand
-    elif dip_flag == 'i':
+    elif dip_flag in ['i', 'n']:
         if info.chrm == MAIN_CHRM:
             # info.print()
             # g_info.print()
@@ -255,7 +255,8 @@ def analyze_mutimapped_regions(args):
                         exit()
                 # aligned to incorrect haplotype and two haps are NOT equal
                 if v_id_hap == False:
-                    comp = diploid_compare(info, golden_dic[name], threshold, 'n')
+                    comp = diploid_compare(info, golden_dic[name], threshold, 'n', main_offset_index, alt_offset_index)
+                    # comp = diploid_compare(info, golden_dic[name], threshold, 'n')
                     dip_flag = 'n'
                     summary.add_diff_var(comp)
                 else:

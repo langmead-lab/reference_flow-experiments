@@ -76,7 +76,7 @@ class Summary:
             print ('True: %d (%.2f%%)' % (self.num_true_pos, 100*float(self.num_true_pos)/ self.num_total))
             print ('False same: %d (%.2f%%)' % (self.num_false_ss, 100*float(self.num_false_ss)/self.num_total))
             print ('False diff-id: %d (%.2f%%)' % (self.num_false_id, 100*float(self.num_false_id)/self.num_total))
-            print ('False diff-var: %d (%.2f%%)' % (self.num_diff_var, 100*float(self.num_diff_var)/self.num_total))
+            print ('False diff-var: %d (%.2f%%)' % (self.num_false_var, 100*float(self.num_false_var)/self.num_total))
             print ('Unaligned: %d (%.2f%%)' % (self.num_unaligned, 100*float(self.num_unaligned)/self.num_total))
 
 class SamInfo:
