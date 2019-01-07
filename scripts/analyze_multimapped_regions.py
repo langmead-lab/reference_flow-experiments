@@ -7,11 +7,11 @@ import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import build_erg, read_var
 
-MAIN_CHRM = '9'
-MAIN_HAP = 'hapA'
-ALT_CHRM = '9'
-ALT_HAP = 'hapB'
-STEP = 1000
+# # MAIN_CHRM = '9'
+# MAIN_HAP = 'hapA'
+# # ALT_CHRM = '9'
+# ALT_HAP = 'hapB'
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -44,11 +44,18 @@ def parse_args():
         help='the file specifying the variants'
     )
     args = parser.parse_args()
+
+    # Global variables
+    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP
+    MAIN_HAP = 'hapA'
+    ALT_HAP = 'hapB'
+    STEP = 1000
     if args.diploid == 1:
-        global MAIN_CHRM
         MAIN_CHRM = '9A'
-        global ALT_CHRM
         ALT_CHRM = '9B'
+    else:
+        MAIN_CHRM = '9'
+        ALT_CHRM = '9'
     return args
 
 def build_offset_index(var_list):
@@ -124,10 +131,10 @@ def diploid_compare(
     alt_offset_index = {}
 ):
     # don't check the other strand
-    if dip_flag in ['c']: #, 'n']:
+    if dip_flag in ['same_strand']: #, 'n']:
         return compare_sam_info(info, g_info, threshold)
     # check the other strand
-    elif dip_flag in ['i', 'n']:
+    elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
             # info.print()
             # g_info.print()
@@ -179,12 +186,6 @@ def diploid_compare(
         else:
             print ('Error: invalid chrm', info.chrm)
             exit()
-        # info.chrm = MAIN_CHRM
-        # comp1 = compare_sam_info(info, g_info, threshold)
-        # info.chrm = ALT_CHRM
-        # comp2 = compare_sam_info(info, g_info, threshold)
-#        input ('i: %s' % (comp1 | comp2))
-        # return comp1 | comp2
     else:
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
@@ -208,8 +209,6 @@ def analyze_mutimapped_regions(args):
     var_fn = args.var
 
     var_list = read_var(var_fn, remove_redundant=True)
-    # print (var_list)
-    # var_dic = build_var_dic(var_fn)
     main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list)
     '''
     MAIN/ALT indexes:
@@ -218,66 +217,63 @@ def analyze_mutimapped_regions(args):
     '''
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
-    with open(sam_fn, 'r') as sam_f:
-        for line in sam_f:
-            name, info = parse_line(line, 0)
-            # headers
-            if name == 'header':
-#                print (line[:line.find('\\')])
-                continue
-#            if info.mapq < 10:
-#                print (line[:line.find('\\')])
-#            continue
-            summary.add_one()
-            # aligned to incorrect haplotype
-            if info.is_unaligned():
-                summary.add_unaligned()
-                dip_flag = 'u'
-                comp = False
-            elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
-            or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
-                v_id_hap = True
-                for i in range(info.pos, info.pos + read_len):
-                    if info.chrm == MAIN_CHRM:
-                        if main_index.get(i) != None:
-                            v_id_hap = False
-                            # print ('var_dic', i, main_index.get(i))
-                            # input ()
-                            break
-                    elif info.chrm == ALT_CHRM:
-                        if alt_index.get(i) != None:
-                            v_id_hap = False
-                            # print (i, alt_index.get(i))
-                            # input ()
-                            break
-                    else:
-                        print ('Error: unexpected chrm', info.chrm)
-                        exit()
-                # aligned to incorrect haplotype and two haps are NOT equal
-                if v_id_hap == False:
-                    comp = diploid_compare(info, golden_dic[name], threshold, 'n', main_offset_index, alt_offset_index)
-                    # comp = diploid_compare(info, golden_dic[name], threshold, 'n')
-                    dip_flag = 'n'
-                    summary.add_diff_var(comp)
+    sam_f = open(sam_fn, 'r')
+    # with open(sam_fn, 'r') as sam_f:
+    for line in sam_f:
+        name, info = parse_line(line, 0)
+        # headers
+        if name == 'header':
+                # print (line[:line.find('\\')])
+            continue
+        #    if info.mapq < 10:
+        #        print (line[:line.find('\\')])
+        #    continue
+        summary.add_one()
+        # aligned to incorrect haplotype
+        if info.is_unaligned():
+            summary.add_unaligned()
+            comp = False
+        elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
+        or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
+            v_id_hap = True
+            for i in range(info.pos, info.pos + read_len):
+                if info.chrm == MAIN_CHRM:
+                    if main_index.get(i) != None:
+                        v_id_hap = False
+                        # print ('var_dic', i, main_index.get(i))
+                        # input ()
+                        break
+                elif info.chrm == ALT_CHRM:
+                    if alt_index.get(i) != None:
+                        v_id_hap = False
+                        # print (i, alt_index.get(i))
+                        # input ()
+                        break
                 else:
-                    dip_flag = 'i'
-                    comp = diploid_compare(info, golden_dic[name], threshold, 'i', main_offset_index, alt_offset_index)
-                    summary.add_diff_id(comp)
+                    print ('Error: unexpected chrm', info.chrm)
+                    exit()
+            # aligned to incorrect haplotype and two haps are NOT equal
+            if v_id_hap == False:
+                comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
+                # comp = diploid_compare(info, golden_dic[name], threshold, 'n')
+                summary.add_diff_var(comp)
             else:
-                dip_flag = 'c'
-                comp = diploid_compare(info, golden_dic[name], threshold, 'c')
-                summary.add_same_strand(comp)
-            if __debug__:
-                if comp: continue
-                print ('dip_flag =', dip_flag)
-                print ('info')
-                info.print(flag=False, mapq=False, score=False)
-                print ()
-                print ('golden')
-                golden_dic[name].print(flag=False, mapq=False, score=False)
-                input ('comp=%s\n' % comp)
-    
+                comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
+                summary.add_diff_id(comp)
+        else:
+            comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
+            summary.add_same_strand(comp)
+        if __debug__:
+            if comp: continue
+            print ('info')
+            info.print(flag=False, mapq=False, score=False)
+            print ()
+            print ('golden')
+            golden_dic[name].print(flag=False, mapq=False, score=False)
+            input ('comp=%s\n' % comp)
+
     summary.show_summary(has_answer = True)
+    sam_f.close()
 
 if __name__ == '__main__':
     args = parse_args()

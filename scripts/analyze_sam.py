@@ -160,11 +160,6 @@ def parse_args():
         default=1,
         help='0: paired-end mode, 1: unpaired_1, 2: unpaired_2 [1]'
     )
-    # parser.add_argument(
-    #     '--haploid', type=int,
-    #     default=1,
-    #     help='1: haploid input, 2: diploid input [1]'
-    # )
     parser.add_argument(
         '--by_score', type=int,
         default=0,
