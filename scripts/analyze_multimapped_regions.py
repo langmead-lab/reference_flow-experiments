@@ -33,10 +33,10 @@ def parse_args():
         default=100,
         help='read length [100]'
     )
-    parser.add_argument(
-        '-d', '--diff',
-        help='the snp file specifying the differences between two haplotypes'
-    )
+    # parser.add_argument(
+    #     '-d', '--diff',
+    #     help='the snp file specifying the differences between two haplotypes'
+    # )
     parser.add_argument(
         '--var',
         default=None,
@@ -102,25 +102,16 @@ def build_offset_index(var_list):
             main_offset = v.offset - v.cor_offset
             alt_offset = -v.offset + v.cor_offset
         while main_pos > STEP * len(main_offset_index):
-            # print ('MAIN_POS')
-            # print (main_pos)
             if main_pos > STEP * (len(main_offset_index) - 1):
                 main_offset_index.append(alt_offset)
             else:
                 main_offset_index.append(main_offset_index[len(main_offset_index) - 1])
         while alt_pos > STEP * len(alt_offset_index):
-            # print ('ALT_POS')
-            # print (alt_pos)
             if alt_pos > STEP * (len(alt_offset_index) - 1):
                 alt_offset_index.append(main_offset)
             else:
                 alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
-        # print (v.line)
-        # print ('len(main_index)', len(main_index))
-        # print ('main', main_index)
-        # print ('len(alt_index)', len(alt_index))
-        # print ('alt ', alt_index)
-        # input ()
+
     main_index, alt_index = \
         build_erg(
             main_genome = '', 
@@ -131,9 +122,8 @@ def build_offset_index(var_list):
             f_len = 100, 
             mode = 'index'
         )
-    # print (len(main_index))
-    # print (len(alt_index))
     return main_index, alt_index, main_offset_index, alt_offset_index
+
 '''
 def build_diff_dic(diff_snp_fn):
     # build dictionary
@@ -147,6 +137,8 @@ def build_diff_dic(diff_snp_fn):
             diff_snp_dic[pos] = line[1], line[2]
     return diff_snp_dic
 '''
+
+# TODO
 def diploid_compare(
     info, 
     g_info, 
@@ -161,21 +153,53 @@ def diploid_compare(
     # check the other strand
     elif dip_flag == 'i':
         if info.chrm == MAIN_CHRM:
+            # info.print()
+            # g_info.print()
             info.chrm = ALT_CHRM
             i = int(info.pos / STEP)
             if i >= len(main_offset_index):
                 info.pos += main_offset_index[len(main_offset_index) - 1]
+                # print (main_offset_index[len(main_offset_index) - 1])
             else:
                 info.pos += main_offset_index[i]
-            return compare_sam_info(info, g_info, threshold)
+                # print (main_offset_index[i])
+            # print (info.pos, g_info.pos)
+            comp1 = compare_sam_info(info, g_info, threshold)
+            # return comp1
+            if i >= len(main_offset_index):
+                info.pos -= 2 * main_offset_index[len(main_offset_index) - 1]
+                # print (main_offset_index[len(main_offset_index) - 1])
+            else:
+                info.pos -= 2 * main_offset_index[i]
+                # print (main_offset_index[i])
+            # print (info.pos, g_info.pos)
+            comp2 = compare_sam_info(info, g_info, threshold)
+            # input (comp1 | comp2)
+            return comp1 | comp2
         elif info.chrm == ALT_CHRM:
+            # info.print()
+            # g_info.print()
             info.chrm = MAIN_CHRM
             i = int(info.pos / STEP)
             if i >= len(alt_offset_index):
                 info.pos += alt_offset_index[len(alt_offset_index) - 1]
+                # print (alt_offset_index[len(alt_offset_index) - 1])
             else:
                 info.pos += alt_offset_index[i]
-            return compare_sam_info(info, g_info, threshold)
+                # print (alt_offset_index[i])
+            # print (info.pos, g_info.pos)
+            comp1 = compare_sam_info(info, g_info, threshold)
+            # return comp1
+            if i >= len(alt_offset_index):
+                info.pos -= 2 * alt_offset_index[len(alt_offset_index) - 1]
+                # print (alt_offset_index[len(alt_offset_index) - 1])
+            else:
+                info.pos -= 2 * alt_offset_index[i]
+                # print (alt_offset_index[i])
+            # print (info.pos, g_info.pos)
+            comp2 = compare_sam_info(info, g_info, threshold)
+            # input (comp1 | comp2)
+            return comp1 | comp2
         else:
             print ('Error: invalid chrm', info.chrm)
             exit()
@@ -234,7 +258,6 @@ def analyze_mutimapped_regions(args):
                 summary.add_unaligned()
                 dip_flag = 'u'
                 comp = False
-            # TODO: this condition should be more generic
             elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
             or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
                 v_id_hap = True

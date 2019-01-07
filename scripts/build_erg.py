@@ -141,7 +141,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
             print (alt_start_pos, alt_end_pos)
             print ('erg:\t', erg)
             print ('f_seq:\t', full_g)
-            for i, v in enumerate(var_list):
+            for v in var_list:
                 print (v.line)
             input()
     else:
@@ -216,9 +216,9 @@ def build_erg(
             prev_var = tmp_var_list[len(tmp_var_list) - 1]
         else:
             prev_var = 0
-        if __debug__:
-            print (prev_var)
-            print (vinfo.line)
+        # if __debug__:
+        #     print (prev_var)
+        #     print (vinfo.line)
         if len(tmp_var_list) > 0 and \
             vinfo.ref_pos > prev_var.ref_pos + 2 * f_len:
             # write previous vars
