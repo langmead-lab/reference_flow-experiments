@@ -74,16 +74,21 @@ def build_offset_index(var_list):
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
     for v in var_list:
-        if v.chrm == MAIN_CHRM:
+        MAIN_STRAND = 'A'
+        ALT_STRAND = 'B'
+        if v.strand == MAIN_STRAND:
             main_pos = v.alt_pos
             alt_pos = v.alt_pos + v.offset - v.cor_offset
             main_offset = -v.offset + v.cor_offset
             alt_offset = v.offset - v.cor_offset
-        else:
+        elif v.strand == ALT_STRAND:
             main_pos = v.alt_pos + v.offset - v.cor_offset
             alt_pos = v.alt_pos
             main_offset = v.offset - v.cor_offset
             alt_offset = -v.offset + v.cor_offset
+        else:
+            print ('Error: unspecified strand', v.strand)
+            exit()
         while main_pos > STEP * len(main_offset_index):
             if main_pos > STEP * (len(main_offset_index) - 1):
                 main_offset_index.append(alt_offset)
@@ -136,53 +141,23 @@ def diploid_compare(
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
-            # info.print()
-            # g_info.print()
             info.chrm = ALT_CHRM
             i = int(info.pos / STEP)
             if i >= len(main_offset_index):
-                info.pos += main_offset_index[len(main_offset_index) - 1]
-                # print (main_offset_index[len(main_offset_index) - 1])
+                info.pos -= main_offset_index[len(main_offset_index) - 1]
             else:
-                info.pos += main_offset_index[i]
-                # print (main_offset_index[i])
-            # print (info.pos, g_info.pos)
-            comp1 = compare_sam_info(info, g_info, threshold)
-            # return comp1
-            if i >= len(main_offset_index):
-                info.pos -= 2 * main_offset_index[len(main_offset_index) - 1]
-                # print (main_offset_index[len(main_offset_index) - 1])
-            else:
-                info.pos -= 2 * main_offset_index[i]
-                # print (main_offset_index[i])
-            # print (info.pos, g_info.pos)
-            comp2 = compare_sam_info(info, g_info, threshold)
-            # input (comp1 | comp2)
-            return comp1 | comp2
+                info.pos -= main_offset_index[i]
+            comp = compare_sam_info(info, g_info, threshold)
+            return comp
         elif info.chrm == ALT_CHRM:
-            # info.print()
-            # g_info.print()
             info.chrm = MAIN_CHRM
             i = int(info.pos / STEP)
             if i >= len(alt_offset_index):
-                info.pos += alt_offset_index[len(alt_offset_index) - 1]
-                # print (alt_offset_index[len(alt_offset_index) - 1])
+                info.pos -= alt_offset_index[len(alt_offset_index) - 1]
             else:
-                info.pos += alt_offset_index[i]
-                # print (alt_offset_index[i])
-            # print (info.pos, g_info.pos)
-            comp1 = compare_sam_info(info, g_info, threshold)
-            # return comp1
-            if i >= len(alt_offset_index):
-                info.pos -= 2 * alt_offset_index[len(alt_offset_index) - 1]
-                # print (alt_offset_index[len(alt_offset_index) - 1])
-            else:
-                info.pos -= 2 * alt_offset_index[i]
-                # print (alt_offset_index[i])
-            # print (info.pos, g_info.pos)
-            comp2 = compare_sam_info(info, g_info, threshold)
-            # input (comp1 | comp2)
-            return comp1 | comp2
+                info.pos -= alt_offset_index[i]
+            comp = compare_sam_info(info, g_info, threshold)
+            return comp
         else:
             print ('Error: invalid chrm', info.chrm)
             exit()
@@ -207,9 +182,16 @@ def analyze_mutimapped_regions(args):
     threshold = args.threshold
     read_len = args.read_len
     var_fn = args.var
+    diploid = args.diploid
 
     var_list = read_var(var_fn, remove_redundant=True)
-    main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list)
+    if diploid == 1:
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list)
+    else:
+        main_index = {}
+        alt_index = {}
+        main_offset_index = {}
+        alt_offset_index = {}
     '''
     MAIN/ALT indexes:
         key: pos on MAIN/ALT
@@ -218,7 +200,6 @@ def analyze_mutimapped_regions(args):
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
     sam_f = open(sam_fn, 'r')
-    # with open(sam_fn, 'r') as sam_f:
     for line in sam_f:
         name, info = parse_line(line, 0)
         # headers
