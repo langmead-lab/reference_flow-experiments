@@ -234,11 +234,17 @@ def analyze_mutimapped_regions(args):
         name, info = parse_line(line, 0)
         # headers
         if name == 'header':
-                # print (line[:line.find('\\')])
+            '''
+            # kept for low-q experiment
+            print (line[:line.find('\\')])
+            '''
             continue
-        #    if info.mapq < 10:
-        #        print (line[:line.find('\\')])
-        #    continue
+        '''
+        # kept for low-q experiment
+        if info.mapq < 10:
+           print (line[:line.find('\\')])
+        continue
+        '''
         summary.add_one()
         # aligned to incorrect haplotype
         if info.is_unaligned():
