@@ -34,9 +34,9 @@ def parse_args():
         help='read length [100]'
     )
     parser.add_argument(
-        '-d', '--diploid', type=int,
+        '-p', '--personalized', type=int,
         default=0,
-        help='specify whether the alignments are from diploid (1) or haploid (0) sample [0]'
+        help='specify whether the ref seq(s) are standard (0), personalized-haploid (1), or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
         '--var',
@@ -46,11 +46,13 @@ def parse_args():
     args = parser.parse_args()
 
     # Global variables
-    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP
+    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
     MAIN_HAP = 'hapA'
     ALT_HAP = 'hapB'
+    MAIN_STRAND = 'A'
+    ALT_STRAND = 'B'
     STEP = 1000
-    if args.diploid == 1:
+    if args.personalized == 2:
         MAIN_CHRM = '9A'
         ALT_CHRM = '9B'
     else:
@@ -58,7 +60,7 @@ def parse_args():
         ALT_CHRM = '9'
     return args
 
-def build_offset_index(var_list):
+def build_offset_index(var_list, per):
     '''
     MAIN/ALT-offset indexes are dictionaries with
         key: pos on MAIN/ALT
@@ -74,57 +76,60 @@ def build_offset_index(var_list):
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
     for v in var_list:
-        MAIN_STRAND = 'A'
-        ALT_STRAND = 'B'
         if v.strand == MAIN_STRAND:
             main_pos = v.alt_pos
             alt_pos = v.alt_pos + v.offset - v.cor_offset
-            main_offset = -v.offset + v.cor_offset
-            alt_offset = v.offset - v.cor_offset
+            if per == 2:
+                main_offset = -v.offset + v.cor_offset
+                alt_offset = v.offset - v.cor_offset
+            else:
+                # offset: ref to hap
+                main_offset = v.offset
+                alt_offset = v.cor_offset
         elif v.strand == ALT_STRAND:
             main_pos = v.alt_pos + v.offset - v.cor_offset
             alt_pos = v.alt_pos
-            main_offset = v.offset - v.cor_offset
-            alt_offset = -v.offset + v.cor_offset
+            if per == 2:
+                main_offset = v.offset - v.cor_offset
+                alt_offset = -v.offset + v.cor_offset
+            else:
+                # offset: ref to hap
+                main_offset = v.cor_offset
+                alt_offset = v.offset
         else:
             print ('Error: unspecified strand', v.strand)
             exit()
         while main_pos > STEP * len(main_offset_index):
             if main_pos > STEP * (len(main_offset_index) - 1):
-                main_offset_index.append(alt_offset)
+                main_offset_index.append(main_offset)
             else:
                 main_offset_index.append(main_offset_index[len(main_offset_index) - 1])
         while alt_pos > STEP * len(alt_offset_index):
             if alt_pos > STEP * (len(alt_offset_index) - 1):
-                alt_offset_index.append(main_offset)
+                alt_offset_index.append(alt_offset)
             else:
                 alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
-
-    main_index, alt_index = \
-        build_erg(
-            main_genome = '', 
-            ref_genome = '',
-            test_genome = '',
-            var_list = var_list,
-            hap_mode = 1, 
-            f_len = 100, 
-            mode = 'index'
-        )
+        if __debug__:
+            print (v.line)
+            print (main_offset_index)
+            print (alt_offset_index)
+            input ()
+    
+    if per == 2:
+        main_index, alt_index = \
+            build_erg(
+                main_genome = '', 
+                ref_genome = '',
+                test_genome = '',
+                var_list = var_list,
+                hap_mode = 1, 
+                f_len = 100, 
+                mode = 'index'
+            )
+    else:
+        main_index = {}
+        alt_index = {}
     return main_index, alt_index, main_offset_index, alt_offset_index
-
-'''
-def build_diff_dic(diff_snp_fn):
-    # build dictionary
-    diff_snp_dic = {}
-    with open(diff_snp_fn, 'r') as diff_snp_f:
-        for line in diff_snp_f:
-            if line.startswith('pos'):
-                continue
-            line = line.split()
-            pos = int(line[0])
-            diff_snp_dic[pos] = line[1], line[2]
-    return diff_snp_dic
-'''
 
 # TODO
 def diploid_compare(
@@ -136,28 +141,47 @@ def diploid_compare(
     alt_offset_index = {}
 ):
     # don't check the other strand
-    if dip_flag in ['same_strand']: #, 'n']:
-        # this line is dangerous
-        info.chrm = g_info.chrm
+    if dip_flag in ['same_strand']:
         return compare_sam_info(info, g_info, threshold)
+    elif dip_flag in ['same_strand_ref']:
+        # neglect chrom name difference
+        info.chrm = g_info.chrm
+        i = int(info.pos / STEP)
+        # try hapA
+        if i >= len(main_offset_index):
+            diff = main_offset_index[len(main_offset_index) - 1]
+        else:
+            diff = main_offset_index[i]
+        info.pos += diff
+        # try hapB
+        comp1 = compare_sam_info(info, g_info, threshold)
+        info.pos -= diff
+        if i >= len(alt_offset_index):
+            diff = alt_offset_index[len(alt_offset_index) - 1]
+        else:
+            diff = alt_offset_index[i]
+        info.pos += diff
+        comp2 = compare_sam_info(info, g_info, threshold)
+        comp = comp1 | comp2
+        return comp
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
             info.chrm = ALT_CHRM
             i = int(info.pos / STEP)
             if i >= len(main_offset_index):
-                info.pos -= main_offset_index[len(main_offset_index) - 1]
+                info.pos += main_offset_index[len(main_offset_index) - 1]
             else:
-                info.pos -= main_offset_index[i]
+                info.pos += main_offset_index[i]
             comp = compare_sam_info(info, g_info, threshold)
             return comp
         elif info.chrm == ALT_CHRM:
             info.chrm = MAIN_CHRM
             i = int(info.pos / STEP)
             if i >= len(alt_offset_index):
-                info.pos -= alt_offset_index[len(alt_offset_index) - 1]
+                info.pos += alt_offset_index[len(alt_offset_index) - 1]
             else:
-                info.pos -= alt_offset_index[i]
+                info.pos += alt_offset_index[i]
             comp = compare_sam_info(info, g_info, threshold)
             return comp
         else:
@@ -184,11 +208,15 @@ def analyze_mutimapped_regions(args):
     threshold = args.threshold
     read_len = args.read_len
     var_fn = args.var
-    diploid = args.diploid
+    personalized = args.personalized
 
     var_list = read_var(var_fn, remove_redundant=True)
-    if diploid == 1:
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list)
+    # diploid personalized ref
+    if personalized == 2:
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2)
+    # standard ref seq
+    elif personalized == 0:
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0)
     else:
         main_index = {}
         alt_index = {}
@@ -223,14 +251,10 @@ def analyze_mutimapped_regions(args):
                 if info.chrm == MAIN_CHRM:
                     if main_index.get(i) != None:
                         v_id_hap = False
-                        # print ('var_dic', i, main_index.get(i))
-                        # input ()
                         break
                 elif info.chrm == ALT_CHRM:
                     if alt_index.get(i) != None:
                         v_id_hap = False
-                        # print (i, alt_index.get(i))
-                        # input ()
                         break
                 else:
                     print ('Error: unexpected chrm', info.chrm)
@@ -238,13 +262,18 @@ def analyze_mutimapped_regions(args):
             # aligned to incorrect haplotype and two haps are NOT equal
             if v_id_hap == False:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
-                # comp = diploid_compare(info, golden_dic[name], threshold, 'n')
                 summary.add_diff_var(comp)
             else:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
                 summary.add_diff_id(comp)
         else:
-            comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
+            if personalized == 2:
+                comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
+            elif personalized == 0:
+                comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
+            else:
+                print ('Error: unsupported personalzed parameter', personalized)
+                exit()
             summary.add_same_strand(comp)
         if __debug__:
             if comp: continue
