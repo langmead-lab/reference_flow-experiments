@@ -85,7 +85,7 @@ class Summary:
             else:
                 frac_fss_ss = 100 * float(self.num_false_ss) / self.num_same_strand
             frac_fid_total = 100 * float(self.num_false_id) / self.num_total
-            if self.num_same_strand == 0:
+            if self.num_diff_id == 0:
                 print ('Warning: num_diff_id = 0')
                 frac_fid_id = 0
             else:
