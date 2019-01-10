@@ -79,11 +79,23 @@ class Summary:
         if has_answer:
             frac_tp_total = 100 * float(self.num_true_pos) / self.num_total
             frac_fss_total = 100 * float(self.num_false_ss) / self.num_total
-            frac_fss_ss = 100 * float(self.num_false_ss) / self.num_same_strand
+            if self.num_same_strand == 0:
+                print ('Warning: num_same_strand = 0')
+                frac_fss_ss = 0
+            else:
+                frac_fss_ss = 100 * float(self.num_false_ss) / self.num_same_strand
             frac_fid_total = 100 * float(self.num_false_id) / self.num_total
-            frac_fid_id = 100 * float(self.num_false_id) / self.num_diff_id
+            if self.num_same_strand == 0:
+                print ('Warning: num_diff_id = 0')
+                frac_fid_id = 0
+            else:
+                frac_fid_id = 100 * float(self.num_false_id) / self.num_diff_id
             frac_fv_total = 100 * float(self.num_false_var) / self.num_total
-            frac_fv_v = 100 * float(self.num_false_var) / self.num_diff_var
+            if self.num_diff_var == 0:
+                print ('Warning: num_diff_var = 0')
+                frac_fv_v = 0
+            else:
+                frac_fv_v = 100 * float(self.num_false_var) / self.num_diff_var
             print ('\n------ Alignment accuracy ------')
             print ('True: %d (total=%.2f%%)' % (self.num_true_pos, frac_tp_total))
             print ('False same: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_ss, self.num_same_strand, frac_fss_total, frac_fss_ss))
