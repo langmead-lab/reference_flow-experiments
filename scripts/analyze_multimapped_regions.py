@@ -7,12 +7,6 @@ import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import build_erg, read_var
 
-# # MAIN_CHRM = '9'
-# MAIN_HAP = 'hapA'
-# # ALT_CHRM = '9'
-# ALT_HAP = 'hapB'
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -131,7 +125,6 @@ def build_offset_index(var_list, per):
         alt_index = {}
     return main_index, alt_index, main_offset_index, alt_offset_index
 
-# TODO
 def diploid_compare(
     info, 
     g_info, 
@@ -191,17 +184,6 @@ def diploid_compare(
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
 
-def show_info(name, info, g_info, dip_flag):
-    if 1: #__debug__:
-        print (name)
-        print (dip_flag)
-        print ('info')
-        info.print(flag=False, mapq=False, score=False)
-        print (' ')
-        print ('golden')
-        g_info.print(flag=False, mapq=False, score=False)
-        input ()
-
 def analyze_mutimapped_regions(args):
     sam_fn = args.sam
     golden_fn = args.golden
@@ -218,10 +200,8 @@ def analyze_mutimapped_regions(args):
     elif personalized == 0:
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0)
     else:
-        main_index = {}
-        alt_index = {}
-        main_offset_index = {}
-        alt_offset_index = {}
+        print ('Error: unsupported personalzed parameter', personalized)
+        exit()
     '''
     MAIN/ALT indexes:
         key: pos on MAIN/ALT

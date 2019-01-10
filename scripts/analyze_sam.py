@@ -276,8 +276,6 @@ def analyze_sam(args):
     num_correct_reads = 0
     num_incorrect_reads = 0
     dic_secondary = {}
-    # build golden dictionary
-    # g_dic = dump_golden_dic(golden, seg)
     # load pre-built golden dictionary
     g_dic = load_golden_dic(golden, seg)
     num_syn_reads = len(g_dic)
