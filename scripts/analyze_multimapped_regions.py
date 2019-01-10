@@ -137,6 +137,8 @@ def diploid_compare(
 ):
     # don't check the other strand
     if dip_flag in ['same_strand']: #, 'n']:
+        # this line is dangerous
+        info.chrm = g_info.chrm
         return compare_sam_info(info, g_info, threshold)
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:

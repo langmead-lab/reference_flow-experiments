@@ -232,7 +232,7 @@ def dump_golden_dic(filename, seg):
     with open(filename, 'r') as gfile:
         for line in gfile:
             name, info = parse_line(line, 0)
-            if name is False:
+            if name is 'header':
                 continue
             if seg == 1:
                 if name in g_dic and info.is_first_seq():
@@ -290,7 +290,7 @@ def analyze_sam(args):
             dic_q_incor = {}
         for line in infile:
             name, info = parse_line(line, by_score)
-            if name is False:
+            if name is 'header':
                 continue
             if info.is_secondary() and secondary == 0: # neglect secondary alignments
                 continue
