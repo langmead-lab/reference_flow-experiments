@@ -78,6 +78,7 @@ def build_offset_index(var_list, per):
                 alt_offset = v.offset - v.cor_offset
             else:
                 # offset: ref to hap
+                alt_pos = v.alt_pos
                 main_offset = v.offset
                 alt_offset = v.cor_offset
         elif v.strand == ALT_STRAND:
@@ -88,6 +89,7 @@ def build_offset_index(var_list, per):
                 alt_offset = -v.offset + v.cor_offset
             else:
                 # offset: ref to hap
+                main_pos = v.alt_pos
                 main_offset = v.cor_offset
                 alt_offset = v.offset
         else:
@@ -146,9 +148,9 @@ def diploid_compare(
         else:
             diff = main_offset_index[i]
         info.pos += diff
-        # try hapB
         comp1 = compare_sam_info(info, g_info, threshold)
         info.pos -= diff
+        # try hapB
         if i >= len(alt_offset_index):
             diff = alt_offset_index[len(alt_offset_index) - 1]
         else:
