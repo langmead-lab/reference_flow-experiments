@@ -209,22 +209,21 @@ def analyze_mutimapped_regions(args):
     '''
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
+    LOWQ_EXP = False
     sam_f = open(sam_fn, 'r')
     for line in sam_f:
         name, info = parse_line(line, 0)
         # headers
         if name == 'header':
-            '''
-            # kept for low-q experiment
-            print (line[:line.find('\\')])
-            '''
+            if LOWQ_EXP:
+                # kept for low-q experiment
+                print (line[:line.find('\\')])
             continue
-        '''
-        # kept for low-q experiment
-        if info.mapq < 10:
-           print (line[:line.find('\\')])
-        continue
-        '''
+        if LOWQ_EXP:
+            # kept for low-q experiment
+            if info.mapq < 10:
+                print (line[:line.find('\\')])
+            continue
         summary.add_one()
         # aligned to incorrect haplotype
         if info.is_unaligned():
