@@ -18,12 +18,16 @@ def parse_args():
         help='golden sam file'
     )
     parser.add_argument(
+        '--var',
+        help='the file specifying the variants'
+    )
+    parser.add_argument(
         '-t', '--threshold', type=int,
         default=10,
         help='max allowed distance for a correct mapping [10]'
     )
     parser.add_argument(
-        '-r', '--read_len', type=int,
+        '--read_len', type=int,
         default=100,
         help='read length [100]'
     )
@@ -33,9 +37,9 @@ def parse_args():
         help='specify whether the ref seq(s) are standard (0), personalized-haploid (1), or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
-        '--var',
-        default=None,
-        help='the file specifying the variants'
+        '--step_size', type=int,
+        default=1000,
+        help='the step size for main/alt offset indexes [1000]'
     )
     args = parser.parse_args()
 
@@ -45,7 +49,7 @@ def parse_args():
     ALT_HAP = 'hapB'
     MAIN_STRAND = 'A'
     ALT_STRAND = 'B'
-    STEP = 1000
+    STEP = args.step_size
     if args.personalized == 2:
         MAIN_CHRM = '9A'
         ALT_CHRM = '9B'
@@ -207,24 +211,19 @@ def analyze_mutimapped_regions(args):
     else:
         print ('Error: unsupported personalzed parameter', personalized)
         exit()
-    '''
-    MAIN/ALT indexes:
-        key: pos on MAIN/ALT
-        value: pos on ALT/MAIN, VTYPE, ALLELES
-    '''
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
-    LOWQ_EXP = False
+    PERFORM_LOWQ_EXP = False
     sam_f = open(sam_fn, 'r')
     for line in sam_f:
         name, info = parse_line(line, 0)
         # headers
         if name == 'header':
-            if LOWQ_EXP:
+            if PERFORM_LOWQ_EXP:
                 # kept for low-q experiment
                 print (line[:line.find('\\')])
             continue
-        if LOWQ_EXP:
+        if PERFORM_LOWQ_EXP:
             # kept for low-q experiment
             if info.mapq < 10:
                 print (line[:line.find('\\')])
