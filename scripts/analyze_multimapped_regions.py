@@ -73,7 +73,7 @@ def build_offset_index(var_list, per):
     # dict storing the diff from alt to main
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
-    SHOW_BUILD_INFO = False
+    SHOW_BUILD_INFO = True
     if SHOW_BUILD_INFO and __debug__:
         print ('DEBUG_INFO: build_offset_index ')
     for v in var_list:
@@ -114,8 +114,8 @@ def build_offset_index(var_list, per):
                 alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
         if __debug__ and SHOW_BUILD_INFO:
             print (v.line)
-            print (main_offset_index)
-            print (alt_offset_index)
+            print (len(main_offset_index), main_offset_index)
+            print (len(alt_offset_index), alt_offset_index)
             input ()
     
     if per == 2:
