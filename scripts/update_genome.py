@@ -117,6 +117,8 @@ def add_alt(genome, loc, orig, alt, offset):
 
     if len(orig) == 1 and len(alt) == 1:
         # SNP
+        # if genome[loc] != orig:
+        #    print (loc, genome[loc], alt)
         genome[loc] = alt
     elif len(orig) > len(alt):
         # Deletion
