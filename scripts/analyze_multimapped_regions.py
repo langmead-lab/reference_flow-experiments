@@ -3,7 +3,7 @@ Compares a diploid-to-diploid sam and
 checks if the multi-mapped regions are 
 identical in two personalized refs
 '''
-import argparse
+import argparse, math
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import build_erg, read_var
 
@@ -73,45 +73,50 @@ def build_offset_index(var_list, per):
     # dict storing the diff from alt to main
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
-    SHOW_BUILD_INFO = True
+    SHOW_BUILD_INFO = False
     if SHOW_BUILD_INFO and __debug__:
         print ('DEBUG_INFO: build_offset_index ')
+    tmp_v = 0
     for v in var_list:
         if v.strand == MAIN_STRAND:
             main_pos = v.alt_pos
-            alt_pos = v.alt_pos + v.offset - v.cor_offset
+            alt_pos = v.ref_pos + v.cor_offset
             if per == 2:
                 main_offset = -v.offset + v.cor_offset
                 alt_offset = v.offset - v.cor_offset
-            else:
+            else: #TODO
                 # offset: ref to hap
                 alt_pos = v.alt_pos
                 main_offset = v.offset
                 alt_offset = v.cor_offset
+            if v.ref_pos == tmp_v:
+                print ('Warning: duplicated variant', v.line)
+            tmp_v = v.ref_pos
         elif v.strand == ALT_STRAND:
-            main_pos = v.alt_pos + v.offset - v.cor_offset
+            main_pos = v.ref_pos + v.cor_offset
             alt_pos = v.alt_pos
             if per == 2:
                 main_offset = v.offset - v.cor_offset
                 alt_offset = -v.offset + v.cor_offset
-            else:
+            else: #TODO
                 # offset: ref to hap
                 main_pos = v.alt_pos
                 main_offset = v.cor_offset
                 alt_offset = v.offset
+            # tmp_v = v.ref_pos
         else:
             print ('Error: unspecified strand', v.strand)
             exit()
-        while main_pos > STEP * len(main_offset_index):
-            if main_pos > STEP * (len(main_offset_index) - 1):
-                main_offset_index.append(main_offset)
-            else:
-                main_offset_index.append(main_offset_index[len(main_offset_index) - 1])
-        while alt_pos > STEP * len(alt_offset_index):
-            if alt_pos > STEP * (len(alt_offset_index) - 1):
-                alt_offset_index.append(alt_offset)
-            else:
-                alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
+        
+        i_main = math.ceil(main_pos / STEP)
+        while i_main >= len(main_offset_index):
+            main_offset_index.append(main_offset_index[len(main_offset_index) - 1])
+        main_offset_index[i_main] = main_offset
+        i_alt = math.ceil(alt_pos / STEP)
+        while i_alt >= len(alt_offset_index):
+            alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
+        alt_offset_index[i_alt] = alt_offset
+
         if __debug__ and SHOW_BUILD_INFO:
             print (v.line)
             print (len(main_offset_index), main_offset_index)
@@ -170,21 +175,55 @@ def diploid_compare(
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
             info.chrm = ALT_CHRM
-            i = int(info.pos / STEP)
-            if i >= len(main_offset_index):
-                info.pos += main_offset_index[len(main_offset_index) - 1]
+            i_low = int(info.pos / STEP)
+            i_high = math.ceil(info.pos / STEP)
+            if i_low >= len(main_offset_index):
+                offset_low = main_offset_index[len(main_offset_index) - 1]
             else:
-                info.pos += main_offset_index[i]
-            comp = compare_sam_info(info, g_info, threshold)
+                offset_low = main_offset_index[i_low]
+            if i_high >= len(main_offset_index):
+                offset_high = main_offset_index[len(main_offset_index) - 1]
+            else:
+                offset_high = main_offset_index[i_high]
+            comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
+            if __debug__ and (comp == False):
+                diff = abs(info.pos + offset_low - g_info.pos)
+                if diff < 100:
+                    print ('offset+', offset_high)
+                    print ('diff', diff)
+                    print ('offset', offset_low)
+                    print ('info')
+                    info.print(flag=False, mapq=False, score=False)
+                    print ()
+                    print ('golden')
+                    g_info.print(flag=False, mapq=False, score=False)
+                    input()
             return comp
         elif info.chrm == ALT_CHRM:
             info.chrm = MAIN_CHRM
-            i = int(info.pos / STEP)
-            if i >= len(alt_offset_index):
-                info.pos += alt_offset_index[len(alt_offset_index) - 1]
+            i_low = int(info.pos / STEP)
+            i_high = math.ceil(info.pos / STEP)
+            if i_low >= len(alt_offset_index):
+                offset_low = alt_offset_index[len(alt_offset_index) - 1]
             else:
-                info.pos += alt_offset_index[i]
-            comp = compare_sam_info(info, g_info, threshold)
+                offset_low = alt_offset_index[i_low]
+            if i_high >= len(alt_offset_index):
+                offset_high = alt_offset_index[len(alt_offset_index) - 1]
+            else:
+                offset_high = alt_offset_index[i_high]
+            comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
+            if __debug__ and (comp == False):
+                diff = abs(info.pos + offset_low - g_info.pos)
+                if diff < 100:
+                    print ('offset+', offset_high)
+                    print ('diff', diff)
+                    print ('offset', offset_low)
+                    print ('info')
+                    info.print(flag=False, mapq=False, score=False)
+                    print ()
+                    print ('golden')
+                    g_info.print(flag=False, mapq=False, score=False)
+                    input()
             return comp
         else:
             print ('Error: invalid chrm', info.chrm)
@@ -264,8 +303,8 @@ def analyze_mutimapped_regions(args):
                 print ('Error: unsupported personalzed parameter', personalized)
                 exit()
             summary.add_same_strand(comp)
-        if __debug__:
-            if comp: continue
+        if __debug__ and comp == False:
+            print (name)
             print ('info')
             info.print(flag=False, mapq=False, score=False)
             print ()
