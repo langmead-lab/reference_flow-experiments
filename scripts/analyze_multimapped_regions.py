@@ -44,12 +44,13 @@ def parse_args():
     args = parser.parse_args()
 
     # Global variables
-    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
+    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND, READ_LEN
     MAIN_HAP = 'hapA'
     ALT_HAP = 'hapB'
     MAIN_STRAND = 'A'
     ALT_STRAND = 'B'
     STEP = args.step_size
+    READ_LEN = args.read_len
     if args.personalized == 2:
         MAIN_CHRM = '9A'
         ALT_CHRM = '9B'
@@ -74,6 +75,7 @@ def build_offset_index(var_list, per):
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
     SHOW_BUILD_INFO = False
+    SHOW_DUP_WARN = False
     if SHOW_BUILD_INFO and __debug__:
         print ('DEBUG_INFO: build_offset_index ')
     tmp_v = 0
@@ -84,13 +86,15 @@ def build_offset_index(var_list, per):
             if per == 2:
                 main_offset = -v.offset + v.cor_offset
                 alt_offset = v.offset - v.cor_offset
-            else: #TODO
+            else:
                 # offset: ref to hap
-                alt_pos = v.alt_pos
+                main_pos = v.ref_pos
+                alt_pos = v.ref_pos
                 main_offset = v.offset
                 alt_offset = v.cor_offset
             if v.ref_pos == tmp_v:
-                print ('Warning: duplicated variant', v.line)
+                if SHOW_DUP_WARN:
+                    print ('Warning: duplicated variant', v.line)
             tmp_v = v.ref_pos
         elif v.strand == ALT_STRAND:
             main_pos = v.ref_pos + v.cor_offset
@@ -98,12 +102,12 @@ def build_offset_index(var_list, per):
             if per == 2:
                 main_offset = v.offset - v.cor_offset
                 alt_offset = -v.offset + v.cor_offset
-            else: #TODO
+            else:
                 # offset: ref to hap
-                main_pos = v.alt_pos
+                main_pos = v.ref_pos
+                alt_pos = v.ref_pos
                 main_offset = v.cor_offset
                 alt_offset = v.offset
-            # tmp_v = v.ref_pos
         else:
             print ('Error: unspecified strand', v.strand)
             exit()
@@ -131,13 +135,28 @@ def build_offset_index(var_list, per):
                 test_genome = '',
                 var_list = var_list,
                 hap_mode = 1, 
-                f_len = 100, 
+                f_len = READ_LEN, 
                 mode = 'index'
             )
     else:
         main_index = {}
         alt_index = {}
     return main_index, alt_index, main_offset_index, alt_offset_index
+
+def print_near_aln(offsets, info, g_info, threshold):
+    tmp = []
+    for i in offsets:
+        tmp.append(abs(info.pos + i - g_info.pos))
+    diff = min(tmp)
+    if diff < threshold:
+        print ('offsets', offsets)
+        print ('diff', diff)
+        print ('info')
+        info.print(flag=False, mapq=False, score=False)
+        print ()
+        print ('golden')
+        g_info.print(flag=False, mapq=False, score=False)
+        input()
 
 def diploid_compare(
     info, 
@@ -153,23 +172,45 @@ def diploid_compare(
     elif dip_flag in ['same_strand_ref']:
         # neglect chrom name difference
         info.chrm = g_info.chrm
-        i = int(info.pos / STEP)
+        i_low = int(info.pos / STEP)
+        i_high = math.ceil(info.pos / STEP)
         # try hapA
-        if i >= len(main_offset_index):
-            diff = main_offset_index[len(main_offset_index) - 1]
+        if i_low >= len(main_offset_index):
+            offset_lowA = main_offset_index[len(main_offset_index) - 1]
         else:
-            diff = main_offset_index[i]
-        info.pos += diff
+            offset_lowA = main_offset_index[i_low]
+        info.pos += offset_lowA
         comp1 = compare_sam_info(info, g_info, threshold)
-        info.pos -= diff
-        # try hapB
-        if i >= len(alt_offset_index):
-            diff = alt_offset_index[len(alt_offset_index) - 1]
+        info.pos -= offset_lowA
+        if i_high >= len(main_offset_index):
+            offset_highA = main_offset_index[len(main_offset_index) - 1]
         else:
-            diff = alt_offset_index[i]
-        info.pos += diff
+            offset_highA = main_offset_index[i_high]
+        info.pos += offset_highA
+        comp1 = comp1 | compare_sam_info(info, g_info, threshold)
+        info.pos -= offset_highA
+        # try hapB
+        if i_low >= len(alt_offset_index):
+            offset_lowB = alt_offset_index[len(alt_offset_index) - 1]
+        else:
+            offset_lowB = alt_offset_index[i_low]
+        info.pos += offset_lowB
         comp2 = compare_sam_info(info, g_info, threshold)
+        info.pos -= offset_lowB
+        if i_high >= len(alt_offset_index):
+            offset_highB = alt_offset_index[len(alt_offset_index) - 1]
+        else:
+            offset_highB = alt_offset_index[i_high]
+        info.pos += offset_highB
+        comp2 = comp2 | compare_sam_info(info, g_info, threshold)
+        info.pos -= offset_highB
+
         comp = comp1 | comp2
+        
+        if comp == False and __debug__:
+            offsets = [offset_lowA, offset_highA, offset_lowB, offset_highB]
+            print_near_aln(offsets, info, g_info, 1000)
+        
         return comp
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
@@ -186,18 +227,9 @@ def diploid_compare(
             else:
                 offset_high = main_offset_index[i_high]
             comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
-            if __debug__ and (comp == False):
-                diff = abs(info.pos + offset_low - g_info.pos)
-                if diff < 100:
-                    print ('offset+', offset_high)
-                    print ('diff', diff)
-                    print ('offset', offset_low)
-                    print ('info')
-                    info.print(flag=False, mapq=False, score=False)
-                    print ()
-                    print ('golden')
-                    g_info.print(flag=False, mapq=False, score=False)
-                    input()
+            if comp == False and __debug__:
+                offsets = [offset_low, offset_high]
+                print_near_aln(offsets, info, g_info, 1000)
             return comp
         elif info.chrm == ALT_CHRM:
             info.chrm = MAIN_CHRM
@@ -212,18 +244,9 @@ def diploid_compare(
             else:
                 offset_high = alt_offset_index[i_high]
             comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
-            if __debug__ and (comp == False):
-                diff = abs(info.pos + offset_low - g_info.pos)
-                if diff < 100:
-                    print ('offset+', offset_high)
-                    print ('diff', diff)
-                    print ('offset', offset_low)
-                    print ('info')
-                    info.print(flag=False, mapq=False, score=False)
-                    print ()
-                    print ('golden')
-                    g_info.print(flag=False, mapq=False, score=False)
-                    input()
+            if comp == False and __debug__:
+                offsets = [offset_low, offset_high]
+                print_near_aln(offsets, info, g_info, 1000)
             return comp
         else:
             print ('Error: invalid chrm', info.chrm)
@@ -236,7 +259,6 @@ def analyze_mutimapped_regions(args):
     sam_fn = args.sam
     golden_fn = args.golden
     threshold = args.threshold
-    read_len = args.read_len
     var_fn = args.var
     personalized = args.personalized
 
@@ -275,7 +297,7 @@ def analyze_mutimapped_regions(args):
         elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
             v_id_hap = True
-            for i in range(info.pos, info.pos + read_len):
+            for i in range(info.pos, info.pos + READ_LEN):
                 if info.chrm == MAIN_CHRM:
                     if main_index.get(i) != None:
                         v_id_hap = False
