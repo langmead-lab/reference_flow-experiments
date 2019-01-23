@@ -210,7 +210,7 @@ def parse_line(line, by_score):
     info = SamInfo(line)
     return name, info
 
-def compare_sam_info(info, ginfo, threshold, offset = 0):
+def compare_sam_info(info, ginfo, threshold, offset = [0]):
     if info.chrm != ginfo.chrm:
         # diff chromosome
         if __debug__: print ("False: chr, mapq =", info.mapq)
@@ -221,11 +221,13 @@ def compare_sam_info(info, ginfo, threshold, offset = 0):
             print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), \
                     "mapq =", info.mapq)
         return False
-    if abs(info.pos + offset - ginfo.pos) > threshold:
-        if __debug__: print ("False: distance > threshold, mapq =", info.mapq)
-        return False
-    if __debug__: print ("True, mapq =", info.mapq)
-    return True
+    for off in offset:
+        if abs(info.pos + off - ginfo.pos) <= threshold:
+            if __debug__: print ("True, mapq =", info.mapq)
+            return True
+    if __debug__: 
+        print ("False: distance > threshold, mapq =", info.mapq)
+    return False
 
 def dump_golden_dic(filename, seg):
     g_dic = {}

@@ -179,38 +179,25 @@ def diploid_compare(
             offset_lowA = main_offset_index[len(main_offset_index) - 1]
         else:
             offset_lowA = main_offset_index[i_low]
-        info.pos += offset_lowA
-        comp1 = compare_sam_info(info, g_info, threshold)
-        info.pos -= offset_lowA
         if i_high >= len(main_offset_index):
             offset_highA = main_offset_index[len(main_offset_index) - 1]
         else:
             offset_highA = main_offset_index[i_high]
-        info.pos += offset_highA
-        comp1 = comp1 | compare_sam_info(info, g_info, threshold)
-        info.pos -= offset_highA
+        
         # try hapB
         if i_low >= len(alt_offset_index):
             offset_lowB = alt_offset_index[len(alt_offset_index) - 1]
         else:
             offset_lowB = alt_offset_index[i_low]
-        info.pos += offset_lowB
-        comp2 = compare_sam_info(info, g_info, threshold)
-        info.pos -= offset_lowB
         if i_high >= len(alt_offset_index):
             offset_highB = alt_offset_index[len(alt_offset_index) - 1]
         else:
             offset_highB = alt_offset_index[i_high]
-        info.pos += offset_highB
-        comp2 = comp2 | compare_sam_info(info, g_info, threshold)
-        info.pos -= offset_highB
-
-        comp = comp1 | comp2
         
+        comp = compare_sam_info(info, g_info, threshold, [offset_highA, offset_lowA, offset_highB, offset_lowB])
         if comp == False and __debug__:
             offsets = [offset_lowA, offset_highA, offset_lowB, offset_highB]
             print_near_aln(offsets, info, g_info, 1000)
-        
         return comp
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
@@ -226,7 +213,7 @@ def diploid_compare(
                 offset_high = main_offset_index[len(main_offset_index) - 1]
             else:
                 offset_high = main_offset_index[i_high]
-            comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
+            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high])
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
                 print_near_aln(offsets, info, g_info, 1000)
@@ -243,7 +230,7 @@ def diploid_compare(
                 offset_high = alt_offset_index[len(alt_offset_index) - 1]
             else:
                 offset_high = alt_offset_index[i_high]
-            comp = compare_sam_info(info, g_info, threshold, offset_low) | compare_sam_info(info, g_info, threshold, offset_high)
+            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high])
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
                 print_near_aln(offsets, info, g_info, 1000)
