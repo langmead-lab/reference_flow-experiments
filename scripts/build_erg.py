@@ -128,7 +128,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     alt_end_pos = ref_end_pos + offset_end
 
     # set this True for testing mode
-    TEST_DETAILS = True
+    TEST_DETAILS = False
     USE_GOLDEN_ERG = False
     if test_genome:
         full_g = test_genome[alt_start_pos : alt_end_pos]
@@ -153,6 +153,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
             for v in var_list:
                 print (v.line)
             input()
+        return len(full_g)
     else:
         # write erg
         print (
@@ -160,6 +161,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
             (chrm, alt_start_pos, alt_end_pos)
         )
         print (erg)
+        return len(erg)
 
 # TODO
 def build_index(var_list, main_index, alt_index):
@@ -188,7 +190,7 @@ def build_index(var_list, main_index, alt_index):
     There is index imbalance problem due to 
     overlapping or conflicting variants
     '''
-    SHOW_IMBALANCE = True
+    SHOW_IMBALANCE = False
     if SHOW_IMBALANCE and (len(main_index) != len(alt_index)):
         for v in var_list:
             print (v.line)
@@ -220,19 +222,21 @@ def build_erg(
         print ('supported modes = [erg, index]')
         exit()
 
+    num_erg = 0
+    total_len_erg = 0
+
     for vinfo in var_list:
         if len(tmp_var_list) > 0:
             prev_var = tmp_var_list[len(tmp_var_list) - 1]
         else:
             prev_var = 0
-        # if __debug__:
-        #     print (prev_var)
-        #     print (vinfo.line)
         if len(tmp_var_list) > 0 and \
             vinfo.ref_pos > prev_var.ref_pos + 2 * f_len:
             # write previous vars
             if mode == 'erg':
-                write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+                len_erg = write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+                num_erg += 1
+                total_len_erg += len_erg
             else:
                 build_index(tmp_var_list, main_index, alt_index)
             # reset
@@ -242,10 +246,16 @@ def build_erg(
         else: # len == 0
             tmp_var_list = [vinfo]
     if mode == 'erg':
-        write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+        len_erg = write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+        num_erg += 1
+        total_len_erg += len_erg
     elif mode == 'index':
         build_index(tmp_var_list, main_index, alt_index)
         return main_index, alt_index
+    SHOW_SUMMARY = True
+    if SHOW_SUMMARY:
+        print ('Num ergs =', num_erg)
+        print ('Avg len of an erg =', float(total_len_erg) / num_erg)
 
 def read_var(var_fn, remove_redundant):
     '''
