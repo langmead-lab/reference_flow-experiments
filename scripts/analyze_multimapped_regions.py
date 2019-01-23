@@ -242,6 +242,22 @@ def diploid_compare(
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
 
+def check_var_in_region(info, main_index, alt_index):
+    is_no_var_region = True
+    for i in range(info.pos, info.pos + READ_LEN):
+        if info.chrm == MAIN_CHRM:
+            if main_index.get(i) != None:
+                is_no_var_region = False
+                break
+        elif info.chrm == ALT_CHRM:
+            if alt_index.get(i) != None:
+                is_no_var_region = False
+                break
+        else:
+            print ('Error: unexpected chrm', info.chrm)
+            exit()
+    return is_no_var_region
+
 def analyze_mutimapped_regions(args):
     sam_fn = args.sam
     golden_fn = args.golden
@@ -259,6 +275,7 @@ def analyze_mutimapped_regions(args):
     else:
         print ('Error: unsupported personalzed parameter', personalized)
         exit()
+    
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
     PERFORM_LOWQ_EXP = False
@@ -283,35 +300,31 @@ def analyze_mutimapped_regions(args):
             comp = False
         elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
-            v_id_hap = True
-            for i in range(info.pos, info.pos + READ_LEN):
-                if info.chrm == MAIN_CHRM:
-                    if main_index.get(i) != None:
-                        v_id_hap = False
-                        break
-                elif info.chrm == ALT_CHRM:
-                    if alt_index.get(i) != None:
-                        v_id_hap = False
-                        break
-                else:
-                    print ('Error: unexpected chrm', info.chrm)
-                    exit()
+            is_no_var_region = check_var_in_region(info, main_index, alt_index)
             # aligned to incorrect haplotype and two haps are NOT equal
-            if v_id_hap == False:
+            if is_no_var_region == False:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
                 summary.add_diff_var(comp)
+            # aligned to incorrect haplotype and two haps are equal
             else:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
                 summary.add_diff_id(comp)
         else:
             if personalized == 2:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
+                is_no_var_region = check_var_in_region(info, main_index, alt_index)
+                # aligned to correct haplotype and two haps are NOT equal
+                if is_no_var_region == False:
+                    summary.add_same_var(comp)
+                # aligned to correct haplotype and two haps are equal
+                else:
+                    summary.add_same_id(comp)
             elif personalized == 0:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
+                summary.add_same_strand(comp)
             else:
                 print ('Error: unsupported personalzed parameter', personalized)
                 exit()
-            summary.add_same_strand(comp)
         if __debug__ and comp == False:
             print (name)
             print ('info')

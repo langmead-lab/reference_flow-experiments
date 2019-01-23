@@ -12,6 +12,8 @@ class Summary:
     '''
     num_total = 0
     num_same_strand = 0
+    num_same_id = 0
+    num_same_var = 0
     num_diff_id = 0
     num_diff_var = 0
     num_unaligned = 0
@@ -19,6 +21,8 @@ class Summary:
     has_answer = True
     num_true_pos = 0
     num_false_ss = 0    
+    num_false_sid = 0
+    num_false_svar = 0
     num_false_id = 0
     num_false_var = 0
 
@@ -45,6 +49,15 @@ class Summary:
         else:
             self.num_false_id += 1
 
+    def add_same_id(self, comp):
+        self.num_same_id += 1
+        if self.has_answer == False:
+            return
+        if comp:
+            self.num_true_pos += 1
+        else:
+            self.num_false_sid += 1
+
     def add_diff_var(self, comp):
         self.num_diff_var += 1
         if self.has_answer == False:
@@ -53,6 +66,15 @@ class Summary:
             self.num_true_pos += 1
         else:
             self.num_false_var += 1
+
+    def add_same_var(self, comp):
+        self.num_same_var += 1
+        if self.has_answer == False:
+            return
+        if comp:
+            self.num_true_pos += 1
+        else:
+            self.num_false_svar += 1
 
     def add_same_strand(self, comp):
         self.num_same_strand += 1
@@ -67,16 +89,21 @@ class Summary:
         frac_ss_total = 100 * float(self.num_same_strand) / self.num_total
         frac_id_total = 100 * float(self.num_diff_id) / self.num_total
         frac_v_total = 100 * float(self.num_diff_var) / self.num_total
+        frac_sid_total = 100 * float(self.num_same_id) / self.num_total
+        frac_sv_total = 100 * float(self.num_same_var) / self.num_total
         frac_v_total = 100 * float(self.num_diff_var) / self.num_total
         frac_un_total = 100 * float(self.num_unaligned) / self.num_total
         print ('\n------ Alignment category distribution ------')
         print ('Same strand: %d (%.2f%%)' % (self.num_same_strand, frac_ss_total))
+        print ('Same strand in identical region: %d (%.2f%%)' % (self.num_same_id, frac_sid_total))
+        print ('Same strand with variants: %d (%.2f%%)' % (self.num_same_var, frac_sv_total))
         print ('Diff strand in identical region: %d (%.2f%%)' % (self.num_diff_id, frac_id_total))
         print ('Diff strand with variants: %d (%.2f%%)' % (self.num_diff_var, frac_v_total))
         print ('Unaligned: %d (%.2f%%)' % (self.num_unaligned, frac_un_total))
         print ('Total:', self.num_total)
 
         if has_answer:
+            print ('\n------ Alignment accuracy ------')
             frac_tp_total = 100 * float(self.num_true_pos) / self.num_total
             frac_fss_total = 100 * float(self.num_false_ss) / self.num_total
             if self.num_same_strand == 0:
@@ -84,6 +111,18 @@ class Summary:
                 frac_fss_ss = 0
             else:
                 frac_fss_ss = 100 * float(self.num_false_ss) / self.num_same_strand
+            frac_fsid_total = 100 * float(self.num_false_sid) / self.num_total
+            if self.num_same_id == 0:
+                print ('Warning: num_same_id = 0')
+                frac_fsid_sid = 0
+            else:
+                frac_fsid_sid = 100 * float(self.num_false_sid) / self.num_same_id
+            frac_fsvar_total = 100 * float(self.num_false_svar) / self.num_total
+            if self.num_same_var == 0:
+                print ('Warning: num_same_var = 0')
+                frac_fsvar_svar = 0
+            else:
+                frac_fsvar_svar = 100 * float(self.num_false_svar) / self.num_same_var
             frac_fid_total = 100 * float(self.num_false_id) / self.num_total
             if self.num_diff_id == 0:
                 print ('Warning: num_diff_id = 0')
@@ -96,9 +135,11 @@ class Summary:
                 frac_fv_v = 0
             else:
                 frac_fv_v = 100 * float(self.num_false_var) / self.num_diff_var
-            print ('\n------ Alignment accuracy ------')
+
             print ('True: %d (total=%.2f%%)' % (self.num_true_pos, frac_tp_total))
             print ('False same: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_ss, self.num_same_strand, frac_fss_total, frac_fss_ss))
+            print ('False same-id: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_sid, self.num_same_id, frac_fsid_total, frac_fsid_sid))
+            print ('False same-var: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_svar, self.num_same_var, frac_fsvar_total, frac_fsvar_svar))
             print ('False diff-id: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_id, self.num_diff_id, frac_fid_total, frac_fid_id))
             print ('False diff-var: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_var, self.num_diff_var, frac_fv_total, frac_fv_v))
             print ('Unaligned: %d (total=%.2f%%)' % (self.num_unaligned, frac_un_total))
