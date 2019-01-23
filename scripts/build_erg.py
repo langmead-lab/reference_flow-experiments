@@ -67,6 +67,7 @@ class VarInfo():
             return False
         if a.vtype == self.vtype and \
             a.ref_pos == self.ref_pos and \
+            a.ref_allele == self.ref_allele and \
             a.alt_allele == self.alt_allele:
             return True
         return False
@@ -257,21 +258,42 @@ def build_erg(
         print ('Num ergs =', num_erg)
         print ('Avg len of an erg =', float(total_len_erg) / num_erg)
 
-def read_var(var_fn, remove_redundant):
+def read_var(var_fn, remove_conflict, remove_coexist=False):
     '''
-    Build a dictionary for the .var file
+    Build a dictionary for the .var file.
+
+    remove_conflict: 
+        If set, removes conflict-represented variants. There might be other type of conflicts, but we only solve the following type here.
+        
+        Example:
+        A   9   INDEL   333711  333728  TA  T
+        A   9   SNP     333712  333729  A   T
+    
+    remove_coexsit:
+        If set, removes variant locating on both strands.
+
+        Example:
+        A   9   INDEL   10362   10363   C   CT
+        B   9   INDEL   10362   10363   C   CT
     '''
     SHOW_REMOVED = False
-    removed_count = 0
+    count_conflict = 0
+    count_coexist = 0
     var_f = open(var_fn, 'r')
     del_pos = {MAIN_STRAND:[], ALT_STRAND:[]}
     del_allele = {MAIN_STRAND:[], ALT_STRAND:[]}
     var_list = []
     for line in var_f:
         v = VarInfo(line)
-        if remove_redundant == False:
+        if remove_conflict == False:
             var_list.append(v)
             continue
+        if remove_coexist and len(var_list) > 0:
+            top_v = var_list[len(var_list) - 1]
+            if v.samevar(top_v):
+                var_list.pop(len(var_list) - 1)
+                count_coexist += 1
+                continue
         if v.is_del():
             vd = del_pos[v.strand]
             if len(vd) > 0 and vd[len(vd) - 1] < v.ref_pos:
@@ -288,7 +310,7 @@ def read_var(var_fn, remove_redundant):
                 print ('Error: conflict at', v.ref_pos, d)
                 input (v.line)
                 exit()
-            removed_count += 1
+            count_conflict += 1
             if SHOW_REMOVED:
                 print ('"%s"' % v.strand, v.ref_pos, d)
         else:
@@ -297,9 +319,9 @@ def read_var(var_fn, remove_redundant):
     # Set this True to show remove information
     SHOW_REMOVE_INFO = False
     if SHOW_REMOVE_INFO:
-        print (removed_count, 'redundant vars are removed')
+        print (count_conflict, 'conflict vars are removed')
+        print (count_coexist, 'coexisted vars are removed')
         print ('Num of variants =', len(var_list))
-
     return var_list
 
 def parse_args():
@@ -357,7 +379,7 @@ if __name__ == '__main__':
     else:
         test_genome = None
     
-    var_list = read_var(var_fn, remove_redundant=True)
+    var_list = read_var(var_fn, remove_conflict=True)
 
     build_erg(
         main_genome=main_genome, 

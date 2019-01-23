@@ -59,6 +59,14 @@ def parse_args():
         ALT_CHRM = '9'
     return args
 
+def build_index(var_list, main_index, alt_index):
+    '''
+    Reads var_list and records variants based on hapA/B coordinates
+    '''
+    for v in var_list:
+        print (v.line)
+        input ()
+
 def build_offset_index(var_list, per):
     '''
     MAIN/ALT-offset indexes are dictionaries with
@@ -127,7 +135,10 @@ def build_offset_index(var_list, per):
             print (len(alt_offset_index), alt_offset_index)
             input ()
     
+    main_index = {}
+    alt_index = {}
     if per == 2:
+        # build_index(var_list, main_index, alt_index)
         main_index, alt_index = \
             build_erg(
                 main_genome = '', 
@@ -138,9 +149,6 @@ def build_offset_index(var_list, per):
                 f_len = READ_LEN, 
                 mode = 'index'
             )
-    else:
-        main_index = {}
-        alt_index = {}
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
@@ -265,12 +273,13 @@ def analyze_mutimapped_regions(args):
     var_fn = args.var
     personalized = args.personalized
 
-    var_list = read_var(var_fn, remove_redundant=True)
     # diploid personalized ref
     if personalized == 2:
+        var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2)
     # standard ref seq
     elif personalized == 0:
+        var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0)
     else:
         print ('Error: unsupported personalzed parameter', personalized)
