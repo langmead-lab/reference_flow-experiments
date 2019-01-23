@@ -179,7 +179,7 @@ def build_index(var_list, main_index, alt_index):
     There is index imbalance problem due to 
     overlapping or conflicting variants
     '''
-    SHOW_IMBALANCE = False
+    SHOW_IMBALANCE = True
     if SHOW_IMBALANCE and (len(main_index) != len(alt_index)):
         for v in var_list:
             print (v.line)
@@ -206,7 +206,7 @@ def build_erg(
     # indexes for 'index' mode
     main_index = {}
     alt_index = {}
-    if mode != 'erg' and mode != 'index':
+    if mode not in ['erg', 'index']:
         print ('Error: incorrect mode (%s)' % mode)
         print ('supported modes = [erg, index]')
         exit()
