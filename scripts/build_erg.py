@@ -128,19 +128,28 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     alt_end_pos = ref_end_pos + offset_end
 
     # set this True for testing mode
-    TEST_DETAILS = False
+    TEST_DETAILS = True
+    USE_GOLDEN_ERG = False
     if test_genome:
         full_g = test_genome[alt_start_pos : alt_end_pos]
-        
-        if erg == full_g:
-            print ('pass')
-            return
-        print ('fail')
+
+        if USE_GOLDEN_ERG:
+            print (
+                '>%sB-erg-%s-%s' % 
+                (chrm, alt_start_pos, alt_end_pos)
+            )
+            print (full_g)
+        else:
+            if erg == full_g:
+                print ('pass')
+                return
+            print ('fail')
         
         if TEST_DETAILS:
             print (alt_start_pos, alt_end_pos)
             print ('erg:\t', erg)
-            print ('f_seq:\t', full_g)
+            print ('golden:\t', full_g)
+            print ('ref:\t', erg_ref)
             for v in var_list:
                 print (v.line)
             input()
@@ -234,9 +243,8 @@ def build_erg(
             tmp_var_list = [vinfo]
     if mode == 'erg':
         write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
-    else:
+    elif mode == 'index':
         build_index(tmp_var_list, main_index, alt_index)
-    if mode == 'index':
         return main_index, alt_index
 
 def read_var(var_fn, remove_redundant):
