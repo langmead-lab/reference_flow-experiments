@@ -78,24 +78,26 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
 
                     if alleleA > 0:
                         if indels:
-                            offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
+                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
                         else:
                             hapA[loc+offsetA-1] = alts[alleleA-1]
                         #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
                         f_var.write(
                             '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA), str(offsetB) )
+                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
                         )
+                        offsetA = new_offsetA
                     if alleleB > 0:
                         if indels:
-                            offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
+                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                         else:
                             hapB[loc+offsetB-1] = alts[alleleB-1]
                         #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
                         f_var.write(
                             '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB), str(offsetA) )
+                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
                         )
+                        offsetB = new_offsetB
 
                     line_id += 1
 
