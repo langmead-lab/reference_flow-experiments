@@ -332,7 +332,7 @@ if __name__ == '__main__':
     else:
         test_genome = None
     
-    var_list = read_var(var_fn, remove_conflict=True)
+    var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
 
     build_erg(
         main_genome=main_genome, 
