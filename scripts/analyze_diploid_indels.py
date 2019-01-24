@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-n', '--sam',
-        help='aligned sam file'
+        help='target sam file'
     )
     parser.add_argument(
         '-g', '--golden',
@@ -19,7 +19,7 @@ def parse_args():
     )
     parser.add_argument(
         '--var',
-        help='the file specifying the variants'
+        help='the file specifying variants'
     )
     parser.add_argument(
         '-t', '--threshold', type=int,
@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         '-p', '--personalized', type=int,
         default=0,
-        help='specify whether the ref seq(s) are standard (0), personalized-haploid (1), or personalized-diploid (2) sample [0]'
+        help='specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
         '--step_size', type=int,
