@@ -5,7 +5,7 @@ identical in two personalized refs
 '''
 import argparse, math
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
-from build_erg import build_erg, read_var
+from build_erg import read_var
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -59,13 +59,42 @@ def parse_args():
         ALT_CHRM = '9'
     return args
 
-def build_index(var_list, main_index, alt_index):
+def build_index(var_list):
     '''
     Reads var_list and records variants based on hapA/B coordinates
     '''
+    SHOW_CONFLICTS = False
+    # Conflicts are not always bad, e.g.,
+    # A   9   SNP 121398204   121393883   A   C
+    # B   9   SNP 121398204   121393566   A   T
+    main_index = {}
+    alt_index = {}
     for v in var_list:
-        print (v.line)
-        input ()
+        pos = v.alt_pos
+        c_pos = v.ref_pos + v.cor_offset
+        if v.strand == MAIN_STRAND:
+            if SHOW_CONFLICTS:
+                if main_index.get(pos):
+                    print (pos, main_index[pos])
+                    print (v.line)
+                if alt_index.get(c_pos):
+                    print (c_pos, alt_index[c_pos])
+                    print (v.line)
+            for i in range(pos, pos + len(v.alt_allele)):
+                main_index[i] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
+            alt_index[c_pos] = [pos, v.vtype, v.ref_allele, v.alt_allele]
+        else:
+            if SHOW_CONFLICTS:
+                if main_index.get(c_pos):
+                    print (c_pos, main_index[c_pos])
+                    print (v.line)
+                if alt_index.get(pos):
+                    print (pos, alt_index[pos])
+                    print (v.line)
+            main_index[c_pos] = [pos, v.vtype, v.ref_allele, v.alt_allele]
+            for i in range(pos, pos + len(v.alt_allele)):
+                alt_index[i] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
+    return main_index, alt_index
 
 def build_offset_index(var_list, per):
     '''
@@ -135,20 +164,11 @@ def build_offset_index(var_list, per):
             print (len(alt_offset_index), alt_offset_index)
             input ()
     
-    main_index = {}
-    alt_index = {}
     if per == 2:
-        # build_index(var_list, main_index, alt_index)
-        main_index, alt_index = \
-            build_erg(
-                main_genome = '', 
-                ref_genome = '',
-                test_genome = '',
-                var_list = var_list,
-                hap_mode = 1, 
-                f_len = READ_LEN, 
-                mode = 'index'
-            )
+        main_index, alt_index = build_index(var_list)
+    else:
+        main_index = {}
+        alt_index = {}
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
