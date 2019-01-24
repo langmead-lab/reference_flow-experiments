@@ -130,7 +130,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
 
     # set this True for testing mode
     TEST_DETAILS = False
-    USE_GOLDEN_ERG = False
+    USE_GOLDEN_ERG = True
     if test_genome:
         full_g = test_genome[alt_start_pos : alt_end_pos]
 
@@ -253,7 +253,7 @@ def build_erg(
     elif mode == 'index':
         build_index(tmp_var_list, main_index, alt_index)
         return main_index, alt_index
-    SHOW_SUMMARY = True
+    SHOW_SUMMARY = False
     if SHOW_SUMMARY:
         print ('Num ergs =', num_erg)
         print ('Avg len of an erg =', float(total_len_erg) / num_erg)
@@ -322,6 +322,13 @@ def read_var(var_fn, remove_conflict, remove_coexist=False):
         print (count_conflict, 'conflict vars are removed')
         print (count_coexist, 'coexisted vars are removed')
         print ('Num of variants =', len(var_list))
+
+    # Set this True to write variants and then exit
+    WRITE_VARS = False
+    if WRITE_VARS:
+        for v in var_list:
+            print (v.line)
+        exit ()
     return var_list
 
 def parse_args():
