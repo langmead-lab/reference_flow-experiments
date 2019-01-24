@@ -291,7 +291,7 @@ def check_var_in_region(info, main_index, alt_index):
             exit()
     return is_no_var_region
 
-def analyze_mutimapped_regions(args):
+def analyze_diploid_indels(args):
     sam_fn = args.sam
     golden_fn = args.golden
     threshold = args.threshold
@@ -385,4 +385,4 @@ def analyze_mutimapped_regions(args):
 
 if __name__ == '__main__':
     args = parse_args()
-    analyze_mutimapped_regions(args)
+    analyze_diploid_indels(args)
