@@ -18,7 +18,7 @@ def parse_args():
         help='golden sam file'
     )
     parser.add_argument(
-        '--var',
+        '-v', '--var',
         help='the file specifying variants'
     )
     parser.add_argument(
