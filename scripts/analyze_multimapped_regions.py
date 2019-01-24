@@ -59,7 +59,7 @@ def parse_args():
         ALT_CHRM = '9'
     return args
 
-def build_index(var_list):
+def build_index(var_list, per):
     '''
     Reads var_list and records variants based on hapA/B coordinates
     '''
@@ -70,6 +70,14 @@ def build_index(var_list):
     main_index = {}
     alt_index = {}
     for v in var_list:
+        # only main_index is needed for ref-based alignment
+        # not checking conflicts here
+        if per == 0:
+            pos = v.ref_pos
+            for i in range(pos, pos + len(v.alt_allele)):
+                main_index[i] = [v.alt_pos, v.vtype, v.ref_allele, v.alt_allele]
+            continue
+        # for personalized experiment
         pos = v.alt_pos
         c_pos = v.ref_pos + v.cor_offset
         if v.strand == MAIN_STRAND:
@@ -164,11 +172,7 @@ def build_offset_index(var_list, per):
             print (len(alt_offset_index), alt_offset_index)
             input ()
     
-    if per == 2:
-        main_index, alt_index = build_index(var_list)
-    else:
-        main_index = {}
-        alt_index = {}
+    main_index, alt_index = build_index(var_list, per)
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
@@ -283,6 +287,7 @@ def check_var_in_region(info, main_index, alt_index):
                 break
         else:
             print ('Error: unexpected chrm', info.chrm)
+            info.print()
             exit()
     return is_no_var_region
 
@@ -302,7 +307,7 @@ def analyze_mutimapped_regions(args):
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0)
     else:
-        print ('Error: unsupported personalzed parameter', personalized)
+        print ('Error: unsupported personalized parameter', personalized)
         exit()
     
     golden_dic = load_golden_dic(golden_fn, 1)
@@ -349,8 +354,20 @@ def analyze_mutimapped_regions(args):
                 else:
                     summary.add_same_id(comp)
             elif personalized == 0:
+                is_no_var_region = check_var_in_region(info, main_index, alt_index)
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
-                summary.add_same_strand(comp)
+                
+                # simply add results to the same_strand category
+                # summary.add_same_strand(comp)
+
+                # add results to same-diff and same-var, this doesn't actually
+                # matter for ref-based alignemnt, but helps analysis
+                # aligned to correct haplotype and two haps are NOT equal
+                if is_no_var_region == False:
+                    summary.add_same_var(comp)
+                # aligned to correct haplotype and two haps are equal
+                else:
+                    summary.add_same_id(comp)
             else:
                 print ('Error: unsupported personalzed parameter', personalized)
                 exit()
