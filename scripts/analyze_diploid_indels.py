@@ -42,24 +42,9 @@ def parse_args():
         help='the step size for main/alt offset indexes [1000]'
     )
     args = parser.parse_args()
-
-    # Global variables
-    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND, READ_LEN
-    MAIN_HAP = 'hapA'
-    ALT_HAP = 'hapB'
-    MAIN_STRAND = 'A'
-    ALT_STRAND = 'B'
-    STEP = args.step_size
-    READ_LEN = args.read_len
-    if args.personalized == 2:
-        MAIN_CHRM = '9A'
-        ALT_CHRM = '9B'
-    else:
-        MAIN_CHRM = '9'
-        ALT_CHRM = '9'
     return args
 
-def build_index(var_list, per):
+def build_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     '''
     Reads var_list and records variants based on hapA/B coordinates
     '''
@@ -104,7 +89,7 @@ def build_index(var_list, per):
                 alt_index[i] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
     return main_index, alt_index
 
-def build_offset_index(var_list, per):
+def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     '''
     MAIN/ALT-offset indexes are dictionaries with
         key: pos on MAIN/ALT
@@ -172,7 +157,7 @@ def build_offset_index(var_list, per):
             print (len(alt_offset_index), alt_offset_index)
             input ()
     
-    main_index, alt_index = build_index(var_list, per)
+    main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
@@ -274,7 +259,7 @@ def diploid_compare(
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
 
-def check_var_in_region(info, main_index, alt_index):
+def check_var_in_region(info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, READ_LEN):
     is_no_var_region = True
     for i in range(info.pos, info.pos + READ_LEN):
         if info.chrm == MAIN_CHRM:
@@ -298,14 +283,29 @@ def analyze_diploid_indels(args):
     var_fn = args.var
     personalized = args.personalized
 
+    # Global variables
+    global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND, READ_LEN
+    MAIN_HAP = 'hapA'
+    ALT_HAP = 'hapB'
+    MAIN_STRAND = 'A'
+    ALT_STRAND = 'B'
+    STEP = args.step_size
+    READ_LEN = args.read_len
+    if args.personalized == 2:
+        MAIN_CHRM = '9A'
+        ALT_CHRM = '9B'
+    else:
+        MAIN_CHRM = '9'
+        ALT_CHRM = '9'
+
     # diploid personalized ref
     if personalized == 2:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2)
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     # standard ref seq
     elif personalized == 0:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0)
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
@@ -315,7 +315,7 @@ def analyze_diploid_indels(args):
     PERFORM_LOWQ_EXP = False
     sam_f = open(sam_fn, 'r')
     for line in sam_f:
-        name, info = parse_line(line, 0)
+        name, info = parse_line(line, by_score=0)
         # headers
         if name == 'header':
             if PERFORM_LOWQ_EXP:
@@ -334,7 +334,7 @@ def analyze_diploid_indels(args):
             comp = False
         elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
-            is_no_var_region = check_var_in_region(info, main_index, alt_index)
+            is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             # aligned to incorrect haplotype and two haps are NOT equal
             if is_no_var_region == False:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
@@ -346,7 +346,7 @@ def analyze_diploid_indels(args):
         else:
             if personalized == 2:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
-                is_no_var_region = check_var_in_region(info, main_index, alt_index)
+                is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 # aligned to correct haplotype and two haps are NOT equal
                 if is_no_var_region == False:
                     summary.add_same_var(comp)
@@ -354,7 +354,7 @@ def analyze_diploid_indels(args):
                 else:
                     summary.add_same_id(comp)
             elif personalized == 0:
-                is_no_var_region = check_var_in_region(info, main_index, alt_index)
+                is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
                 
                 # simply add results to the same_strand category
