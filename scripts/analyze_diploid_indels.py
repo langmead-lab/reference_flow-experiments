@@ -260,21 +260,21 @@ def diploid_compare(
         return False
 
 def check_var_in_region(info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, READ_LEN):
-    is_no_var_region = True
+    num_var = 0
     for i in range(info.pos, info.pos + READ_LEN):
         if info.chrm == MAIN_CHRM:
             if main_index.get(i) != None:
-                is_no_var_region = False
-                break
+                num_var += 1
+                # break
         elif info.chrm == ALT_CHRM:
             if alt_index.get(i) != None:
-                is_no_var_region = False
-                break
+                num_var += 1
+                # break
         else:
             print ('Error: unexpected chrm', info.chrm)
             info.print()
             exit()
-    return is_no_var_region
+    return num_var
 
 def analyze_diploid_indels(args):
     sam_fn = args.sam
@@ -334,9 +334,10 @@ def analyze_diploid_indels(args):
             comp = False
         elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
-            is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+            num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             # aligned to incorrect haplotype and two haps are NOT equal
-            if is_no_var_region == False:
+            # if is_no_var_region == False:
+            if num_var == 0:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
                 summary.add_diff_var(comp)
             # aligned to incorrect haplotype and two haps are equal
@@ -346,15 +347,16 @@ def analyze_diploid_indels(args):
         else:
             if personalized == 2:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
-                is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 # aligned to correct haplotype and two haps are NOT equal
-                if is_no_var_region == False:
+                # if is_no_var_region == False:
+                if num_var == 0:
                     summary.add_same_var(comp)
                 # aligned to correct haplotype and two haps are equal
                 else:
                     summary.add_same_id(comp)
             elif personalized == 0:
-                is_no_var_region = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
                 
                 # simply add results to the same_strand category
@@ -363,7 +365,8 @@ def analyze_diploid_indels(args):
                 # add results to same-diff and same-var, this doesn't actually
                 # matter for ref-based alignemnt, but helps analysis
                 # aligned to correct haplotype and two haps are NOT equal
-                if is_no_var_region == False:
+                # if is_no_var_region == False:
+                if num_var == 0:
                     summary.add_same_var(comp)
                 # aligned to correct haplotype and two haps are equal
                 else:
