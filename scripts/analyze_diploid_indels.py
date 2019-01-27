@@ -24,22 +24,32 @@ def parse_args():
     parser.add_argument(
         '-t', '--threshold', type=int,
         default=10,
-        help='max allowed distance for a correct mapping [10]'
+        help='(int) max allowed distance for a correct mapping [10]'
     )
     parser.add_argument(
         '--read_len', type=int,
         default=100,
-        help='read length [100]'
+        help='(int) read length [100]'
     )
     parser.add_argument(
         '-p', '--personalized', type=int,
         default=0,
-        help='specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
+        help='(int) specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
         '--step_size', type=int,
         default=1000,
-        help='the step size for main/alt offset indexes [1000]'
+        help='(int) the step size for main/alt offset indexes [1000]'
+    )
+    parser.add_argument(
+        '--write_wrt_correctness', type=int,
+        default=None,
+        help='(int) If set, writes two files recording correct/incorrect alignments respectively. The output files use target sam prefix [None].'
+    )
+    parser.add_argument(
+        '--write_wrt_mapq', type=int,
+        default=None,
+        help='(int) If specified, writes two files recording alignments with mapq >= t and mapq < t. This argument is the threshold. The output files use target sam prefix [None].'
     )
     args = parser.parse_args()
     return args
@@ -282,6 +292,8 @@ def analyze_diploid_indels(args):
     threshold = args.threshold
     var_fn = args.var
     personalized = args.personalized
+    write_wrt_correctness = args.write_wrt_correctness
+    write_wrt_mapq = args.write_wrt_mapq
 
     # Global variables
     global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND, READ_LEN
@@ -310,33 +322,50 @@ def analyze_diploid_indels(args):
         print ('Error: unsupported personalized parameter', personalized)
         exit()
     
+    sam_f = open(sam_fn, 'r')
+    sam_prefix = sam_fn[: sam_fn.find('.')]
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
-    PERFORM_LOWQ_EXP = False
-    sam_f = open(sam_fn, 'r')
+    
+    if write_wrt_correctness:
+        correct_fn = sam_prefix + '-correct.sam'
+        incorrect_fn = sam_prefix + '-incorrect.sam'
+        print ('Write sam files %s and %s wrt to correctness...' % (correct_fn, incorrect_fn))
+        correct_f = open(correct_fn, 'w')
+        incorrect_f = open(incorrect_fn, 'w')
+    
+    if write_wrt_mapq:
+        highmapq_fn = sam_prefix + '-mapqgeq' + str(write_wrt_mapq) + '.sam'
+        lowmapq_fn = sam_prefix + '-mapql' + str(write_wrt_mapq) + '.sam'
+        print ('Write sam files %s and %s wrt to mapq...' % (highmapq_fn, lowmapq_fn))
+        highmapq_f = open(highmapq_fn, 'w')
+        lowmapq_f = open(lowmapq_fn, 'w')
+        for line in sam_f:
+            name, info = parse_line(line, by_score=0)
+            # headers
+            if name == 'header':
+                continue
+            if info.mapq >= write_wrt_mapq:
+                highmapq_f.write(line)
+            else:
+                lowmapq_f.write(line)
+            continue
+        exit()
+    
     for line in sam_f:
         name, info = parse_line(line, by_score=0)
         # headers
         if name == 'header':
-            if PERFORM_LOWQ_EXP:
-                # kept for low-q experiment
-                print (line[:line.find('\\')])
-            continue
-        if PERFORM_LOWQ_EXP:
-            # kept for low-q experiment
-            if info.mapq < 10:
-                print (line[:line.find('\\')])
             continue
         summary.add_one()
-        # aligned to incorrect haplotype
         if info.is_unaligned():
             summary.add_unaligned()
             comp = False
+        # aligned to incorrect haplotype
         elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
             num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             # aligned to incorrect haplotype and two haps are NOT equal
-            # if is_no_var_region == False:
             if num_var == 0:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
                 summary.add_diff_var(comp)
@@ -349,7 +378,6 @@ def analyze_diploid_indels(args):
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
                 num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 # aligned to correct haplotype and two haps are NOT equal
-                # if is_no_var_region == False:
                 if num_var == 0:
                     summary.add_same_var(comp)
                 # aligned to correct haplotype and two haps are equal
@@ -365,15 +393,17 @@ def analyze_diploid_indels(args):
                 # add results to same-diff and same-var, this doesn't actually
                 # matter for ref-based alignemnt, but helps analysis
                 # aligned to correct haplotype and two haps are NOT equal
-                # if is_no_var_region == False:
                 if num_var == 0:
                     summary.add_same_var(comp)
                 # aligned to correct haplotype and two haps are equal
                 else:
                     summary.add_same_id(comp)
+
+        if write_wrt_correctness:
+            if comp:
+                correct_f.write(line)
             else:
-                print ('Error: unsupported personalzed parameter', personalized)
-                exit()
+                incorrect_f.write(line)
         if __debug__ and comp == False:
             print (name)
             print ('info')
