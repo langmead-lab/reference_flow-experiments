@@ -371,7 +371,7 @@ def analyze_diploid_indels(args):
             summary.add_unaligned()
             comp = False
         # aligned to incorrect haplotype
-        elif (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
+        elif personalized == 2 and  (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
         or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
             num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             # aligned to incorrect haplotype and two haps are equal
