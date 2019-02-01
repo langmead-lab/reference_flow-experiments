@@ -362,7 +362,10 @@ def analyze_diploid_indels(args):
         exit()
     
     for line in sam_f:
-        name, info = parse_line(line, by_score=0)
+        if personalized == 0:
+            name, info = parse_line(line, by_score=0)
+        elif personalized == 2:
+            name, info = parse_line(line, by_score=0, erg=True)
         # headers
         if name == 'header':
             continue

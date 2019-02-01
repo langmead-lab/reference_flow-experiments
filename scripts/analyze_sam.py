@@ -155,12 +155,12 @@ class SamInfo:
     score = 0
     offset = 0
 
-    def __init__(self, line):
+    def __init__(self, line, erg=False):
         self.flag = int(line[1])
         self.pos = int(line[3])
         self.mapq = int(line[4])
         self.chrm = line[2]
-        if self.chrm.find('erg') > 0:
+        if erg and self.chrm.find('erg') > 0:
             tmp = self.chrm.split('-')
             self.offset = int(tmp[2])
             self.chrm = tmp[0]
@@ -243,12 +243,12 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def parse_line(line, by_score):
+def parse_line(line, by_score, erg=False):
     if line[0] == '@':
         return 'header', False
     line = line.split()
     name = line[0]
-    info = SamInfo(line)
+    info = SamInfo(line, erg)
     return name, info
 
 def compare_sam_info(info, ginfo, threshold, offset = [0]):
