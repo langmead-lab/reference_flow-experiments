@@ -21,6 +21,9 @@ def get_mutation_type(info):
 
 
 def update_genome(indiv, seq, label, vcf, out_prefix, indels=None): 
+    '''
+    ##fileformat=VCFv4.1
+    '''
     hapA = list(seq[:])
     hapB = list(seq[:])
     fA = open(out_prefix + '_hapA.fa', 'w')
