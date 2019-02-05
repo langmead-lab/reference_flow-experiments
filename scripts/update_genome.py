@@ -1,10 +1,6 @@
 #! /usr/bin/env python2.7
 '''
-Last update: 2018/12/11 by Nae-Chyun Chen
-
-(Original script is from FORGe-experiments by Jacob Pritt)
-Parse a vcf file and lists all the snps and
-indels for a sample
+Parse a vcf file and lists all the snvs and indels for a sample
 '''
 
 import sys
@@ -38,77 +34,72 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
     Format of a .var file:
     hap(A/B) chrm var_type ref_pos hap_pos offset
     '''
+    f = open(vcf, 'r')
+    labels = None
+    line_id = 0
+    offsetA = 0
+    offsetB = 0
+    for line in f:
+        # Skip header lines
+        if line[0] == '#' and line[1] == '#':
+            continue
 
-    with open(vcf, 'r') as f:
-        labels = None
+        if not labels:
+            labels = line.rstrip().split('\t')
 
-        line_id = 0
+            col = None
+            for i in range(9, len(labels)):
+                if labels[i] == indiv:
+                    col = i
+            if not col:
+                print('Error! Couldn\'t find individual %s in VCF' % indiv)
+                exit()
+        else:
+            row = line.rstrip().split('\t')
+            type = get_mutation_type(row[7])
+            if type == 'SNP' or (indels and type == 'INDEL'):
+                chrom = row[0]
+                loc = int(row[1])
 
-        offset = 0
-        offsetA = 0
-        offsetB = 0
-        for line in f:
-            # Skip header lines
-            if line[0] == '#' and line[1] == '#':
-                continue
+                orig = row[3]
+                alts = row[4].split(',')
 
-            if not labels:
-                labels = line.rstrip().split('\t')
+                alleleA = int(row[col][0])
+                alleleB = int(row[col][2])
 
-                col = None
-                for i in range(9, len(labels)):
-                    if labels[i] == indiv:
-                        col = i
-                if not col:
-                    print('Error! Couldn\'t find individual %s in VCF' % indiv)
-                    exit()
-            else:
-                row = line.rstrip().split('\t')
-                type = get_mutation_type(row[7])
-                if type == 'SNP' or (indels and type == 'INDEL'):
-                    chrom = row[0]
-                    name = row[2]
-                    loc = int(row[1])
+                if alleleA > 0:
+                    if indels:
+                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
+                    else:
+                        hapA[loc+offsetA-1] = alts[alleleA-1]
+                    #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
+                    f_var.write(
+                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                        ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
+                    )
+                    offsetA = new_offsetA
+                if alleleB > 0:
+                    if indels:
+                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
+                    else:
+                        hapB[loc+offsetB-1] = alts[alleleB-1]
+                    #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
+                    f_var.write(
+                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                        ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
+                    )
+                    offsetB = new_offsetB
 
-                    orig = row[3]
-                    alts = row[4].split(',')
-
-                    alleleA = int(row[col][0])
-                    alleleB = int(row[col][2])
-
-                    if alleleA > 0:
-                        if indels:
-                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
-                        else:
-                            hapA[loc+offsetA-1] = alts[alleleA-1]
-                        #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
-                        f_var.write(
-                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
-                        )
-                        offsetA = new_offsetA
-                    if alleleB > 0:
-                        if indels:
-                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
-                        else:
-                            hapB[loc+offsetB-1] = alts[alleleB-1]
-                        #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
-                        f_var.write(
-                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
-                        )
-                        offsetB = new_offsetB
-
-                    line_id += 1
+                line_id += 1
 
     f_var.close()
     for i in range(0, len(hapA), 60):
         fA.write(''.join(hapA[i:i+60])  + '\n')
     for i in range(0, len(hapB), 60):
         fB.write(''.join(hapB[i:i+60])  + '\n') 
-
     fA.close()
     fB.close()
+    f.close()
 
 def add_alt(genome, loc, orig, alt, offset):
     '''
