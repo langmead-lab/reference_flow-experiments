@@ -5,7 +5,6 @@ Also supports the comparison between a golden var list.
 '''
 import argparse
 from build_erg import read_var
-# from update_genome import add_alt
 
 class VCF4_2:
     # CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
@@ -53,7 +52,6 @@ class VCF4_2:
                 self.v_type += 'DEL'
             else:
                 print ('Error: unexpected variant type :', self.ref_allele, alt_allele)
-                # print (row[7])
                 exit ()
         
 
@@ -85,7 +83,6 @@ def build_varlist_from_vcf(args):
     golden_vcf_fn = args.golden_vcf
     min_qual = float(args.min_qual)
     target_vcf_f = open(target_vcf_fn, 'r')
-    # golden_vcf_f = open(golden_vcf_fn, 'r')
     
     var_list = read_var(golden_vcf_fn, remove_conflict=True, remove_coexist=False)
     print ('len of golden list:', len(var_list))
@@ -99,10 +96,13 @@ def build_varlist_from_vcf(args):
         if line[0] == '#':# and line[1] == '#'
             continue
         vcf = VCF4_2(line)
+
+        # filtered by QUAL
         if vcf.v_qual < min_qual:
             continue
         
         for i, alt_allele in enumerate(vcf.alt_alleles):
+            # a diploid variant is counted twice
             num_vars += 1
             # v_type = vcf.v_type.split(',')[i]
             # print (vcf.v_chrom, v_type, vcf.v_pos, vcf.ref_allele, alt_allele)
@@ -113,19 +113,15 @@ def build_varlist_from_vcf(args):
                 var_list[j].alt_allele == alt_allele:
                     golden_idx = j
                     num_true_pos += 1
-                    # print ('match')
-                    # print (var_list[j].line)
-                    # input()
                     break
                 if var_list[j].chrm == vcf.v_chrom and \
                     var_list[j].ref_pos > vcf.v_pos:
                     golden_idx = max(j - 1, 0)
-                    # input (var_list[j].line)
                     break
     
     # Stats
-    precision = 100*float(num_true_pos)/num_vars
-    sensitivity = 100*float(num_true_pos)/len(var_list)
+    precision = 100 * float(num_true_pos) / num_vars
+    sensitivity = 100 * float(num_true_pos) / len(var_list)
     
     print ('PRECISION = %.2f%%' % precision)
     print ('SENSITIVITY = %.2f%%' % sensitivity)
