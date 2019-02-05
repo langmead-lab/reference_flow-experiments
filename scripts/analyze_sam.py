@@ -154,17 +154,31 @@ class SamInfo:
     mapq = 0
     score = 0
     offset = 0
+    seq = ''
+    cigar = ''
+    tag_md = ''
 
-    def __init__(self, line, erg=False):
+    def __init__(self, line, erg=False, md=False, cigar=False):
         self.flag = int(line[1])
         self.pos = int(line[3])
         self.mapq = int(line[4])
         self.chrm = line[2]
+        self.seq = line[9]
+        if cigar:
+            self.cigar = line[5]
         if erg and self.chrm.find('erg') > 0:
             tmp = self.chrm.split('-')
             self.offset = int(tmp[2])
             self.chrm = tmp[0]
             self.pos += self.offset - 1
+        if md and (self.is_unaligned() == False):
+            check_md = False
+            for tag in line[11:]:
+                if tag[:5] == 'MD:Z:':
+                    self.tag_md = tag[5:]
+                    check_md = True
+                    break
+            assert check_md
         self.update_score(line[11])
     
     def print(self,
@@ -243,12 +257,12 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def parse_line(line, by_score, erg=False):
+def parse_line(line, by_score, erg=False, md=False, cigar=False):
     if line[0] == '@':
         return 'header', False
     line = line.split()
     name = line[0]
-    info = SamInfo(line, erg)
+    info = SamInfo(line, erg, md, cigar)
     return name, info
 
 def compare_sam_info(info, ginfo, threshold, offset = [0]):
