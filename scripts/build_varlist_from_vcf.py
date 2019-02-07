@@ -146,7 +146,7 @@ def build_erg_wrt_ref(ref_genome, var_list, args):
     SHOW_SUMMARY = True
     if SHOW_SUMMARY:
         sys.stderr.write ('Num ERGs: %d\n' % num_erg)
-        sys.stderr.write ('Avg ERG len: %.2f%%\n' % (float(total_len_erg) / num_erg))
+        sys.stderr.write ('Avg ERG len: %.2f\n' % (float(total_len_erg) / num_erg))
 
 def build_varlist_from_vcf(args):
     '''
@@ -258,6 +258,6 @@ if __name__ == '__main__':
     var_list = build_varlist_from_vcf(args)
 
     if args.build_erg != None:
-        ref_genome = read_genome(args.ref_genome, None)
+        ref_genome = read_genome(args.ref_genome, print_main=True)
         sys.stderr.write ('Warning: ignore HET vars\n')
         build_erg_wrt_ref(ref_genome, var_list, args)
