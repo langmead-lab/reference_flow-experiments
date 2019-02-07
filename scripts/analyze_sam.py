@@ -273,8 +273,7 @@ def compare_sam_info(info, ginfo, threshold, offset = [0], ignore_chrm=False):
     if (info.is_rc() ^ ginfo.is_rc()) is True:
         # diff direction
         if __debug__: 
-            print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), \
-                    "mapq =", info.mapq)
+            print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), "mapq =", info.mapq)
         return False
     for off in offset:
         if abs(info.pos + off - ginfo.pos) <= threshold:

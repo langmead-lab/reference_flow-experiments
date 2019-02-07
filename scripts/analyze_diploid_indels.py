@@ -232,7 +232,7 @@ def diploid_compare(
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
-            info.chrm = ALT_CHRM
+            # info.chrm = ALT_CHRM
             i_low = int(info.pos / STEP)
             i_high = math.ceil(info.pos / STEP)
             if i_low >= len(main_offset_index):
@@ -243,13 +243,13 @@ def diploid_compare(
                 offset_high = main_offset_index[len(main_offset_index) - 1]
             else:
                 offset_high = main_offset_index[i_high]
-            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high])
+            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high], ignore_chrm=True)
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
                 print_near_aln(offsets, info, g_info, 1000)
             return comp
         elif info.chrm == ALT_CHRM:
-            info.chrm = MAIN_CHRM
+            # info.chrm = MAIN_CHRM
             i_low = int(info.pos / STEP)
             i_high = math.ceil(info.pos / STEP)
             if i_low >= len(alt_offset_index):
@@ -260,7 +260,7 @@ def diploid_compare(
                 offset_high = alt_offset_index[len(alt_offset_index) - 1]
             else:
                 offset_high = alt_offset_index[i_high]
-            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high])
+            comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high], ignore_chrm=True)
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
                 print_near_aln(offsets, info, g_info, 1000)
