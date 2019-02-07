@@ -4,6 +4,7 @@ Parses a VCF (V4.2) file and builds a list of variants.
 Also supports the comparison between a golden var list.
 '''
 import argparse
+import sys
 from build_erg import read_var, read_genome
 
 class VCF4_2:
@@ -77,6 +78,8 @@ def write_erg_wrt_ref(var_list, ref_genome, f_len):
     start_pos = var_list[0].v_pos - f_len
     end_v = var_list[len(var_list) - 1]
     
+    # only looks at the first allele at a locus
+    # TODO
     end_alt_allele = end_v.alt_alleles[0]
     # if len(end_v.alt_alleles) > 1:
     # else:
@@ -84,9 +87,15 @@ def write_erg_wrt_ref(var_list, ref_genome, f_len):
     end_pos = end_v.v_pos + f_len + len(end_alt_allele)
     erg_ref = ref_genome[start_pos: end_pos]
     
+    prev_bound = [0,0]
     nxt_start_pos = start_pos
     for v in var_list:
-        v.print()
+        # skips overlapped variants
+        if v.v_pos >= prev_bound[0] and \
+            v.v_pos < prev_bound[1]:
+            continue
+        prev_bound[0] = v.v_pos
+        prev_bound[1] = v.v_pos + len(v.alt_alleles[0])
         erg += ref_genome[nxt_start_pos : v.v_pos]
         erg += v.alt_alleles[0]
         nxt_start_pos = v.v_pos + len(v.alt_alleles[0])
@@ -94,10 +103,16 @@ def write_erg_wrt_ref(var_list, ref_genome, f_len):
         erg = erg_ref
     else:
         erg += ref_genome[nxt_start_pos : end_pos]
+    
     assert end_pos - start_pos == len(erg)
-    print (start_pos, end_pos)
-    print (erg)
-    input ()
+    WRITE_ERG = True
+    if WRITE_ERG:
+        CHRM = 9
+        print (
+            '>%s-erg-%s-%s' % 
+            (CHRM, start_pos, end_pos)
+        )
+        print (erg)
     return len(erg)
 
 def build_erg_wrt_ref(ref_genome, var_list, args):
@@ -128,6 +143,10 @@ def build_erg_wrt_ref(ref_genome, var_list, args):
     len_erg = write_erg_wrt_ref(tmp_var_list, ref_genome, f_len)
     num_erg += 1
     total_len_erg += len_erg
+    SHOW_SUMMARY = True
+    if SHOW_SUMMARY:
+        sys.stderr.write ('Num ERGs: %d\n' % num_erg)
+        sys.stderr.write ('Avg ERG len: %.2f%%\n' % (float(total_len_erg) / num_erg))
 
 def build_varlist_from_vcf(args):
     '''
@@ -183,18 +202,20 @@ def build_varlist_from_vcf(args):
                     golden_idx = max(j - 1, 0)
                     break
     
-    # Stats
-    precision = 100 * float(num_true_pos) / num_vars
-    sensitivity = 100 * float(num_true_pos) / len(gvar_list)
-    
-    print ('NUM GOLDEN VARS:', len(gvar_list))
-    # print ('NUM VARS', num_vars)
-    print ('NUM SNPS', num_snps)
-    print ('NUM INDELS', num_indels)
-    print ('NUM TRUE POS', num_true_pos)
-    
-    print ('PRECISION = %.2f%%' % precision)
-    print ('SENSITIVITY = %.2f%%' % sensitivity)
+    SHOW_STATS = True
+    if SHOW_STATS:
+        # Stats
+        precision = 100 * float(num_true_pos) / num_vars
+        sensitivity = 100 * float(num_true_pos) / len(gvar_list)
+        
+        sys.stderr.write ('NUM GOLDEN VARS: %d\n' % len(gvar_list))
+        # sys.stderr.write ('NUM VARS', num_vars)
+        sys.stderr.write ('NUM SNPS: %d\n' % num_snps)
+        sys.stderr.write ('NUM INDELS: %d\n' % num_indels)
+        sys.stderr.write ('NUM TRUE POS: %d\n' % num_true_pos)
+        
+        sys.stderr.write ('PRECISION = %.2f%%\n' % precision)
+        sys.stderr.write ('SENSITIVITY = %.2f%%\n' % sensitivity)
 
     return var_list
 
@@ -224,6 +245,11 @@ def parse_args():
         default=100,
         help='the length of flanking regions, total length of an erg is 2*f+1 [100]'
     )
+    parser.add_argument(
+        '-erg', '--build_erg',
+        default=None,
+        help='Specify to build ERG based on input variants. The ERG will be output through stdout. `ref_genome` must be specified as well. [None]'
+    )
     args = parser.parse_args()
     return args
 
@@ -231,6 +257,7 @@ if __name__ == '__main__':
     args = parse_args()
     var_list = build_varlist_from_vcf(args)
 
-    ref_genome = read_genome(args.ref_genome, None)
-    print ('Warning: ignore HET vars')
-    build_erg_wrt_ref(ref_genome, var_list, args)
+    if args.build_erg != None:
+        ref_genome = read_genome(args.ref_genome, None)
+        sys.stderr.write ('Warning: ignore HET vars\n')
+        build_erg_wrt_ref(ref_genome, var_list, args)
