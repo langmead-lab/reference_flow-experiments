@@ -201,7 +201,7 @@ def diploid_compare(
         return compare_sam_info(info, g_info, threshold)
     elif dip_flag in ['same_strand_ref']:
         # neglect chrom name difference
-        info.chrm = g_info.chrm
+        # info.chrm = g_info.chrm
         i_low = int(info.pos / STEP)
         i_high = math.ceil(info.pos / STEP)
         # try hapA
@@ -224,7 +224,7 @@ def diploid_compare(
         else:
             offset_highB = alt_offset_index[i_high]
         
-        comp = compare_sam_info(info, g_info, threshold, [offset_highA, offset_lowA, offset_highB, offset_lowB])
+        comp = compare_sam_info(info, g_info, threshold, [offset_highA, offset_lowA, offset_highB, offset_lowB], ignore_chrm=True)
         if comp == False and __debug__:
             offsets = [offset_lowA, offset_highA, offset_lowB, offset_highB]
             print_near_aln(offsets, info, g_info, 1000)
@@ -400,7 +400,7 @@ def analyze_diploid_indels(args):
                     summary.add_same_var(comp)
             elif personalized == 0:
                 if CHECK_VAR_OVERLAPPING_REF:
-                    num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                    num_var = check_var_in_region(info, main_index, alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 else:
                     num_var = 0
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)

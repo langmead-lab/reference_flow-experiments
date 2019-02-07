@@ -265,8 +265,8 @@ def parse_line(line, by_score, erg=False, md=False, cigar=False):
     info = SamInfo(line, erg, md, cigar)
     return name, info
 
-def compare_sam_info(info, ginfo, threshold, offset = [0]):
-    if info.chrm != ginfo.chrm:
+def compare_sam_info(info, ginfo, threshold, offset = [0], ignore_chrm=False):
+    if (ignore_chrm is False) and (info.chrm != ginfo.chrm):
         # diff chromosome
         if __debug__: print ("False: chr, mapq =", info.mapq)
         return False
