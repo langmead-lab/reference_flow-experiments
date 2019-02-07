@@ -360,22 +360,25 @@ def analyze_diploid_indels(args):
                 lowmapq_f.write(line)
             continue
         exit()
-    
+   
+    CHECK_VAR_OVERLAPPING_REF = False
+
     for line in sam_f:
         if personalized == 0:
-            name, info = parse_line(line, by_score=0)
+            # name, info = parse_line(line, by_score=0)
+            name, info = parse_line(line, by_score=0, erg=True)
         elif personalized == 2:
             name, info = parse_line(line, by_score=0, erg=True)
         # headers
         if name == 'header':
             continue
+        name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
         summary.add_one()
         if info.is_unaligned():
             summary.add_unaligned()
             comp = False
         # aligned to incorrect haplotype
-        elif personalized == 2 and  (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) \
-        or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM):
+        elif personalized == 2 and name_chrm_mismatch:
             num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             # aligned to incorrect haplotype and two haps are equal
             if num_var == 0:
@@ -396,7 +399,10 @@ def analyze_diploid_indels(args):
                 else:
                     summary.add_same_var(comp)
             elif personalized == 0:
-                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                if CHECK_VAR_OVERLAPPING_REF:
+                    num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                else:
+                    num_var = 0
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
                 
                 # simply add results to the same_strand category
