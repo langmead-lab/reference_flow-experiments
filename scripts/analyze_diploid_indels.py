@@ -353,6 +353,8 @@ def analyze_diploid_indels(args):
             name, info = parse_line(line, by_score=0)
             # headers
             if name == 'header':
+                highmapq_f.write(line)
+                lowmapq_f.write(line)
                 continue
             if info.mapq >= write_wrt_mapq:
                 highmapq_f.write(line)
