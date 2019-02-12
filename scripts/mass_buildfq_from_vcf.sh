@@ -3,7 +3,7 @@ SCRATCH=/home-1/bsolomo9\@jhu.edu/scratch/bsolomo9/genome_relaxation/
 #RELAX=/scratch/groups/blangme2/naechyun/relaxing/
 RELAX=/home-1/bsolomo9\@jhu.edu/genome_relaxation/
 DATE=$(date +"%m-%d-%Y")
-RANDSIZE=1
+RANDSIZE=100
 RANDSET=${SCRATCH}/1000G_R${RANDSIZE}_${DATE}.txt
 RANDSTORAGE=${STORAGE}/bsolomo9/1000G_R${RANDSIZE}_${DATE}
 
@@ -18,7 +18,7 @@ python getRand.py $SCRATCH/phase3_names.txt ${RANDSIZE} > $RANDSET
 while read -r NAME
 do
 	python $RELAX/scripts/update_genome.py --ref $STORAGE/indexes/hs37d5.fa --vcf $STORAGE/naechyun/1000Genomes/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf --chrom 9 --out-prefix ${RANDSTORAGE}/$NAME --name $NAME --include-indels 1
-done
+done < $RANDSET
 
 #/scratch/groups/blangme2/naechyun/software/mason-0.1.2-Linux-x86_64/bin/mason \
 #    illumina $RELAX/na12878/indels/na12878-chr9-indel-hapB.fa \
