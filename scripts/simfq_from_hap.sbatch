@@ -22,7 +22,7 @@ TIME=/home-1/bsolomo9@jhu.edu/bin/time
    		-N 1000000 -sq -n 100 -hs 0 -hi 0 -hn 1 -mp \
     	-o ${RANDSTORAGE}/${NAME}_hapA_indel-1M.fq) > ${RANDSTORAGE}/${NAME}_hapA.log 2> ${RANDSTORAGE}/${NAME}_hapA_time.log
 
-	gzip ${RANDSTORAGE}/${NAME}_hapA_indel-1M.fq
+	#gzip ${RANDSTORAGE}/${NAME}_hapA_indel-1M.fq
 
 	echo "Constructing Hap B for $NAME"
 	($TIME -v /scratch/groups/blangme2/naechyun/software/mason-0.1.2-Linux-x86_64/bin/mason \
@@ -30,4 +30,4 @@ TIME=/home-1/bsolomo9@jhu.edu/bin/time
     	-N 1000000 -sq -n 100 -hs 0 -hi 0 -hn 1 -mp \
     	-o ${RANDSTORAGE}/${NAME}_hapB_indel-1M.fq) > ${RANDSTORAGE}/${NAME}_hapB.log 2> ${RANDSTORAGE}/${NAME}_hapB_time.log
 
-	gzip ${RANDSTORAGE}/${NAME}_hapB_indel-1M.fq
+	#gzip ${RANDSTORAGE}/${NAME}_hapB_indel-1M.fq
