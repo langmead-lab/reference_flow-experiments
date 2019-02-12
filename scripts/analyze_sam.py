@@ -257,7 +257,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def parse_line(line, by_score, erg=False, md=False, cigar=False):
+def parse_line(line, erg=False, md=False, cigar=False):
     if line[0] == '@':
         return 'header', False
     line = line.split()
@@ -287,7 +287,7 @@ def dump_golden_dic(filename, seg):
     g_dic = {}
     with open(filename, 'r') as gfile:
         for line in gfile:
-            name, info = parse_line(line, 0)
+            name, info = parse_line(line)
             if name is 'header':
                 continue
             if seg == 1:
@@ -343,7 +343,7 @@ def analyze_sam(args):
             dic_q_cor = {}
             dic_q_incor = {}
         for line in infile:
-            name, info = parse_line(line, by_score)
+            name, info = parse_line(line)
             if name is 'header':
                 continue
             if info.is_secondary() and secondary == 0: # neglect secondary alignments

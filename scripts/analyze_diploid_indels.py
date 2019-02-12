@@ -350,7 +350,7 @@ def analyze_diploid_indels(args):
         highmapq_f = open(highmapq_fn, 'w')
         lowmapq_f = open(lowmapq_fn, 'w')
         for line in sam_f:
-            name, info = parse_line(line, by_score=0)
+            name, info = parse_line(line)
             # headers
             if name == 'header':
                 highmapq_f.write(line)
@@ -367,10 +367,10 @@ def analyze_diploid_indels(args):
 
     for line in sam_f:
         if personalized == 0:
-            # name, info = parse_line(line, by_score=0)
-            name, info = parse_line(line, by_score=0, erg=True)
+            # name, info = parse_line(line)
+            name, info = parse_line(line, erg=True)
         elif personalized == 2:
-            name, info = parse_line(line, by_score=0, erg=True)
+            name, info = parse_line(line, erg=True)
         # headers
         if name == 'header':
             continue
