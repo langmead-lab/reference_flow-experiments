@@ -14,7 +14,7 @@ RANDSIZE="$2"
 NAME="$3"
 #RANDSET=${SCRATCH}/1000G_R${RANDSIZE}_${DATE}.txt
 RANDSTORAGE=${STORAGE}/bsolomo9/1000G_R${RANDSIZE}_${DATE}
-
+TIME=/home-1/bsolomo9@jhu.edu/bin/time
 # Run script to take hap files and simulate 1M reads in fastq format
 	echo "Constructing Hap A for $NAME"
 	($TIME -v /scratch/groups/blangme2/naechyun/software/mason-0.1.2-Linux-x86_64/bin/mason \
