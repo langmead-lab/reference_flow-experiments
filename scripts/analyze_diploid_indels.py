@@ -5,7 +5,8 @@ identical in two personalized refs
 '''
 import argparse, math
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
-from build_erg import read_var
+from build_erg import read_var, read_genome
+from get_levenshtein import levenshtein
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -171,6 +172,12 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
+    # for testing only
+    fn_ref = '$REL/chr9/chr9_singleline.fa'
+    fn_hap = '$REL/na12878/indels/hapA_single.fa'
+    # fn_hap = '$REL/na12878/indels/hapB_single.fa'
+    ref_genome = read_genome(fn_ref)
+    hap_genome = read_genome(fn_hap)
     tmp = []
     for i in offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
@@ -180,9 +187,11 @@ def print_near_aln(offsets, info, g_info, threshold):
         print ('diff', diff)
         print ('info')
         info.print(flag=False, mapq=False, score=False)
+        print (ref_genome[info.pos: info.pos + READ_LEN])
         print ()
         print ('golden')
         g_info.print(flag=False, mapq=False, score=False)
+        print (hap_genome[g_info.pos: g_info.pos + READ_LEN])
         input()
 
 def diploid_compare(
