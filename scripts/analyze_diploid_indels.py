@@ -172,26 +172,36 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     return main_index, alt_index, main_offset_index, alt_offset_index
 
 def print_near_aln(offsets, info, g_info, threshold):
-    # for testing only
-    fn_ref = '$REL/chr9/chr9_singleline.fa'
-    fn_hap = '$REL/na12878/indels/hapA_single.fa'
-    # fn_hap = '$REL/na12878/indels/hapB_single.fa'
-    ref_genome = read_genome(fn_ref)
-    hap_genome = read_genome(fn_hap)
-    seq_ref = ref_genome[info.pos: info.pos + READ_LEN]
-    seq_hap = hap_genome[g_info.pos: g_info.pos + READ_LEN]
-    leven_score_g = []
-    for i in offsets:
-        seq_ref_g = ref_genome[g_info.pos - i: g_info.pos - i + READ_LEN]
-        leven_score_g.append(levenshtein(seq_ref_g, seq_hap))
-    print ('called', levenshtein(seq_ref, seq_hap))
-    print ('golden', min(leven_score_g))
-
+    '''
+    Compares alignment with the golden profile if they are near.
+    If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
+    '''
     tmp = []
     for i in offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
     diff = min(tmp)
     if diff < threshold:
+        if COMPARE_SEQ:
+            global TOTALNEAR
+            TOTALNEAR += 1
+            seq_ref = REF_G[info.pos: info.pos + READ_LEN]
+            seq_hapA = HAPA_G[g_info.pos: g_info.pos + READ_LEN]
+            seq_hapB = HAPB_G[g_info.pos: g_info.pos + READ_LEN]
+            leven_score_g = []
+            for i in offsets:
+                seq_ref_g = REF_G[g_info.pos - i: g_info.pos - i + READ_LEN]
+                leven_score_g.append(levenshtein(seq_ref_g, seq_hapA))
+                leven_score_g.append(levenshtein(seq_ref_g, seq_hapB))
+            called_d = min(levenshtein(seq_ref, seq_hapA), levenshtein(seq_ref, seq_hapB))
+            golden_d = min(leven_score_g)
+            if called_d >= golden_d:
+                return
+            global HIGHC
+            HIGHC += 1
+            return
+            print ('called', called_d)
+            print ('golden', golden_d)
+
         print ('offsets', offsets)
         print ('diff', diff)
         print ('info')
@@ -199,6 +209,7 @@ def print_near_aln(offsets, info, g_info, threshold):
         print ()
         print ('golden')
         g_info.print(flag=False, mapq=False, score=False)
+
         input()
 
 def diploid_compare(
@@ -241,7 +252,7 @@ def diploid_compare(
             offset_highB = alt_offset_index[i_high]
         
         comp = compare_sam_info(info, g_info, threshold, [offset_highA, offset_lowA, offset_highB, offset_lowB], ignore_chrm=True)
-        if comp == False and __debug__:
+        if comp == False:# and __debug__:
             offsets = [offset_lowA, offset_highA, offset_lowB, offset_highB]
             print_near_aln(offsets, info, g_info, 1000)
         return comp
@@ -454,4 +465,22 @@ def analyze_diploid_indels(args):
 
 if __name__ == '__main__':
     args = parse_args()
+
+    global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G
+    COMPARE_SEQ = False
+    if COMPARE_SEQ:
+        HIGHC = 0
+        TOTALNEAR = 0
+        #TODO
+        fn_ref =  'chr9_singleline.fa'
+        fn_hapA = 'hapA_single.fa'
+        fn_hapB = 'hapB_single.fa'
+        REF_G = read_genome(fn_ref)
+        HAPA_G = read_genome(fn_hapA)
+        HAPB_G = read_genome(fn_hapB)
+
     analyze_diploid_indels(args)
+
+    if COMPARE_SEQ:
+        print ('Number of alns have higher score than golden =', HIGHC)
+        print ('Total number of near alignments =', TOTALNEAR)
