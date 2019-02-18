@@ -12,10 +12,10 @@ MASH=/home-1/bsolomo9@jhu.edu/software/mash-Linux64-v2.1/mash
 DIR="$1"
 
 # For 1k Genomes from update_genomes.py / VCF files:
-#SUFFIX=".fa"
+SUFFIX=".fa"
 
 # For Mason Sim Comparisons:
-SUFFIX="_indel-1M_1.fq"
+#SUFFIX="_indel-1M_1.fq"
 
 # Run script to select a random set
 #touch $RANDSET 
@@ -27,9 +27,8 @@ SUFFIX="_indel-1M_1.fq"
 
 # Run script to take hap files and simulate 1M reads in fastq format
 for FILE1 in $(find $DIR -name "*${SUFFIX}"); do
-	FILE2="${FILE1%_1.fq}_2.fq"
 	#echo $FILE1
 	#echo $FILE2
-	cat $FILE1 $FILE2 | $MASH sketch - -o "${FILE1%_1.fq}.msh"
+	$MASH sketch $FILE1
 done
 
