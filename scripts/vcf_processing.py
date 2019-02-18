@@ -31,9 +31,10 @@ class VCF:
         self.v_format = row[8]
         
         for info in self.v_info.split(';'):
-            if info.startswith('AF'):
+            if info.startswith('AF='):
                 af = info[info.find('=') + 1:]
                 self.v_af = float(af.split(',')[alt_id])
+                break
 
         # get var type
         if len(self.alt_allele) == len(self.ref_allele):
@@ -54,21 +55,24 @@ class VCF:
             print ('Error: unexpected variant type :', self.ref_allele, self.alt_allele)
             exit ()
     
-    def print(self, chrm=False, pos=True, ref_allele=True, alt_allele=True, af=True):
+    def print(self, show_chrm=False, show_id=True, show_pos=True, show_ref_allele=True, show_alt_allele=True, show_af=True):
         msg = ''
-        if chrm:
+        if show_chrm:
             msg += self.v_chrom
             msg += ' '
-        if pos:
+        if show_id:
+            msg += self.v_id
+            msg += ' '
+        if show_pos:
             msg += str(self.v_pos)
             msg += ' '
-        if ref_allele:
+        if show_ref_allele:
             msg += self.ref_allele
             msg += ' '
-        if alt_allele:
+        if show_alt_allele:
             msg += str(self.alt_allele)
             msg += ' '
-        if af:
+        if show_af:
             msg += str(self.v_af)
             msg += ' '
         print (msg)
