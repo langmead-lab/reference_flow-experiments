@@ -17,8 +17,10 @@ class VCF:
     v_format = ''
     v_type = ''
     v_af = None
+    v_line = ''
     
-    def __init__(self, row, alt_id=0):
+    def __init__(self, row, alt_id, line):
+        self.v_line = line
         self.v_chrom = row[0]
         self.v_pos = int(row[1])
         self.v_id = row[2]
@@ -109,7 +111,7 @@ def build_vcf(line):
     num_alt_alleles = len(row[4].split(','))
     list_vcf = []
     for i in range(num_alt_alleles):
-        list_vcf.append(VCF(row, i))
+        list_vcf.append(VCF(row, i, line))
     return list_vcf
 
 def comp_var_with_list(var, list_var):
@@ -137,6 +139,30 @@ def comp_var_with_list(var, list_var):
                 break
         list_comp[list_idx] = alt_allele_check
     return list_comp
+
+def specify_target_var(vcf_fn, out_var_loc_fn, min_af):
+    list_pos = []
+    list_ref_allele = []
+    vcf_f = open(vcf_fn, 'r')
+    max_pos = 0
+    for line in vcf_f:
+        if line.startswith('#'):
+            continue
+        list_vcf = build_vcf(line)
+        for vcf in list_vcf:
+            if vcf.v_af < min_af:
+                continue
+            if vcf.v_pos in list_pos:
+                continue
+            list_pos.append(vcf.v_pos)
+            list_ref_allele.append(vcf.ref_allele)
+            if vcf.v_pos > max_pos:
+                max_pos = vcf.v_pos
+    assert len(list_pos) == len(list_ref_allele)
+    for i, p in enumerate(list_pos):
+        print (p, list_ref_allele[i])
+    # print (list_pos)
+    print (len(list_pos), max_pos)
 
 def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af):
     vcf_f = open(vcf_fn, 'r')
@@ -171,5 +197,12 @@ if __name__ == '__main__':
     args = parse_args()
     vcf_fn = args.vcf
     out_vcf_fn = args.out_no_conflicting_vcf
+    out_var_loc_fn = args.out_var_loc
     min_af = args.min_af
-    remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af)
+    if out_vcf_fn != None:
+        sys.stderr.write('Mode: remove conflicting variants\n')
+        #: current: report conflicts, no output yet
+        remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af)
+    elif out_var_loc_fn != None:
+        sys.stderr.write('Mode: specify target variant locations\n')
+        specify_target_var(vcf_fn, out_var_loc_fn, min_af)
