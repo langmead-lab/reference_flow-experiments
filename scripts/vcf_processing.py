@@ -59,22 +59,21 @@ class VCF:
         msg = ''
         if show_chrm:
             msg += self.v_chrom
-            msg += ' '
+            msg += '\t'
         if show_id:
             msg += self.v_id
-            msg += ' '
+            msg += '\t'
         if show_pos:
             msg += str(self.v_pos)
-            msg += ' '
+            msg += '\t'
         if show_ref_allele:
             msg += self.ref_allele
-            msg += ' '
+            msg += '\t'
         if show_alt_allele:
             msg += str(self.alt_allele)
-            msg += ' '
+            msg += '\t'
         if show_af:
             msg += str(self.v_af)
-            msg += ' '
         print (msg)
 
 def parse_args():
@@ -154,11 +153,14 @@ def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af):
                 continue
             
             if vcf.v_pos in prev_range:
-                for pv in prev_var:
-                    pv.print()
-                vcf.print()
                 comp = comp_var_with_list(vcf, prev_var)
-                input(comp)
+                for c in comp:
+                    if c == False:
+                        for pv in prev_var:
+                            pv.print()
+                        vcf.print()
+                        print (comp)
+                        # input(comp)
                 prev_var.append(vcf)
             if len(prev_range) == 0 or vcf.v_pos > max(prev_range):
                 prev_range = range(vcf.v_pos, vcf.v_pos + len(vcf.ref_allele))
