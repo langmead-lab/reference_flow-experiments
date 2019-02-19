@@ -40,19 +40,13 @@ class VCF:
 
         # get var type
         if len(self.alt_allele) == len(self.ref_allele):
-            if len(self.v_type) > 0:
-                self.v_type += ','
-            self.v_type += 'SNP'
+            self.v_type = 'SNP'
         # INS
         elif len(self.alt_allele) > len(self.ref_allele):
-            if len(self.v_type) > 0:
-                self.v_type += ','
-            self.v_type += 'INS'
+            self.v_type = 'INS'
         # DEL
         elif len(self.alt_allele) < len(self.ref_allele):
-            if len(self.v_type) > 0:
-                self.v_type += ','
-            self.v_type += 'DEL'
+            self.v_type = 'DEL'
         else:
             print ('Error: unexpected variant type :', self.ref_allele, self.alt_allele)
             exit ()
@@ -95,23 +89,33 @@ def parse_args():
         help='output vcf file with conflicting variants removed; no output if this argument is not specified [None]'
     )
     parser.add_argument(
-        '--min_af',type=float,default=0.0,
+        '--min_af', type=float, default=0.0,
         help='min allele frequency to be considered [0.0]'
+    )
+    parser.add_argument(
+        '--indels', type=int, default=0,
+        help='set this to 1 to consider indels [0]'
     )
     args = parser.parse_args()
     return args
 
-def build_vcf(line):
+def build_vcf(line, consider_indels, consider_mult=False):
     if line.startswith('##'):
-        return
+        return []
     #: header
     if line.startswith('#'):
-        return
+        return []
     row = line.split()
     num_alt_alleles = len(row[4].split(','))
+    #: skip if doesn't consider multi-allelic locus
+    if consider_mult == False and num_alt_alleles > 1:
+        return []
     list_vcf = []
     for i in range(num_alt_alleles):
-        list_vcf.append(VCF(row, i, line))
+        v = VCF(row, i, line)
+        if consider_indels == False and v.v_type in ['INS', 'DEL']:
+            continue
+        list_vcf.append(v)
     return list_vcf
 
 def comp_var_with_list(var, list_var):
@@ -140,15 +144,16 @@ def comp_var_with_list(var, list_var):
         list_comp[list_idx] = alt_allele_check
     return list_comp
 
-def specify_target_var(vcf_fn, out_var_loc_fn, min_af):
+def specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels):
     list_pos = []
     list_ref_allele = []
     vcf_f = open(vcf_fn, 'r')
     max_pos = 0
     for line in vcf_f:
-        if line.startswith('#'):
+        list_vcf = build_vcf(line, consider_indels)
+        #: a header or an ignored variant
+        if len(list_vcf) < 1:
             continue
-        list_vcf = build_vcf(line)
         for vcf in list_vcf:
             if vcf.v_af < min_af:
                 continue
@@ -164,14 +169,14 @@ def specify_target_var(vcf_fn, out_var_loc_fn, min_af):
     # print (list_pos)
     print (len(list_pos), max_pos)
 
-def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af):
+def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels):
     vcf_f = open(vcf_fn, 'r')
     prev_range = range(0)
     prev_var = []
     for line in vcf_f:
         if line.startswith('#'):
             continue
-        list_vcf = build_vcf(line)
+        list_vcf = build_vcf(line, consider_indels)
         for vcf in list_vcf:
             #: ignore var with allele freq less than given threshold
             #: keep var if allele freq is not specified in vcf
@@ -199,10 +204,13 @@ if __name__ == '__main__':
     out_vcf_fn = args.out_no_conflicting_vcf
     out_var_loc_fn = args.out_var_loc
     min_af = args.min_af
+    consider_indels = args.indels
     if out_vcf_fn != None:
         sys.stderr.write('Mode: remove conflicting variants\n')
+        sys.stderr.write('Multi-allelic loci are ignored\n')
         #: current: report conflicts, no output yet
-        remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af)
+        remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels)
     elif out_var_loc_fn != None:
         sys.stderr.write('Mode: specify target variant locations\n')
-        specify_target_var(vcf_fn, out_var_loc_fn, min_af)
+        sys.stderr.write('Multi-allelic loci are ignored\n')
+        specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels)
