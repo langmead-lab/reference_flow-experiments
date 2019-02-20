@@ -33,9 +33,16 @@ else
     #: vcftools need sample to calculate frequency (cannot only look at INFO:AF)
     # vcftools --gzvcf $2 --non-ref-af 0.5 --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --out $PREFIX --remove-indels
     # bgzip $VCF -@ $NUM_TH
-    vcftools --gzvcf $VCF --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --out $PREFIX --remove-indels
-    bgzip $VCF_R -@ $NUM_TH
+
+    #: [start] this works
+    #vcftools --gzvcf $VCF --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --out $PREFIX --remove-indels
+    #bgzip $VCF_R -@ $NUM_TH
+    #bcftools index $VCF_R_GZ
+    #bcftools consensus -f $3 $VCF_R_GZ > $MA_REF
+    #: [end]
+
+    vcftools --gzvcf $VCF --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout --remove-indels | bgzip -@ $NUM_TH > $VCF_R_GZ
     bcftools index $VCF_R_GZ
-    bcftools consensus -f $3 $VCF_R_GZ > $MA_REF
-    # samtools faidx $3 {} | bcftools consensus $VCF_GZ > $MA_REF
+    #bcftools consensus -f $3 $VCF_R_GZ > $MA_REF
+    samtools faidx $3 $1 | bcftools consensus $VCF_GZ > $MA_REF
 fi
