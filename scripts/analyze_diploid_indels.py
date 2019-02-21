@@ -176,6 +176,16 @@ def print_near_aln(offsets, info, g_info, threshold):
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
     '''
+    def print_and_stop(offsets, diff, info, g_info):
+        print ('offsets', offsets)
+        print ('diff', diff)
+        print ('info')
+        info.print(flag=False, mapq=False, score=False)
+        print ()
+        print ('golden')
+        g_info.print(flag=False, mapq=False, score=False)
+        input()
+
     tmp = []
     for i in offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
@@ -194,23 +204,20 @@ def print_near_aln(offsets, info, g_info, threshold):
                 leven_score_g.append(levenshtein(seq_ref_g, seq_hapB))
             called_d = min(levenshtein(seq_ref, seq_hapA), levenshtein(seq_ref, seq_hapB))
             golden_d = min(leven_score_g)
+            global HIGHC, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
             if called_d >= golden_d:
+                CALL_D_ORIG.append(called_d)
+                SIM_D_ORIG.append(golden_d)
                 return
-            global HIGHC
             HIGHC += 1
-            return
+            CALL_D_ALT.append(called_d)
+            SIM_D_ALT.append(golden_d)
             print ('called', called_d)
             print ('golden', golden_d)
+            #print_and_stop(offsets, diff, info, g_info)
+            return
 
-        print ('offsets', offsets)
-        print ('diff', diff)
-        print ('info')
-        info.print(flag=False, mapq=False, score=False)
-        print ()
-        print ('golden')
-        g_info.print(flag=False, mapq=False, score=False)
-
-        input()
+        print_and_stop(offsets, diff, info, g_info)
 
 def diploid_compare(
     info, 
@@ -393,12 +400,8 @@ def analyze_diploid_indels(args):
     CHECK_VAR_OVERLAPPING_REF = False
 
     for line in sam_f:
-        if personalized == 0:
-            # name, info = parse_line(line)
-            name, info = parse_line(line, erg=True)
-        elif personalized == 2:
-            name, info = parse_line(line, erg=True)
-        # headers
+        name, info = parse_line(line, erg=True)
+        #: headers
         if name == 'header':
             continue
         name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
@@ -406,14 +409,14 @@ def analyze_diploid_indels(args):
         if info.is_unaligned():
             summary.add_unaligned()
             comp = False
-        # aligned to incorrect haplotype
+        #: aligned to incorrect haplotype
         elif personalized == 2 and name_chrm_mismatch:
             num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
-            # aligned to incorrect haplotype and two haps are equal
+            #: aligned to incorrect haplotype and two haps are equal
             if num_var == 0:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
                 summary.add_diff_id(comp)
-            # aligned to incorrect haplotype and two haps are NOT equal
+            #: aligned to incorrect haplotype and two haps are NOT equal
             else:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
                 summary.add_diff_var(comp)
@@ -434,15 +437,15 @@ def analyze_diploid_indels(args):
                     num_var = 0
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
                 
-                # simply add results to the same_strand category
+                #: simply add results to the same_strand category
                 # summary.add_same_strand(comp)
 
-                # add results to same-diff and same-var, this doesn't actually
-                # matter for ref-based alignemnt, but helps analysis
-                # aligned to correct haplotype and two haps are equal
+                #: add results to same-diff and same-var, this doesn't actually
+                #: matter for ref-based alignemnt, but helps analysis
+                #: aligned to correct haplotype and two haps are equal
                 if num_var == 0:
                     summary.add_same_id(comp)
-                # aligned to correct haplotype and two haps are NOT equal
+                #: aligned to correct haplotype and two haps are NOT equal
                 else:
                     summary.add_same_var(comp)
 
@@ -466,15 +469,19 @@ def analyze_diploid_indels(args):
 if __name__ == '__main__':
     args = parse_args()
 
-    global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G
-    COMPARE_SEQ = False
+    global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
+    COMPARE_SEQ = True
     if COMPARE_SEQ:
         HIGHC = 0
         TOTALNEAR = 0
+        CALL_D_ALT = []
+        SIM_D_ALT = []
+        CALL_D_ORIG = []
+        SIM_D_ORIG = []
         #TODO
-        fn_ref =  'chr9_singleline.fa'
-        fn_hapA = 'hapA_single.fa'
-        fn_hapB = 'hapB_single.fa'
+        fn_ref =  '/scratch/groups/blangme2/naechyun/relaxing/chr9/chr9_singleline.fa'
+        fn_hapA = '/scratch/groups/blangme2/naechyun/relaxing/na12878/indels/hapA_single.fa'
+        fn_hapB = '/scratch/groups/blangme2/naechyun/relaxing/na12878/indels/hapB_single.fa'
         REF_G = read_genome(fn_ref)
         HAPA_G = read_genome(fn_hapA)
         HAPB_G = read_genome(fn_hapB)
@@ -484,3 +491,9 @@ if __name__ == '__main__':
     if COMPARE_SEQ:
         print ('Number of alns have higher score than golden =', HIGHC)
         print ('Total number of near alignments =', TOTALNEAR)
+        print ('Avg Lev. dist of called ALT alignments =', sum(CALL_D_ALT)/len(CALL_D_ALT))
+        print (CALL_D_ALT)
+        print ('Avg Lev. dist of simulated ALT alignments =', sum(SIM_D_ALT)/len(SIM_D_ALT))
+        print (SIM_D_ALT)
+        print ('Avg Lev. dist of called ORIG alignments =', sum(CALL_D_ORIG)/(TOTALNEAR-HIGHC))
+        print ('Avg Lev. dist of simulated ORIG alignments =', sum(SIM_D_ORIG)/(TOTALNEAR-HIGHC))
