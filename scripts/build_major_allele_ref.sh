@@ -50,4 +50,12 @@ else
     $4 IndexFeatureFile -F $VCF_R_GZ
     $4 FastaAlternateReferenceMaker -R ${3}.fa -O $MA_REF -V $VCF_R_GZ
     sed -iE 's/>[0-9+]* />/; s/:/ /' $MA_REF
+
+    #: test major allele reference using chromosome vcfs
+    #sh $REL/scripts/test_ma.sh $MA_REF
+    for i in $(seq 1 22); do
+        bgzip -cd $GS/1kg_vcf/${i}.vcf.gz | \
+            python $REL/scripts/vcf_processing.py --out_var_loc 1 --min_af 0.5 --rand_th 1 | \
+            python $REL/scripts/test_major_allele_ref.py -m $MA_REF -r ${3}.fa  >> test_major_allele_ref.txt
+    done
 fi
