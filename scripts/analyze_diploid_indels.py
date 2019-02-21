@@ -216,8 +216,8 @@ def print_near_aln(offsets, info, g_info, threshold):
             print ('golden', golden_d)
             #print_and_stop(offsets, diff, info, g_info)
             return
-
-        print_and_stop(offsets, diff, info, g_info)
+        if __debug__:
+            print_and_stop(offsets, diff, info, g_info)
 
 def diploid_compare(
     info, 
@@ -407,47 +407,54 @@ def analyze_diploid_indels(args):
         name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
         summary.add_one()
         if info.is_unaligned():
-            summary.add_unaligned()
             comp = False
-        #: aligned to incorrect haplotype
-        elif personalized == 2 and name_chrm_mismatch:
-            num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
-            #: aligned to incorrect haplotype and two haps are equal
-            if num_var == 0:
-                comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
-                summary.add_diff_id(comp)
-            #: aligned to incorrect haplotype and two haps are NOT equal
+            summary.add_by_categories(flag='unaligned', comp=comp)
+        #: alignment against personalized genomes
+        elif personalized == 2:
+            #: aligned to incorrect haplotype
+            if name_chrm_mismatch:
+                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+                #: aligned to incorrect haplotype and two haps are equal
+                if num_var == 0:
+                    comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
+                    summary.add_by_categories(flag='diff_id', comp=comp)
+                #: aligned to incorrect haplotype and two haps are NOT equal
+                else:
+                    comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
+                    summary.add_by_categories(flag='diff_var', comp=comp)
             else:
-                comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
-                summary.add_diff_var(comp)
-        else:
-            if personalized == 2:
                 comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
                 num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
-                # aligned to correct haplotype and two haps are equal
-                if num_var == 0:
-                    summary.add_same_id(comp)
-                # aligned to correct haplotype and two haps are NOT equal
-                else:
-                    summary.add_same_var(comp)
-            elif personalized == 0:
-                if CHECK_VAR_OVERLAPPING_REF:
-                    num_var = check_var_in_region(info, main_index, alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
-                else:
-                    num_var = 0
-                comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
-                
-                #: simply add results to the same_strand category
-                # summary.add_same_strand(comp)
-
-                #: add results to same-diff and same-var, this doesn't actually
-                #: matter for ref-based alignemnt, but helps analysis
                 #: aligned to correct haplotype and two haps are equal
                 if num_var == 0:
-                    summary.add_same_id(comp)
+                    summary.add_by_categories(flag='same_id', comp=comp)
                 #: aligned to correct haplotype and two haps are NOT equal
                 else:
-                    summary.add_same_var(comp)
+                    summary.add_by_categories(flag='same_var', comp=comp)
+        #: alignment against standard ref (and ERG)
+        elif personalized == 0:
+            if CHECK_VAR_OVERLAPPING_REF:
+                num_var = check_var_in_region(info, main_index, alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+            else:
+                num_var = 0
+            comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
+            
+            #: simply add results to the same_strand category
+            # summary.add_by_categories(flag='same_strand', comp=comp)
+
+            #: add results to same-diff and same-var, this doesn't actually
+            #: matter for ref-based alignemnt, but helps analysis
+            #: aligned to correct haplotype and two haps are equal
+            if num_var == 0:
+                summary.add_by_categories(flag='same_id', comp=comp)
+            #: aligned to correct haplotype and two haps are NOT equal
+            else:
+                summary.add_by_categories(flag='same_var', comp=comp)
+        #: something goes wrong, exit script
+        else:
+            print ('Error: unspecified condition')
+            info.print()
+            exit()
 
         if write_wrt_correctness:
             if comp:
@@ -470,7 +477,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
-    COMPARE_SEQ = True
+    COMPARE_SEQ = False
     if COMPARE_SEQ:
         HIGHC = 0
         TOTALNEAR = 0

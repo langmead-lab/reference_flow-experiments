@@ -37,53 +37,34 @@ class Summary:
     def add_one(self):
         self.num_total += 1
 
-    def add_unaligned(self):
-        self.num_unaligned += 1    
-
-    def add_diff_id(self, comp):
-        self.num_diff_id += 1
-        if self.has_answer == False:
+    def add_by_categories(self, flag, comp):
+        if flag == 'unaligned':
+            self.num_unaligned += 1
             return
-        if comp:
+        
+        if comp and self.has_answer:
             self.num_true_pos += 1
-        else:
-            self.num_false_id += 1
-
-    def add_same_id(self, comp):
-        self.num_same_id += 1
-        if self.has_answer == False:
-            return
-        if comp:
-            self.num_true_pos += 1
-        else:
-            self.num_false_sid += 1
-
-    def add_diff_var(self, comp):
-        self.num_diff_var += 1
-        if self.has_answer == False:
-            return
-        if comp:
-            self.num_true_pos += 1
-        else:
-            self.num_false_var += 1
-
-    def add_same_var(self, comp):
-        self.num_same_var += 1
-        if self.has_answer == False:
-            return
-        if comp:
-            self.num_true_pos += 1
-        else:
-            self.num_false_svar += 1
-
-    def add_same_strand(self, comp):
-        self.num_same_strand += 1
-        if self.has_answer == False:
-            return
-        if comp:
-            self.num_true_pos += 1
-        else:
-            self.num_false_ss += 1
+        
+        if flag == 'diff_id':
+            self.num_diff_id += 1
+            if comp == False and self.has_answer:
+                self.num_false_id += 1
+        elif flag == 'diff_var':
+            self.num_diff_var += 1
+            if comp == False and self.has_answer:
+                self.num_false_var += 1
+        elif flag == 'same_strand':
+            self.num_same_strand += 1
+            if comp == False and self.has_answer:
+                self.num_false_ss += 1
+        elif flag == 'same_id':
+            self.num_same_id += 1
+            if comp == False and self.has_answer:
+                self.num_false_sid += 1
+        elif flag == 'same_var':
+            self.num_same_var += 1
+            if comp == False and self.has_answer:
+                self.num_false_svar += 1
     
     def show_summary(self, has_answer):
         frac_ss_total = 100 * float(self.num_same_strand) / self.num_total
