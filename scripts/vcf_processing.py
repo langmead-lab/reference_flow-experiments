@@ -3,7 +3,7 @@ Fuctions to process vcf file
 '''
 import argparse
 import sys
-import numpy as np
+import random
 
 class VCF:
     # CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
@@ -15,7 +15,7 @@ class VCF:
     v_qual = 0.0
     v_filter = ''
     v_info = ''
-    v_format = ''
+    #v_format = ''
     v_type = ''
     v_af = None
     v_line = ''
@@ -31,7 +31,7 @@ class VCF:
         self.v_qual = float(row[5])
         self.v_filter = row[6]
         self.v_info = row[7]
-        self.v_format = row[8]
+        #self.v_format = row[8]
         
         for info in self.v_info.split(';'):
             if info.startswith('AF='):
@@ -77,7 +77,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-v', '--vcf',
-        help='vcf file'
+        default=None,
+        help='vcf file; leave blank for std.in [None]'
     )
     parser.add_argument(
         '--out_var_loc',
@@ -117,12 +118,12 @@ def build_vcf(line, consider_indels, consider_mult):
     row = line.split()
     num_alt_alleles = len(row[4].split(','))
     #: skip if doesn't consider multi-allelic locus
-    if consider_mult == False and num_alt_alleles > 1:
+    if consider_mult == 0 and num_alt_alleles > 1:
         return []
     list_vcf = []
     for i in range(num_alt_alleles):
         v = VCF(row, i, line)
-        if consider_indels == False and v.v_type in ['INS', 'DEL']:
+        if consider_indels == 0 and v.v_type in ['INS', 'DEL']:
             continue
         list_vcf.append(v)
     return list_vcf
@@ -157,27 +158,36 @@ def specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider
     list_pos = []
     list_ref_allele = []
     list_v = []
-    vcf_f = open(vcf_fn, 'r')
+    if vcf_fn != None:
+        vcf_f = open(vcf_fn, 'r')
+    else:
+        vcf_f = sys.stdin
     max_pos = 0
+    import time
     for line in vcf_f:
         list_vcf = build_vcf(line, consider_indels, consider_mnps)
         #: a header or an ignored variant
         if len(list_vcf) < 1:
             continue
         for vcf in list_vcf:
+            ##
+            ## if vcf.v_type != 'SNP':
+            ##     print (line[:60])
+            ##     time.sleep(0.5)
+            ##
             if vcf.v_af < min_af:
                 continue
             if vcf.v_pos in list_pos:
                 continue
-            if np.random.uniform(0, 1) <= rand_th:
-                list_v.append(vcf)
+            if random.random() <= rand_th:
+                vcf.print()
+                #list_v.append(vcf)
             # list_pos.append(vcf.v_pos)
             # list_ref_allele.append(vcf.ref_allele)
             if vcf.v_pos > max_pos:
                 max_pos = vcf.v_pos
-        for i in list_v:
-            i.print()
-        input ()
+    # for i in list_v:
+    #     i.print()
     # assert len(list_pos) == len(list_ref_allele)
     # for i, p in enumerate(list_pos):
     #     print (p, list_ref_allele[i])
