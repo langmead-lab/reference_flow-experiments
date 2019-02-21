@@ -16,12 +16,13 @@ def parse_args():
     )
     parser.add_argument(
         '-c', '--check_points',
+        default=None,
         help='sampled check points'
     )
     args = parser.parse_args()
     return args
 
-def read_genome(fn):
+def read_genome(fn, gatk=False):
     genome = {}
     f = open(fn, 'r')
     #: seq[0] is empty to fit vcf coordinate (1-based)
@@ -33,29 +34,60 @@ def read_genome(fn):
                 genome[name] = seq
                 seq = '^'
             #: update name
-            name = line.split()[0][1:]
+            if gatk:
+                name = line.split()[1]
+                name = name[: name.find(':')]
+            else:
+                name = line.split()[0][1:]
             continue
         seq += line[: line.find('\\')]
     genome[name] = seq
     return genome
 
 def test_major_allele_ref(fn_ma_ref, fn_ref, fn_check_points):
-    ref = read_genome(fn_ref)
-    ma_ref = read_genome(fn_ma_ref)
-    f_cp = open(fn_check_points, 'r')
+    genome_ref = read_genome(fn_ref)
+    genome_ma_ref = read_genome(fn_ma_ref)
+    #genome_ma_ref = read_genome(fn_ma_ref, gatk=True)
+    it = [*genome_ref]
+    print (it)
+    it = [*genome_ma_ref]
+    print (it)
+    for i in range(1,23):
+        i = str(i)
+        if len(genome_ref[i]) != len(genome_ma_ref[i]):
+            print ('Error: length mismatches')
+            print ('ref', i, len(genome_ref[i]))
+            print ('ma ', i, len(genome_ma_ref[i]))
+    if fn_check_points == None:
+        f_cp = sys.stdin
+    else:
+        f_cp = open(fn_check_points, 'r')
+    num_pass = 0
+    num_fail = 0
     for line in f_cp:
         line = line.split()
         [chrom, vid, pos, ref, alt, af] = line[:]
         pos = int(pos)
-        if ref[chrom][pos] == ref and ma_ref[chrom][pos] == alt:
-            print ('pass')
+        if (genome_ref[chrom][pos] == ref) and (genome_ma_ref[chrom][pos] == alt):
+            num_pass += 1
+            #print ('pass')
         else:
-            input (line)
-        
-    # it = [*ref]
-    # for i in it:
-    #     print (len(ref[i]))
-    # print (ref)
+            num_fail += 1
+            print ('false')
+            if genome_ref[chrom][pos] != ref:
+                print ('error in ref')
+                print ('ref:', genome_ref[chrom][pos])
+                print ('vcf:', ref)
+            if genome_ma_ref[chrom][pos] != alt:
+                print ('error in ma_ref')
+                print ('ma:', genome_ma_ref[chrom][pos-1:pos+2])
+                print ('vcf:', alt)
+            print (line)
+            print ()
+
+    print ('check', fn_check_points)
+    print ('  pass:', num_pass)
+    print ('  fail:', num_fail)
 
 if __name__ == '__main__':
     args = parse_args()
