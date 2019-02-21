@@ -221,7 +221,8 @@ def print_near_aln(offsets, info, g_info, threshold):
 
 def diploid_compare(
     info, 
-    g_info, 
+    g_info,
+    name, 
     threshold, 
     dip_flag, 
     main_offset_index = {}, 
@@ -230,43 +231,43 @@ def diploid_compare(
     '''
     Uses variable 'dip_flag' to handle different cases of a diploid alignment and check if the alignment is correct.
     '''
-    # don't check the other strand
+    #: don't check the other strand
     if dip_flag in ['same_strand']:
         return compare_sam_info(info, g_info, threshold)
     elif dip_flag in ['same_strand_ref']:
-        # neglect chrom name difference
+        #: neglect chrom name difference
         # info.chrm = g_info.chrm
         i_low = int(info.pos / STEP)
         i_high = math.ceil(info.pos / STEP)
-        # try hapA
-        if i_low >= len(main_offset_index):
-            offset_lowA = main_offset_index[len(main_offset_index) - 1]
-        else:
-            offset_lowA = main_offset_index[i_low]
-        if i_high >= len(main_offset_index):
-            offset_highA = main_offset_index[len(main_offset_index) - 1]
-        else:
-            offset_highA = main_offset_index[i_high]
+        offsets = []
+        #: try hapA
+        if name.find(MAIN_HAP) > 0:
+            if i_low >= len(main_offset_index):
+                offsets.append(main_offset_index[len(main_offset_index) - 1])
+            else:
+                offsets.append(main_offset_index[i_low])
+            if i_high >= len(main_offset_index):
+                offsets.append(main_offset_index[len(main_offset_index) - 1])
+            else:
+                offsets.append(main_offset_index[i_high])
+        #: try hapB
+        if name.find(ALT_HAP) > 0:
+            if i_low >= len(alt_offset_index):
+                offsets.append(alt_offset_index[len(alt_offset_index) - 1])
+            else:
+                offsets.append(alt_offset_index[i_low])
+            if i_high >= len(alt_offset_index):
+                offsets.append(alt_offset_index[len(alt_offset_index) - 1])
+            else:
+                offsets.append(alt_offset_index[i_high])
         
-        # try hapB
-        if i_low >= len(alt_offset_index):
-            offset_lowB = alt_offset_index[len(alt_offset_index) - 1]
-        else:
-            offset_lowB = alt_offset_index[i_low]
-        if i_high >= len(alt_offset_index):
-            offset_highB = alt_offset_index[len(alt_offset_index) - 1]
-        else:
-            offset_highB = alt_offset_index[i_high]
-        
-        comp = compare_sam_info(info, g_info, threshold, [offset_highA, offset_lowA, offset_highB, offset_lowB], ignore_chrm=True)
-        if comp == False:# and __debug__:
-            offsets = [offset_lowA, offset_highA, offset_lowB, offset_highB]
+        comp = compare_sam_info(info, g_info, threshold, offsets, ignore_chrm=True)
+        if comp == False and __debug__:
             print_near_aln(offsets, info, g_info, 1000)
         return comp
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
-            # info.chrm = ALT_CHRM
             i_low = int(info.pos / STEP)
             i_high = math.ceil(info.pos / STEP)
             if i_low >= len(main_offset_index):
@@ -283,7 +284,6 @@ def diploid_compare(
                 print_near_aln(offsets, info, g_info, 1000)
             return comp
         elif info.chrm == ALT_CHRM:
-            # info.chrm = MAIN_CHRM
             i_low = int(info.pos / STEP)
             i_high = math.ceil(info.pos / STEP)
             if i_low >= len(alt_offset_index):
@@ -416,14 +416,14 @@ def analyze_diploid_indels(args):
                 num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 #: aligned to incorrect haplotype and two haps are equal
                 if num_var == 0:
-                    comp = diploid_compare(info, golden_dic[name], threshold, 'diff_id', main_offset_index, alt_offset_index)
+                    comp = diploid_compare(info, golden_dic[name], name, threshold, 'diff_id', main_offset_index, alt_offset_index)
                     summary.add_by_categories(flag='diff_id', comp=comp)
                 #: aligned to incorrect haplotype and two haps are NOT equal
                 else:
-                    comp = diploid_compare(info, golden_dic[name], threshold, 'diff_var', main_offset_index, alt_offset_index)
+                    comp = diploid_compare(info, golden_dic[name], name, threshold, 'diff_var', main_offset_index, alt_offset_index)
                     summary.add_by_categories(flag='diff_var', comp=comp)
             else:
-                comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand')
+                comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand')
                 num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 #: aligned to correct haplotype and two haps are equal
                 if num_var == 0:
@@ -437,7 +437,7 @@ def analyze_diploid_indels(args):
                 num_var = check_var_in_region(info, main_index, alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
             else:
                 num_var = 0
-            comp = diploid_compare(info, golden_dic[name], threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
+            comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
             
             #: simply add results to the same_strand category
             # summary.add_by_categories(flag='same_strand', comp=comp)
@@ -461,14 +461,14 @@ def analyze_diploid_indels(args):
                 correct_f.write(line)
             else:
                 incorrect_f.write(line)
-        if __debug__ and comp == False:
-            print (name)
-            print ('info')
-            info.print(flag=False, mapq=False, score=False)
-            print ()
-            print ('golden')
-            golden_dic[name].print(flag=False, mapq=False, score=False)
-            input ('comp=%s\n' % comp)
+        # if __debug__ and comp == False:
+        #     print (name)
+        #     print ('info')
+        #     info.print(flag=False, mapq=False, score=False)
+        #     print ()
+        #     print ('golden')
+        #     golden_dic[name].print(flag=False, mapq=False, score=False)
+        #     input ('comp=%s\n' % comp)
 
     summary.show_summary(has_answer = True)
     sam_f.close()
