@@ -106,10 +106,14 @@ def parse_args():
         '--rand_th', type=float, default=1.0,
         help='[--out_var_loc] fraction of variants should be kept, by default keeping all variants [1.0]'
     )
+    parser.add_argument(
+        '--max_allele_len', type=int, default=-1,
+        help='[--out_var_loc and --out_no_conflicting_vcf] filter out variants with either ref or alt allele longer than this number; set a negative integer to allow all variants [-1]'
+    )
     args = parser.parse_args()
     return args
 
-def build_vcf(line, consider_indels, consider_mult):
+def build_vcf(line, consider_indels, consider_mult, max_allele_len):
     if line.startswith('##'):
         return []
     #: header
@@ -125,6 +129,11 @@ def build_vcf(line, consider_indels, consider_mult):
         v = VCF(row, i, line)
         if consider_indels == 0 and v.v_type in ['INS', 'DEL']:
             continue
+        #: skip max_allele_len check if it's a negative number
+        if max_allele_len > 0:
+            #: ignore when either ref_allele or alt_allele is longer than max_allele_len
+            if len(v.ref_allele) > max_allele_len or len(v.alt_allele) > max_allele_len:
+                continue
         list_vcf.append(v)
     return list_vcf
 
@@ -154,7 +163,14 @@ def comp_var_with_list(var, list_var):
         list_comp[list_idx] = alt_allele_check
     return list_comp
 
-def specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider_mnps, rand_th):
+def specify_target_var(
+        vcf_fn, 
+        out_var_loc_fn, 
+        min_af, 
+        consider_indels, 
+        consider_mnps, 
+        rand_th,
+        max_allele_len):
     list_pos = []
     list_ref_allele = []
     list_v = []
@@ -165,7 +181,7 @@ def specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider
     max_pos = 0
     import time
     for line in vcf_f:
-        list_vcf = build_vcf(line, consider_indels, consider_mnps)
+        list_vcf = build_vcf(line, consider_indels, consider_mnps, max_allele_len)
         #: a header or an ignored variant
         if len(list_vcf) < 1:
             continue
@@ -194,14 +210,14 @@ def specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider
     # # print (list_pos)
     # print (len(list_pos), max_pos)
 
-def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, consider_mnps):
+def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, consider_mnps, max_allele_len):
     vcf_f = open(vcf_fn, 'r')
     prev_range = range(0)
     prev_var = []
     for line in vcf_f:
         if line.startswith('#'):
             continue
-        list_vcf = build_vcf(line, consider_indels, consider_mnps)
+        list_vcf = build_vcf(line, consider_indels, consider_mnps, max_allele_len)
         for vcf in list_vcf:
             #: ignore var with allele freq less than given threshold
             #: keep var if allele freq is not specified in vcf
@@ -232,12 +248,13 @@ if __name__ == '__main__':
     consider_indels = args.indels
     consider_mnps = args.mnps
     rand_th = args.rand_th
+    max_allele_len = args.max_allele_len
     if out_vcf_fn != None:
         sys.stderr.write('Mode: remove conflicting variants\n')
         sys.stderr.write('Multi-allelic loci are ignored\n')
         #: current: report conflicts, no output yet
-        remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, consider_mnps)
+        remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, consider_mnps, max_allele_len)
     elif out_var_loc_fn != None:
         sys.stderr.write('Mode: specify target variant locations\n')
         sys.stderr.write('Multi-allelic loci are ignored\n')
-        specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider_mnps, rand_th)
+        specify_target_var(vcf_fn, out_var_loc_fn, min_af, consider_indels, consider_mnps, rand_th, max_allele_len)
