@@ -109,10 +109,10 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     MAIN/ALT indexes are dictionaries storing
     variants based on MAIN/ALT coordinates
     '''
-    # dict storing the diff from main to alt
+    #: dict storing the diff from main to alt
     # main_pos + main_offset_index[i] = alt_pos
     main_offset_index = [0]
-    # dict storing the diff from alt to main
+    #: dict storing the diff from alt to main
     # alt_pos + alt_offset_index[i] = main_pos
     alt_offset_index = [0]
     SHOW_BUILD_INFO = False
@@ -170,6 +170,52 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     
     main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     return main_index, alt_index, main_offset_index, alt_offset_index
+
+def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
+    '''
+    MAIN/ALT-offset indexes are dictionaries with
+        key: pos on MAIN/ALT
+        value: pos on ALT/MAIN
+    
+    MAIN/ALT indexes are dictionaries storing
+    variants based on MAIN/ALT coordinates
+    '''
+    #: dict storing the diff from alt1 to ref
+    # alt1_pos - alt1_offset_index[i] = ref_pos
+    alt1_offset_index = [0]
+    #: dict storing the diff from alt2 to ref
+    # alt2_pos - alt2_offset_index[i] = ref_pos
+    alt2_offset_index = [0]
+    SHOW_BUILD_INFO = False
+    if SHOW_BUILD_INFO and __debug__:
+        print ('DEBUG_INFO: build_offset_index_ref')
+    for v in var_list:
+        alt_pos = v.alt_pos
+        # ref_pos = v.ref_pos
+        #: offset: ref to hap
+        offset = v.offset
+        idx = math.ceil(alt_pos / STEP)
+        if v.strand == MAIN_STRAND:
+            while idx >= len(alt1_offset_index):
+                alt1_offset_index.append(alt1_offset_index[len(alt1_offset_index) - 1])
+            alt1_offset_index[idx] = offset
+        elif v.strand == ALT_STRAND:
+            while idx >= len(alt2_offset_index):
+                alt2_offset_index.append(alt2_offset_index[len(alt2_offset_index) - 1])
+            alt2_offset_index[idx] = offset
+        else:
+            print ('Error: unspecified strand', v.strand)
+            exit()
+        
+
+        if __debug__ and SHOW_BUILD_INFO:
+            print (v.line)
+            print (len(alt1_offset_index), alt1_offset_index)
+            print (len(alt2_offset_index), alt2_offset_index)
+            input ()
+    
+    main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    return main_index, alt_index, alt1_offset_index, alt2_offset_index
 
 def print_near_aln(name, offsets, info, g_info, threshold):
     '''
@@ -244,8 +290,8 @@ def diploid_compare(
     elif dip_flag in ['same_strand_ref']:
         #: neglect chrom name difference
         # info.chrm = g_info.chrm
-        i_low = int(info.pos / STEP)
-        i_high = math.ceil(info.pos / STEP)
+        i_low = int(g_info.pos / STEP)
+        i_high = math.ceil(g_info.pos / STEP)
         offsets = []
         #: try hapA
         if name.find(MAIN_HAP) > 0:
@@ -367,7 +413,7 @@ def analyze_diploid_indels(args):
     # standard ref seq
     elif personalized == 0:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index_ref(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
@@ -484,7 +530,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
-    COMPARE_SEQ = True
+    COMPARE_SEQ = False
     if COMPARE_SEQ:
         HIGHC = 0
         TOTALNEAR = 0
