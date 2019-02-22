@@ -171,12 +171,13 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     return main_index, alt_index, main_offset_index, alt_offset_index
 
-def print_near_aln(offsets, info, g_info, threshold):
+def print_near_aln(name, offsets, info, g_info, threshold):
     '''
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
     '''
-    def print_and_stop(offsets, diff, info, g_info):
+    def print_and_stop(name, offsets, diff, info, g_info):
+        print ('name', name)
         print ('offsets', offsets)
         print ('diff', diff)
         print ('info')
@@ -208,16 +209,22 @@ def print_near_aln(offsets, info, g_info, threshold):
             if called_d >= golden_d:
                 CALL_D_ORIG.append(called_d)
                 SIM_D_ORIG.append(golden_d)
-                return
-            HIGHC += 1
-            CALL_D_ALT.append(called_d)
-            SIM_D_ALT.append(golden_d)
-            print ('called', called_d)
-            print ('golden', golden_d)
-            #print_and_stop(offsets, diff, info, g_info)
+            else:
+                HIGHC += 1
+                CALL_D_ALT.append(called_d)
+                SIM_D_ALT.append(golden_d)
+                if called_d > 5 or golden_d > 5 and __debug__:
+                    print ('called distance', called_d)
+                    print ('golden distance', golden_d)
+                    print ('CALLED (%10d) = %s' % (info.pos, REF_G[info.pos : info.pos + 80]))
+                    print ('ORIG1  (%10d) = %s' % (g_info.pos - offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - offsets[0] + 80]))
+                    if offsets[0] != offsets[1]:
+                        print ('ORIG2  (%10d) = %s' % (g_info.pos - offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - offsets[1] + 80]))
+                    print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
+                    print_and_stop(name, offsets, diff, info, g_info)
             return
         if __debug__:
-            print_and_stop(offsets, diff, info, g_info)
+            print_and_stop(name, offsets, diff, info, g_info)
 
 def diploid_compare(
     info, 
@@ -263,7 +270,7 @@ def diploid_compare(
         
         comp = compare_sam_info(info, g_info, threshold, offsets, ignore_chrm=True)
         if comp == False and __debug__:
-            print_near_aln(offsets, info, g_info, 1000)
+            print_near_aln(name, offsets, info, g_info, 1000)
         return comp
     # check the other strand
     elif dip_flag in ['diff_id', 'diff_var']:
@@ -281,7 +288,7 @@ def diploid_compare(
             comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high], ignore_chrm=True)
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
-                print_near_aln(offsets, info, g_info, 1000)
+                print_near_aln(name, offsets, info, g_info, 1000)
             return comp
         elif info.chrm == ALT_CHRM:
             i_low = int(info.pos / STEP)
@@ -297,7 +304,7 @@ def diploid_compare(
             comp = compare_sam_info(info, g_info, threshold, [offset_low, offset_high], ignore_chrm=True)
             if comp == False and __debug__:
                 offsets = [offset_low, offset_high]
-                print_near_aln(offsets, info, g_info, 1000)
+                print_near_aln(name, offsets, info, g_info, 1000)
             return comp
         else:
             print ('Error: invalid chrm', info.chrm)
@@ -477,7 +484,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
-    COMPARE_SEQ = False
+    COMPARE_SEQ = True
     if COMPARE_SEQ:
         HIGHC = 0
         TOTALNEAR = 0
