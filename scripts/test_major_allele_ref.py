@@ -23,6 +23,15 @@ def parse_args():
     return args
 
 def read_genome(fn, gatk=False):
+    '''
+    Reads genome and supports more than one chromosomes
+
+    Inputs
+        fn: fasta file name
+        gatk: set True to use the second item of the header as chromosome name
+    Output:
+        genome in a list
+    '''
     genome = {}
     f = open(fn, 'r')
     #: seq[0] is empty to fit vcf coordinate (1-based)
@@ -48,39 +57,46 @@ def test_major_allele_ref(fn_ma_ref, fn_ref, fn_check_points):
     genome_ref = read_genome(fn_ref)
     genome_ma_ref = read_genome(fn_ma_ref)
     #genome_ma_ref = read_genome(fn_ma_ref, gatk=True)
-    it = [*genome_ref]
-    print (it)
-    it = [*genome_ma_ref]
-    print (it)
+    # it = [*genome_ref]
+    # print (it)
+    # it = [*genome_ma_ref]
+    # print (it)
+    check_length = True
     for i in range(1,23):
         i = str(i)
         if len(genome_ref[i]) != len(genome_ma_ref[i]):
+            check_length = False
             print ('Error: length mismatches')
             print ('ref', i, len(genome_ref[i]))
             print ('ma ', i, len(genome_ma_ref[i]))
+    if check_length:
+        print ('Length check: pass')
+
+    #: supports stdin for pipelined commands
     if fn_check_points == None:
         f_cp = sys.stdin
     else:
         f_cp = open(fn_check_points, 'r')
+
     num_pass = 0
     num_fail = 0
     for line in f_cp:
         line = line.split()
         [chrom, vid, pos, ref, alt, af] = line[:]
         pos = int(pos)
-        if (genome_ref[chrom][pos] == ref) and (genome_ma_ref[chrom][pos] == alt):
+        if (genome_ref[chrom][pos: pos+len(ref)] == ref) and (genome_ma_ref[chrom][pos: pos+len(alt)] == alt):
             num_pass += 1
             #print ('pass')
         else:
             num_fail += 1
             print ('false')
-            if genome_ref[chrom][pos] != ref:
+            if genome_ref[chrom][pos : pos+len(ref)] != ref:
                 print ('error in ref')
-                print ('ref:', genome_ref[chrom][pos])
+                print ('ref:', genome_ref[chrom][pos : pos+len(ref)])
                 print ('vcf:', ref)
-            if genome_ma_ref[chrom][pos] != alt:
+            if genome_ma_ref[chrom][pos : pos+len(alt)] != alt:
                 print ('error in ma_ref')
-                print ('ma:', genome_ma_ref[chrom][pos-1:pos+2])
+                print ('ma:', genome_ma_ref[chrom][pos : pos+len(alt)])
                 print ('vcf:', alt)
             print (line)
             print ()
