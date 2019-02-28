@@ -57,11 +57,10 @@ def test_major_allele_ref(fn_ma_ref, fn_ref, fn_check_points):
     genome_ref = read_genome(fn_ref)
     genome_ma_ref = read_genome(fn_ma_ref)
     #genome_ma_ref = read_genome(fn_ma_ref, gatk=True)
-    # it = [*genome_ref]
-    # print (it)
-    # it = [*genome_ma_ref]
-    # print (it)
     check_length = True
+    '''
+    #: the code below works if chromosome names are '1', '2', ...
+    #: but doesn't work for 'chr1', 'chr2', ...
     for i in range(1,23):
         i = str(i)
         if len(genome_ref[i]) != len(genome_ma_ref[i]):
@@ -71,6 +70,7 @@ def test_major_allele_ref(fn_ma_ref, fn_ref, fn_check_points):
             print ('ma ', i, len(genome_ma_ref[i]))
     if check_length:
         print ('Length check: pass')
+    '''
 
     #: supports stdin for pipelined commands
     if fn_check_points == None:
@@ -84,22 +84,35 @@ def test_major_allele_ref(fn_ma_ref, fn_ref, fn_check_points):
         line = line.split()
         [chrom, vid, pos, ref, alt, af] = line[:]
         pos = int(pos)
-        if (genome_ref[chrom][pos: pos+len(ref)] == ref) and (genome_ma_ref[chrom][pos: pos+len(alt)] == alt):
+        #: case-insentivie comparison, all chars are casted to uppercase
+        genome_allele = genome_ref[chrom][pos: pos+len(ref)].upper()
+        ma_genome_allele = genome_ma_ref[chrom][pos: pos+len(alt)].upper()
+        vcf_ref_allele = ref.upper()
+        vcf_alt_allele = alt.upper()
+        if genome_allele == vcf_ref_allele and ma_genome_allele == vcf_alt_allele:
+        #if (genome_ref[chrom][pos: pos+len(ref)].upper() == ref.upper()) and (genome_ma_ref[chrom][pos: pos+len(alt)].upper() == alt.upper()):
             num_pass += 1
             #print ('pass')
         else:
             num_fail += 1
-            print ('false')
-            if genome_ref[chrom][pos : pos+len(ref)] != ref:
-                print ('error in ref')
-                print ('ref:', genome_ref[chrom][pos : pos+len(ref)])
-                print ('vcf:', ref)
-            if genome_ma_ref[chrom][pos : pos+len(alt)] != alt:
-                print ('error in ma_ref')
-                print ('ma:', genome_ma_ref[chrom][pos : pos+len(alt)])
-                print ('vcf:', alt)
-            print (line)
-            print ()
+            if __debug__:
+                print ('false')
+                # if genome_ref[chrom][pos : pos+len(ref)].upper() != ref.upper():
+                if genome_allele != vcf_ref_allele:
+                    print ('error in ref')
+                    print ('ref:', genome_allele)
+                    print ('vcf:', vcf_ref_allele)
+                    # print ('ref:', genome_ref[chrom][pos : pos+len(ref)])
+                    # print ('vcf:', ref)
+                #if genome_ma_ref[chrom][pos : pos+len(alt)].upper() != alt.upper():
+                if ma_genome_allele != vcf_alt_allele:
+                    print ('error in ma_ref')
+                    print ('ma:', ma_genome_allele)
+                    print ('vcf:', vcf_alt_allele)
+                    # print ('ma:', genome_ma_ref[chrom][pos : pos+len(alt)])
+                    # print ('vcf:', alt)
+                print (line)
+                print ()
 
     print ('check', fn_check_points)
     print ('  pass:', num_pass)
