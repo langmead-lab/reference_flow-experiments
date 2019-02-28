@@ -32,7 +32,8 @@ else
     #: bcftools dont solve mnps
     #: vcftools need sample to calculate frequency (cannot only look at INFO:AF)
     
-    bcftools view -O v -v snps --threads $NUM_TH -q 0.5 $2 > $VCF_GZ
+    #bcftools view -O v -v snps --threads $NUM_TH -q 0.5 $2 > $VCF_GZ
+    bcftools view -O z -v snps --threads $NUM_TH -q 0.5 $2 > $VCF_GZ
     vcftools --gzvcf $VCF_GZ --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout --remove-indels | bgzip -@ $NUM_TH > $VCF_R_GZ
     bcftools index $VCF_R_GZ
     $4 CreateSequenceDictionary -R ${3}.fa -O ${3}.dict
