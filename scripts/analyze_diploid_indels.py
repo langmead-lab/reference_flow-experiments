@@ -217,27 +217,31 @@ def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
     main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     return main_index, alt_index, alt1_offset_index, alt2_offset_index
 
+def print_and_stop(name, offsets, diff, info, g_info):
+    '''
+    This is for debugging.
+    Prints alignment info and stops the script.
+    '''
+    print ('name', name)
+    print ('offsets', offsets)
+    print ('diff', diff)
+    print ('info')
+    info.print(flag=False, mapq=False, score=False)
+    print ()
+    print ('golden')
+    g_info.print(flag=False, mapq=False, score=False)
+    input()
+
 def print_near_aln(name, offsets, info, g_info, threshold):
     '''
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
     '''
-    def print_and_stop(name, offsets, diff, info, g_info):
-        print ('name', name)
-        print ('offsets', offsets)
-        print ('diff', diff)
-        print ('info')
-        info.print(flag=False, mapq=False, score=False)
-        print ()
-        print ('golden')
-        g_info.print(flag=False, mapq=False, score=False)
-        input()
-
     tmp = []
     for i in offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
     diff = min(tmp)
-    if diff < threshold:
+    if (diff < threshold) or (threshold < 0):
         if COMPARE_SEQ:
             global TOTALNEAR
             TOTALNEAR += 1
@@ -293,7 +297,7 @@ def diploid_compare(
         i_low = int(g_info.pos / STEP)
         i_high = math.ceil(g_info.pos / STEP)
         offsets = []
-        #: try hapA
+        #: check hapA
         if name.find(MAIN_HAP) > 0:
             if i_low >= len(main_offset_index):
                 offsets.append(main_offset_index[len(main_offset_index) - 1])
@@ -303,7 +307,7 @@ def diploid_compare(
                 offsets.append(main_offset_index[len(main_offset_index) - 1])
             else:
                 offsets.append(main_offset_index[i_high])
-        #: try hapB
+        #: check hapB
         if name.find(ALT_HAP) > 0:
             if i_low >= len(alt_offset_index):
                 offsets.append(alt_offset_index[len(alt_offset_index) - 1])
@@ -318,7 +322,7 @@ def diploid_compare(
         if comp == False and __debug__:
             print_near_aln(name, offsets, info, g_info, 1000)
         return comp
-    # check the other strand
+    #: check the other haplotype
     elif dip_flag in ['diff_id', 'diff_var']:
         if info.chrm == MAIN_CHRM:
             i_low = int(info.pos / STEP)
@@ -368,29 +372,19 @@ def check_var_in_region(info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, READ_L
         if info.chrm == MAIN_CHRM:
             if main_index.get(i) != None:
                 num_var += 1
-                # break
         elif info.chrm == ALT_CHRM:
             if alt_index.get(i) != None:
                 num_var += 1
-                # break
         else:
             print ('Error: unexpected chrm', info.chrm)
             info.print()
             exit()
     return num_var
 
-def analyze_diploid_indels(args):
+def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness, write_wrt_mapq):
     '''
     Handles I/O and different opperating modes of this script.
     '''
-    sam_fn = args.sam
-    golden_fn = args.golden
-    threshold = args.threshold
-    var_fn = args.var
-    personalized = args.personalized
-    write_wrt_correctness = args.write_wrt_correctness
-    write_wrt_mapq = args.write_wrt_mapq
-
     # Global variables
     global STEP, MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND, READ_LEN
     MAIN_HAP = 'hapA'
@@ -406,11 +400,11 @@ def analyze_diploid_indels(args):
         MAIN_CHRM = '9'
         ALT_CHRM = '9'
 
-    # diploid personalized ref
+    #: diploid personalized ref
     if personalized == 2:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    # standard ref seq
+    #: standard ref seq
     elif personalized == 0:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
         main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index_ref(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
@@ -450,7 +444,7 @@ def analyze_diploid_indels(args):
             continue
         exit()
    
-    CHECK_VAR_OVERLAPPING_REF = False
+    CHECK_VAR_OVERLAPPING_REF = True
 
     for line in sam_f:
         name, info = parse_line(line, erg=True)
@@ -514,20 +508,22 @@ def analyze_diploid_indels(args):
                 correct_f.write(line)
             else:
                 incorrect_f.write(line)
-        # if __debug__ and comp == False:
-        #     print (name)
-        #     print ('info')
-        #     info.print(flag=False, mapq=False, score=False)
-        #     print ()
-        #     print ('golden')
-        #     golden_dic[name].print(flag=False, mapq=False, score=False)
-        #     input ('comp=%s\n' % comp)
+
+        if __debug__ and comp == False:
+            print_and_stop(name, [], None, info, golden_dic[name])
 
     summary.show_summary(has_answer = True)
     sam_f.close()
 
 if __name__ == '__main__':
     args = parse_args()
+    sam_fn = args.sam
+    golden_fn = args.golden
+    threshold = args.threshold
+    var_fn = args.var
+    personalized = args.personalized
+    write_wrt_correctness = args.write_wrt_correctness
+    write_wrt_mapq = args.write_wrt_mapq
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
     COMPARE_SEQ = False
@@ -546,7 +542,7 @@ if __name__ == '__main__':
         HAPA_G = read_genome(fn_hapA)
         HAPB_G = read_genome(fn_hapB)
 
-    analyze_diploid_indels(args)
+    analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness, write_wrt_mapq)
 
     if COMPARE_SEQ:
         print ('Number of alns have higher score than golden =', HIGHC)
