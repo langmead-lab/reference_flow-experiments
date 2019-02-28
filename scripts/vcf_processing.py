@@ -28,7 +28,10 @@ class VCF:
         self.ref_allele = row[3]
         assert len(self.ref_allele.split(',')) == 1
         self.alt_allele = row[4].split(',')[alt_id]
-        self.v_qual = float(row[5])
+        try:
+            self.v_qual = float(row[5])
+        except:
+            self.v_qual = row[5]
         self.v_filter = row[6]
         self.v_info = row[7]
         #self.v_format = row[8]
@@ -197,18 +200,8 @@ def specify_target_var(
                 continue
             if random.random() <= rand_th:
                 vcf.print()
-                #list_v.append(vcf)
-            # list_pos.append(vcf.v_pos)
-            # list_ref_allele.append(vcf.ref_allele)
             if vcf.v_pos > max_pos:
                 max_pos = vcf.v_pos
-    # for i in list_v:
-    #     i.print()
-    # assert len(list_pos) == len(list_ref_allele)
-    # for i, p in enumerate(list_pos):
-    #     print (p, list_ref_allele[i])
-    # # print (list_pos)
-    # print (len(list_pos), max_pos)
 
 def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, consider_mnps, max_allele_len):
     vcf_f = open(vcf_fn, 'r')
