@@ -146,8 +146,6 @@ def comp_var_with_list(var, list_var):
         offset = var.v_pos - v.v_pos
         #: check if ref allele is the same
         ref_allele_check = True 
-        # if ref_a != v.ref_allele[offset:]:
-        #     ref_allele_check = False
         for idx, ref_a in enumerate(var.ref_allele):
             try:
                 if ref_a != v.ref_allele[offset + idx]:
@@ -194,7 +192,7 @@ def specify_target_var(
             ##     print (line[:60])
             ##     time.sleep(0.5)
             ##
-            if vcf.v_af < min_af:
+            if vcf.v_af <= min_af:
                 continue
             if vcf.v_pos in list_pos:
                 continue
@@ -216,7 +214,6 @@ def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, conside
             #: keep var if allele freq is not specified in vcf
             if vcf.v_af != None and vcf.v_af < min_af:
                 continue
-            
             if vcf.v_pos in prev_range:
                 comp = comp_var_with_list(vcf, prev_var)
                 for c in comp:
@@ -225,7 +222,6 @@ def remove_conflicting_vars(vcf_fn, out_vcf_fn, min_af, consider_indels, conside
                             pv.print()
                         vcf.print()
                         print (comp)
-                        # input(comp)
                 prev_var.append(vcf)
             if len(prev_range) == 0 or vcf.v_pos > max(prev_range):
                 prev_range = range(vcf.v_pos, vcf.v_pos + len(vcf.ref_allele))
