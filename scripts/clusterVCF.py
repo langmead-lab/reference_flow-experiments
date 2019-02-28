@@ -1,10 +1,10 @@
 import glob, os, sys, subprocess
-from scipy.cluster.hierarchy import dendrogram, linkage
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
+#from scipy.cluster.hierarchy import dendrogram, linkage
+#import matplotlib as mpl
+#mpl.use('Agg')
+#import matplotlib.pyplot as plt
 import numpy as np
-import gzip
+#import gzip
 import json
 
 vcf=sys.argv[1] #gzipped!
@@ -16,11 +16,20 @@ matrix=False
 length = 0
 head_l = 9
 
-with gzip.open(vcf) as myFile:
+
+matrixHapA=[]
+matrixHapB=[]
+count = 0
+
+with open(vcf) as myFile:
 	for line in myFile:
 		line = line.strip()
 		if matrix==True:
-			temp = []
+			count+=1
+			if count%1000 == 0:
+				print "Processed " + str(count) + " lines."
+			temp_hapA = []
+			temp_hapB = []
 			row = line.split("\t")
 			for val in row[9:]:
 				#tuple-ify
@@ -28,16 +37,25 @@ with gzip.open(vcf) as myFile:
 				if len(sval)!=2:
 					print "ERROR ON LINE: " + line
 					break
-				temp.append( (sval[0], sval[1]) )
-			distMatrix.append(temp)
-
+				temp_hapA.append(bool(sval[0]))
+				temp_hapB.append(bool(sval[1]))
+				#temp.append( (sval[0], sval[1]) )
+			#distMatrix.append(temp)
+			matrixHapA.append(temp_hapA)
+			matrixHapB.append(temp_hapB)
 		if matrix==False and line[0]=="#" and line[1]!="#": #This should be the 'header' file which labels the rows and the like
 			header = line.split("\t")
 			length = len(header)-head_l
 			matrix = True
 
-with open(outName, 'w') as outFile:
-	json.dump(distMatrix, outFile)
+
+onHapA = outName+"_hapA.json"
+onHapB = outName+"_hapB.json"
+with open(onHapA, 'w') as outFile:
+	json.dump(matrixHapA, outFile)
+
+with open(onHapB, 'w') as outFile:
+	json.dump(matrixHapB, outFile)
 	
 '''
 # Build distance matrix
