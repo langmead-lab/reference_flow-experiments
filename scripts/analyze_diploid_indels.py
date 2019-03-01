@@ -3,7 +3,7 @@ Compares a diploid-to-diploid sam and
 checks if the multi-mapped regions are 
 identical in two personalized refs
 '''
-import argparse, math
+import argparse, math, sys
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import read_var, read_genome
 from get_levenshtein import levenshtein
@@ -68,11 +68,14 @@ def build_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     for v in var_list:
         # only main_index is needed for ref-based alignment
         # not checking conflicts here
+        # TODO
+        '''
         if per == 0:
             pos = v.ref_pos
             for i in range(pos, pos + len(v.alt_allele)):
                 main_index[i] = [v.alt_pos, v.vtype, v.ref_allele, v.alt_allele]
             continue
+        '''
         # for personalized experiment
         pos = v.alt_pos
         c_pos = v.ref_pos + v.cor_offset
@@ -168,8 +171,7 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
             print (len(alt_offset_index), alt_offset_index)
             input ()
     
-    main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    return main_index, alt_index, main_offset_index, alt_offset_index
+    return main_offset_index, alt_offset_index
 
 def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
     '''
@@ -214,8 +216,10 @@ def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
             print (len(alt2_offset_index), alt2_offset_index)
             input ()
     
-    main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    return main_index, alt_index, alt1_offset_index, alt2_offset_index
+    return alt1_offset_index, alt2_offset_index
+
+    # main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    # return main_index, alt_index, alt1_offset_index, alt2_offset_index
 
 def print_and_stop(name, offsets, diff, info, g_info):
     '''
@@ -363,16 +367,17 @@ def diploid_compare(
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
 
-def check_var_in_region(info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, READ_LEN):
+def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, READ_LEN):
     '''
-    For an alignment segment, reads indexes to count the number of variants covered by the segment.
+    For an alignment, count the number of overlapping variants.
+    Counting is based on raw read (look up golden dictionary)
     '''
-    num_var = 0
-    for i in range(info.pos, info.pos + READ_LEN):
-        if info.chrm == MAIN_CHRM:
+    num_var = 0   
+    for i in range(g_info.pos, g_info.pos + READ_LEN):
+        if g_info.chrm == MAIN_CHRM:
             if main_index.get(i) != None:
                 num_var += 1
-        elif info.chrm == ALT_CHRM:
+        elif g_info.chrm == ALT_CHRM:
             if alt_index.get(i) != None:
                 num_var += 1
         else:
@@ -393,21 +398,27 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
     ALT_STRAND = 'B'
     STEP = args.step_size
     READ_LEN = args.read_len
-    if args.personalized == 2:
-        MAIN_CHRM = '9A'
-        ALT_CHRM = '9B'
-    else:
-        MAIN_CHRM = '9'
-        ALT_CHRM = '9'
+    MAIN_CHRM = '9A'
+    ALT_CHRM = '9B'
+    # if args.personalized == 2:
+    #     MAIN_CHRM = '9A'
+    #     ALT_CHRM = '9B'
+    # else:
+    #     MAIN_CHRM = '9'
+    #     ALT_CHRM = '9'
 
+    var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
+    main_index, alt_index = build_index(var_list, personalized, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index(var_list, per=2, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        # main_index, alt_index, 
+        main_offset_index, alt_offset_index = build_offset_index(var_list, per=2, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-        main_index, alt_index, main_offset_index, alt_offset_index = build_offset_index_ref(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        # main_index, alt_index, 
+        main_offset_index, alt_offset_index = build_offset_index_ref(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
@@ -423,44 +434,34 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
         print ('Write sam files %s and %s wrt to correctness...' % (correct_fn, incorrect_fn))
         correct_f = open(correct_fn, 'w')
         incorrect_f = open(incorrect_fn, 'w')
-    
-    if write_wrt_mapq:
-        highmapq_fn = sam_prefix + '-mapqgeq' + str(write_wrt_mapq) + '.sam'
-        lowmapq_fn = sam_prefix + '-mapql' + str(write_wrt_mapq) + '.sam'
-        print ('Write sam files %s and %s wrt to mapq...' % (highmapq_fn, lowmapq_fn))
-        highmapq_f = open(highmapq_fn, 'w')
-        lowmapq_f = open(lowmapq_fn, 'w')
-        for line in sam_f:
-            name, info = parse_line(line)
-            # headers
-            if name == 'header':
-                highmapq_f.write(line)
-                lowmapq_f.write(line)
-                continue
-            if info.mapq >= write_wrt_mapq:
-                highmapq_f.write(line)
-            else:
-                lowmapq_f.write(line)
-            continue
-        exit()
-   
-    CHECK_VAR_OVERLAPPING_REF = True
 
     for line in sam_f:
         name, info = parse_line(line, erg=True)
         #: headers
         if name == 'header':
             continue
-        name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
         summary.add_one()
         if info.is_unaligned():
             comp = False
             summary.add_by_categories(flag='unaligned', comp=comp)
+        else:
+            #: count the number of overlapping variants for all aligned reads
+            num_var = count_overlapping_vars(
+                name=name,
+                info=info,
+                g_info=golden_dic[name],
+                main_index=main_index,
+                alt_index=alt_index,
+                MAIN_CHRM=MAIN_CHRM,
+                ALT_CHRM=ALT_CHRM,
+                READ_LEN=READ_LEN
+            )
+        
         #: alignment against personalized genomes
-        elif personalized == 2:
+        if (not info.is_unaligned()) and (personalized == 2):
+            name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
             #: aligned to incorrect haplotype
             if name_chrm_mismatch:
-                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 #: aligned to incorrect haplotype and two haps are equal
                 if num_var == 0:
                     comp = diploid_compare(info, golden_dic[name], name, threshold, 'diff_id', main_offset_index, alt_offset_index)
@@ -471,7 +472,6 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
                     summary.add_by_categories(flag='diff_var', comp=comp)
             else:
                 comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand')
-                num_var = check_var_in_region(info, main_index, alt_index,  MAIN_CHRM=MAIN_CHRM,ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
                 #: aligned to correct haplotype and two haps are equal
                 if num_var == 0:
                     summary.add_by_categories(flag='same_id', comp=comp)
@@ -479,11 +479,7 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
                 else:
                     summary.add_by_categories(flag='same_var', comp=comp)
         #: alignment against standard ref (and ERG)
-        elif personalized == 0:
-            if CHECK_VAR_OVERLAPPING_REF:
-                num_var = check_var_in_region(info, main_index, alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
-            else:
-                num_var = 0
+        elif (not info.is_unaligned()) and (personalized == 0):
             comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
             
             #: simply add results to the same_strand category
@@ -497,11 +493,6 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
             #: aligned to correct haplotype and two haps are NOT equal
             else:
                 summary.add_by_categories(flag='same_var', comp=comp)
-        #: something goes wrong, exit script
-        else:
-            print ('Error: unspecified condition')
-            info.print()
-            exit()
 
         if write_wrt_correctness:
             if comp:
@@ -512,8 +503,30 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
         if __debug__ and comp == False:
             print_and_stop(name, [], None, info, golden_dic[name])
 
-    summary.show_summary(has_answer = True)
+    summary.show_summary(has_answer=True)
     sam_f.close()
+
+def write_wrt_mapq(sam_fn):
+    sam_f = open(sam_fn, 'r')
+    sam_prefix = sam_fn[: sam_fn.find('.')]
+    highmapq_fn = sam_prefix + '-mapqgeq' + str(write_wrt_mapq) + '.sam'
+    lowmapq_fn = sam_prefix + '-mapql' + str(write_wrt_mapq) + '.sam'
+    sys.stderr.write('Write sam files %s and %s wrt to mapq...\n' % (highmapq_fn, lowmapq_fn))
+    highmapq_f = open(highmapq_fn, 'w')
+    lowmapq_f = open(lowmapq_fn, 'w')
+    for line in sam_f:
+        name, info = parse_line(line)
+        # headers
+        if name == 'header':
+            highmapq_f.write(line)
+            lowmapq_f.write(line)
+            continue
+        if info.mapq >= write_wrt_mapq:
+            highmapq_f.write(line)
+        else:
+            lowmapq_f.write(line)
+        continue
+    return
 
 if __name__ == '__main__':
     args = parse_args()
@@ -524,6 +537,10 @@ if __name__ == '__main__':
     personalized = args.personalized
     write_wrt_correctness = args.write_wrt_correctness
     write_wrt_mapq = args.write_wrt_mapq
+
+    if write_wrt_mapq:
+        write_wrt_mapq(sam_fn)
+        exit()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
     COMPARE_SEQ = False
