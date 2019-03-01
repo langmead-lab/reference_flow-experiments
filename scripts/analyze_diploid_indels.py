@@ -55,32 +55,26 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def build_index(var_list, per, MAIN_STRAND, ALT_STRAND):
+def build_index(var_list, MAIN_STRAND, ALT_STRAND):
     '''
-    Reads var_list and records variants based on hapA/B coordinates
+    Reads var_list and maps variants from hapA/B to the reference coordinate
+    
+    SHOW_MULT:
+        A MULT here can be an ALT locus, such as 
+            A   9   INDEL   10362       10362   C  CT
+            B   9   INDEL   10362       10362   C  CT
+        or a multi-allelic locus, such as
+            A   9   SNP 121398204   121393883   A   C
+            B   9   SNP 121398204   121393566   A   T
     '''
-    SHOW_CONFLICTS = False
-    # Conflicts are not always bad, e.g.,
-    # A   9   SNP 121398204   121393883   A   C
-    # B   9   SNP 121398204   121393566   A   T
+    SHOW_MULT = False
     main_index = {}
     alt_index = {}
     for v in var_list:
-        # only main_index is needed for ref-based alignment
-        # not checking conflicts here
-        # TODO
-        '''
-        if per == 0:
-            pos = v.ref_pos
-            for i in range(pos, pos + len(v.alt_allele)):
-                main_index[i] = [v.alt_pos, v.vtype, v.ref_allele, v.alt_allele]
-            continue
-        '''
-        # for personalized experiment
         pos = v.alt_pos
         c_pos = v.ref_pos + v.cor_offset
         if v.strand == MAIN_STRAND:
-            if SHOW_CONFLICTS:
+            if SHOW_MULT:
                 if main_index.get(pos):
                     print (pos, main_index[pos])
                     print (v.line)
@@ -88,19 +82,17 @@ def build_index(var_list, per, MAIN_STRAND, ALT_STRAND):
                     print (c_pos, alt_index[c_pos])
                     print (v.line)
             for i in range(pos, pos + len(v.alt_allele)):
-                main_index[i] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
-            alt_index[c_pos] = [pos, v.vtype, v.ref_allele, v.alt_allele]
+                main_index[i] = [v.ref_pos, v.vtype, v.ref_allele, v.alt_allele]
         else:
-            if SHOW_CONFLICTS:
+            if SHOW_MULT:
                 if main_index.get(c_pos):
                     print (c_pos, main_index[c_pos])
                     print (v.line)
                 if alt_index.get(pos):
                     print (pos, alt_index[pos])
                     print (v.line)
-            main_index[c_pos] = [pos, v.vtype, v.ref_allele, v.alt_allele]
             for i in range(pos, pos + len(v.alt_allele)):
-                alt_index[i] = [c_pos, v.vtype, v.ref_allele, v.alt_allele]
+                alt_index[i] = [v.ref_pos, v.vtype, v.ref_allele, v.alt_allele]
     return main_index, alt_index
 
 def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
@@ -173,30 +165,26 @@ def build_offset_index(var_list, per, MAIN_STRAND, ALT_STRAND):
     
     return main_offset_index, alt_offset_index
 
-def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
+def build_offset_index_ref(var_list, MAIN_STRAND, ALT_STRAND):
     '''
-    MAIN/ALT-offset indexes are dictionaries with
-        key: pos on MAIN/ALT
-        value: pos on ALT/MAIN
-    
-    MAIN/ALT indexes are dictionaries storing
-    variants based on MAIN/ALT coordinates
+    ALT1/ALT2-offset indexes are dictionaries with
+        key: pos on ALT1/ALT2
+        value: offset on ALT1/ALT2 reference sequence at 'key'
+
+    Outputs:
+        alt1_offset_index:
+            dict storing the diff from alt1 to ref
+            alt1_pos - alt1_offset_index[i] = ref_pos
+        alt2_offset_index:
+            dict storing the diff from alt2 to ref
+            alt2_pos - alt2_offset_index[i] = ref_pos
     '''
-    #: dict storing the diff from alt1 to ref
-    # alt1_pos - alt1_offset_index[i] = ref_pos
     alt1_offset_index = [0]
-    #: dict storing the diff from alt2 to ref
-    # alt2_pos - alt2_offset_index[i] = ref_pos
     alt2_offset_index = [0]
-    SHOW_BUILD_INFO = False
-    if SHOW_BUILD_INFO and __debug__:
-        print ('DEBUG_INFO: build_offset_index_ref')
     for v in var_list:
-        alt_pos = v.alt_pos
-        # ref_pos = v.ref_pos
         #: offset: ref to hap
         offset = v.offset
-        idx = math.ceil(alt_pos / STEP)
+        idx = math.ceil(v.alt_pos / STEP)
         if v.strand == MAIN_STRAND:
             while idx >= len(alt1_offset_index):
                 alt1_offset_index.append(alt1_offset_index[len(alt1_offset_index) - 1])
@@ -208,18 +196,8 @@ def build_offset_index_ref(var_list, per, MAIN_STRAND, ALT_STRAND):
         else:
             print ('Error: unspecified strand', v.strand)
             exit()
-        
-
-        if __debug__ and SHOW_BUILD_INFO:
-            print (v.line)
-            print (len(alt1_offset_index), alt1_offset_index)
-            print (len(alt2_offset_index), alt2_offset_index)
-            input ()
     
     return alt1_offset_index, alt2_offset_index
-
-    # main_index, alt_index = build_index(var_list, per, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    # return main_index, alt_index, alt1_offset_index, alt2_offset_index
 
 def print_and_stop(name, offsets, diff, info, g_info):
     '''
@@ -408,7 +386,7 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
     #     ALT_CHRM = '9'
 
     var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-    main_index, alt_index = build_index(var_list, personalized, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
@@ -418,7 +396,7 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
     elif personalized == 0:
         var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
         # main_index, alt_index, 
-        main_offset_index, alt_offset_index = build_offset_index_ref(var_list, per=0, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        main_offset_index, alt_offset_index = build_offset_index_ref(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
