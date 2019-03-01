@@ -3,7 +3,7 @@ Compares two sam files and looks into the difference.
 '''
 import argparse
 from analyze_sam import SamInfo, parse_line
-from analyze_diploid_indels import build_index, check_var_in_region
+from analyze_diploid_indels import build_index, count_overlapping_vars
 from build_erg import read_var
 
 def parse_args():
@@ -52,9 +52,9 @@ def check_var(dict_var, names, ref_index, main_index, alt_index, per):
     for ll in list_names:
         var = dict_var[ll]
         if per:
-            num_vars = check_var_in_region(var, main_index=main_index, alt_index=alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
+            num_vars = count_overlapping_vars(name=ll, info=var, g_info=None, main_index=main_index, alt_index=alt_index, MAIN_CHRM=MAIN_CHRM, ALT_CHRM=ALT_CHRM, READ_LEN=READ_LEN)
         elif per == 0:
-            num_vars = check_var_in_region(var, main_index=ref_index, alt_index={}, MAIN_CHRM=REF_CHRM, ALT_CHRM='', READ_LEN=READ_LEN)
+            num_vars = count_overlapping_vars(name=ll, info=var, g_info=None, main_index=ref_index, alt_index={}, MAIN_CHRM=REF_CHRM, ALT_CHRM='', READ_LEN=READ_LEN)
         else:
             print ('Error: unspecified per parameter', per)
         list_num_var.append(num_vars)
@@ -104,13 +104,13 @@ def compare_sam(args):
     dict_per_ic = {}
     dict_per_u = {}
     for line in per_c_f:
-        name, info = parse_line(line, by_score=0)
+        name, info = parse_line(line)
         if info.is_unaligned():
             dict_per_u[name] = info
         else:
             dict_per_c[name] = info
     for line in per_ic_f:
-        name, info = parse_line(line, by_score=0)
+        name, info = parse_line(line)
         if info.is_unaligned():
             dict_per_u[name] = info
         else:
@@ -120,13 +120,13 @@ def compare_sam(args):
     dict_ref_ic = {}
     dict_ref_u = {}
     for line in ref_c_f:
-        name, info = parse_line(line, by_score=0)
+        name, info = parse_line(line)
         if info.is_unaligned():
             dict_ref_u[name] = info
         else:
             dict_ref_c[name] = info
     for line in ref_ic_f:
-        name, info = parse_line(line, by_score=0)
+        name, info = parse_line(line)
         if info.is_unaligned():
             dict_ref_u[name] = info
         else:
