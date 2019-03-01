@@ -499,10 +499,10 @@ if __name__ == '__main__':
     var_fn = args.var
     personalized = args.personalized
     write_wrt_correctness = args.write_wrt_correctness
-    write_wrt_mapq = args.write_wrt_mapq
+    mapq_threshold = args.write_wrt_mapq
 
-    if write_wrt_mapq:
-        write_wrt_mapq(sam_fn, int(write_wrt_mapq))
+    if mapq_threshold:
+        write_wrt_mapq(sam_fn, int(mapq_threshold))
         exit()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
