@@ -6,6 +6,8 @@ identical in two personalized refs
 import argparse, math, sys
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import read_var, read_genome
+
+#: TODO LEV should support different scoring schemes
 from get_levenshtein import levenshtein
 
 def parse_args():
@@ -364,7 +366,7 @@ def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM,
             exit()
     return num_var
 
-def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness, write_wrt_mapq):
+def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness):
     '''
     Handles I/O and different opperating modes of this script.
     '''
@@ -378,12 +380,6 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
     READ_LEN = args.read_len
     MAIN_CHRM = '9A'
     ALT_CHRM = '9B'
-    # if args.personalized == 2:
-    #     MAIN_CHRM = '9A'
-    #     ALT_CHRM = '9B'
-    # else:
-    #     MAIN_CHRM = '9'
-    #     ALT_CHRM = '9'
 
     var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
     main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
@@ -440,35 +436,23 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
             name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
             #: aligned to incorrect haplotype
             if name_chrm_mismatch:
-                #: aligned to incorrect haplotype and two haps are equal
                 if num_var == 0:
                     comp = diploid_compare(info, golden_dic[name], name, threshold, 'diff_id', main_offset_index, alt_offset_index)
                     summary.add_by_categories(flag='diff_id', comp=comp)
-                #: aligned to incorrect haplotype and two haps are NOT equal
                 else:
                     comp = diploid_compare(info, golden_dic[name], name, threshold, 'diff_var', main_offset_index, alt_offset_index)
                     summary.add_by_categories(flag='diff_var', comp=comp)
             else:
                 comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand')
-                #: aligned to correct haplotype and two haps are equal
                 if num_var == 0:
                     summary.add_by_categories(flag='same_id', comp=comp)
-                #: aligned to correct haplotype and two haps are NOT equal
                 else:
                     summary.add_by_categories(flag='same_var', comp=comp)
         #: alignment against standard ref (and ERG)
         elif (not info.is_unaligned()) and (personalized == 0):
             comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', main_offset_index, alt_offset_index)
-            
-            #: simply add results to the same_strand category
-            # summary.add_by_categories(flag='same_strand', comp=comp)
-
-            #: add results to same-diff and same-var, this doesn't actually
-            #: matter for ref-based alignemnt, but helps analysis
-            #: aligned to correct haplotype and two haps are equal
             if num_var == 0:
                 summary.add_by_categories(flag='same_id', comp=comp)
-            #: aligned to correct haplotype and two haps are NOT equal
             else:
                 summary.add_by_categories(flag='same_var', comp=comp)
 
@@ -484,22 +468,23 @@ def analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, w
     summary.show_summary(has_answer=True)
     sam_f.close()
 
-def write_wrt_mapq(sam_fn):
+def write_wrt_mapq(sam_fn, mapq_threshold):
     sam_f = open(sam_fn, 'r')
     sam_prefix = sam_fn[: sam_fn.find('.')]
-    highmapq_fn = sam_prefix + '-mapqgeq' + str(write_wrt_mapq) + '.sam'
-    lowmapq_fn = sam_prefix + '-mapql' + str(write_wrt_mapq) + '.sam'
+    highmapq_fn = sam_prefix + '-mapqgeq' + str(mapq_threshold) + '.sam'
+    lowmapq_fn = sam_prefix + '-mapql' + str(mapq_threshold) + '.sam'
     sys.stderr.write('Write sam files %s and %s wrt to mapq...\n' % (highmapq_fn, lowmapq_fn))
+    
     highmapq_f = open(highmapq_fn, 'w')
     lowmapq_f = open(lowmapq_fn, 'w')
     for line in sam_f:
         name, info = parse_line(line)
-        # headers
+        #: headers
         if name == 'header':
             highmapq_f.write(line)
             lowmapq_f.write(line)
             continue
-        if info.mapq >= write_wrt_mapq:
+        if info.mapq >= mapq_threshold:
             highmapq_f.write(line)
         else:
             lowmapq_f.write(line)
@@ -517,7 +502,7 @@ if __name__ == '__main__':
     write_wrt_mapq = args.write_wrt_mapq
 
     if write_wrt_mapq:
-        write_wrt_mapq(sam_fn)
+        write_wrt_mapq(sam_fn, int(write_wrt_mapq))
         exit()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
@@ -537,7 +522,7 @@ if __name__ == '__main__':
         HAPA_G = read_genome(fn_hapA)
         HAPB_G = read_genome(fn_hapB)
 
-    analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness, write_wrt_mapq)
+    analyze_diploid_indels(sam_fn, golden_fn, threshold, var_fn, personalized, write_wrt_correctness)
 
     if COMPARE_SEQ:
         print ('Number of alns have higher score than golden =', HIGHC)
