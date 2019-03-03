@@ -74,12 +74,12 @@ class Summary:
         frac_sv_total = 100 * float(self.num_same_var) / self.num_total
         frac_v_total = 100 * float(self.num_diff_var) / self.num_total
         frac_un_total = 100 * float(self.num_unaligned) / self.num_total
-        print ('\n------ Alignment category distribution ------')
-        print ('Same strand: %d (%.2f%%)' % (self.num_same_strand, frac_ss_total))
-        print ('Same strand in identical region: %d (%.2f%%)' % (self.num_same_id, frac_sid_total))
-        print ('Same strand with variants: %d (%.2f%%)' % (self.num_same_var, frac_sv_total))
-        print ('Diff strand in identical region: %d (%.2f%%)' % (self.num_diff_id, frac_id_total))
-        print ('Diff strand with variants: %d (%.2f%%)' % (self.num_diff_var, frac_v_total))
+        print ('\n------ Alignment categories ------')
+        print ('Same haplotype: %d (%.2f%%)' % (self.num_same_strand, frac_ss_total))
+        print ('Same haplotype, read has no variants: %d (%.2f%%)' % (self.num_same_id, frac_sid_total))
+        print ('Same haplotype, read with variant(s): %d (%.2f%%)' % (self.num_same_var, frac_sv_total))
+        print ('Diff haplotype, read has no variants: %d (%.2f%%)' % (self.num_diff_id, frac_id_total))
+        print ('Diff haplotype, read with variant(s): %d (%.2f%%)' % (self.num_diff_var, frac_v_total))
         print ('Unaligned: %d (%.2f%%)' % (self.num_unaligned, frac_un_total))
         print ('Total:', self.num_total)
 
@@ -117,13 +117,13 @@ class Summary:
             else:
                 frac_fv_v = 100 * float(self.num_false_var) / self.num_diff_var
 
-            print ('True: %d (total=%.2f%%)' % (self.num_true_pos, frac_tp_total))
-            print ('False same: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_ss, self.num_same_strand, frac_fss_total, frac_fss_ss))
-            print ('False same-id: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_sid, self.num_same_id, frac_fsid_total, frac_fsid_sid))
-            print ('False same-var: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_svar, self.num_same_var, frac_fsvar_total, frac_fsvar_svar))
-            print ('False diff-id: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_id, self.num_diff_id, frac_fid_total, frac_fid_id))
-            print ('False diff-var: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_var, self.num_diff_var, frac_fv_total, frac_fv_v))
-            print ('Unaligned: %d (total=%.2f%%)' % (self.num_unaligned, frac_un_total))
+            print ('True            : %d (total=%.2f%%)' % (self.num_true_pos, frac_tp_total))
+            print ('Unaligned       : %d (total=%.2f%%)' % (self.num_unaligned, frac_un_total))
+            print ('Same     F/TOTAL: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_ss, self.num_same_strand, frac_fss_total, frac_fss_ss))
+            print ('Same-id  F/TOTAL: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_sid, self.num_same_id, frac_fsid_total, frac_fsid_sid))
+            print ('Same-var F/TOTAL: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_svar, self.num_same_var, frac_fsvar_total, frac_fsvar_svar))
+            print ('Diff-id  F/TOTAL: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_id, self.num_diff_id, frac_fid_total, frac_fid_id))
+            print ('Diff-var F/TOTAL: %d / %d (total=%.2f%%, cat=%.2f%%)' % (self.num_false_var, self.num_diff_var, frac_fv_total, frac_fv_v))
 
 class SamInfo:
     '''
