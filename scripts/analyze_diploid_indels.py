@@ -4,6 +4,7 @@ checks if the multi-mapped regions are
 identical in two personalized refs
 '''
 import argparse, math, sys
+import pandas as pd
 from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
 from build_erg import read_var, read_genome
 
@@ -56,6 +57,29 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
+
+def write_wrt_mapq(sam_fn, mapq_threshold):
+    sam_f = open(sam_fn, 'r')
+    sam_prefix = sam_fn[: sam_fn.find('.')]
+    highmapq_fn = sam_prefix + '-mapqgeq' + str(mapq_threshold) + '.sam'
+    lowmapq_fn = sam_prefix + '-mapql' + str(mapq_threshold) + '.sam'
+    sys.stderr.write('Write sam files %s and %s wrt to mapq...\n' % (highmapq_fn, lowmapq_fn))
+    
+    highmapq_f = open(highmapq_fn, 'w')
+    lowmapq_f = open(lowmapq_fn, 'w')
+    for line in sam_f:
+        name, info = parse_line(line)
+        #: headers
+        if name == 'header':
+            highmapq_f.write(line)
+            lowmapq_f.write(line)
+            continue
+        if info.mapq >= mapq_threshold:
+            highmapq_f.write(line)
+        else:
+            lowmapq_f.write(line)
+        continue
+    return
 
 def build_index(var_list, MAIN_STRAND, ALT_STRAND):
     '''
@@ -193,6 +217,7 @@ def print_and_stop(name, offsets, diff, info, g_info):
     g_info.print(flag=False, mapq=False, score=False)
     input()
 
+# TODO
 def print_aln_within_distance(name, offsets, info, g_info, threshold, read_len):
     '''
     Compares alignment with the golden profile if they are near.
@@ -363,7 +388,7 @@ def analyze_diploid_indels(
         main_offset_index, alt_offset_index = build_offset_index(var_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
-        var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
+        # var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
         main_offset_index, alt_offset_index = build_offset_index_ref(var_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     else:
         print ('Error: unsupported personalized parameter', personalized)
@@ -373,6 +398,7 @@ def analyze_diploid_indels(
     sam_prefix = sam_fn[: sam_fn.find('.')]
     golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
+    results = []
     
     if write_wrt_correctness:
         correct_fn = sam_prefix + '-correct.sam'
@@ -387,24 +413,26 @@ def analyze_diploid_indels(
         if name == 'header':
             continue
         summary.add_one()
+
+        #: count the number of overlapping variants for all aligned reads
+        num_var = count_overlapping_vars(
+            name=name,
+            info=info,
+            g_info=golden_dic[name],
+            main_index=main_index,
+            alt_index=alt_index,
+            MAIN_CHRM=MAIN_CHRM,
+            ALT_CHRM=ALT_CHRM,
+            read_len=read_len
+        )
+
         if info.is_unaligned():
+            dist = -3
             comp = False
-            summary.add_by_categories(flag='unaligned', comp=comp)
-        else:
-            #: count the number of overlapping variants for all aligned reads
-            num_var = count_overlapping_vars(
-                name=name,
-                info=info,
-                g_info=golden_dic[name],
-                main_index=main_index,
-                alt_index=alt_index,
-                MAIN_CHRM=MAIN_CHRM,
-                ALT_CHRM=ALT_CHRM,
-                read_len=read_len
-            )
-        
+            flag = 'unaligned'
+            summary.add_by_categories(flag=flag, comp=comp)
         #: alignment against personalized genomes
-        if (not info.is_unaligned()) and (personalized == 2):
+        elif personalized == 2:
             name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
             #: aligned to incorrect haplotype
             if name_chrm_mismatch:
@@ -417,15 +445,26 @@ def analyze_diploid_indels(
                     flag = 'same_id'
                 else:
                     flag = 'same_var'
-            comp = diploid_compare(info, golden_dic[name], name, threshold, flag, step, main_offset_index, alt_offset_index)
+            dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, main_offset_index, alt_offset_index)
+            if dist < 0 or dist > threshold:
+                comp = False
+            else:
+                comp = True
             summary.add_by_categories(flag=flag, comp=comp)
         #: alignment against standard ref (and ERG)
-        elif (not info.is_unaligned()) and (personalized == 0):
-            comp = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, main_offset_index, alt_offset_index)
-            if num_var == 0:
-                summary.add_by_categories(flag='same_id', comp=comp)
+        elif personalized == 0:
+            dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, main_offset_index, alt_offset_index)
+            if dist < 0 or dist > threshold:
+                comp = False
             else:
-                summary.add_by_categories(flag='same_var', comp=comp)
+                comp = True
+            if num_var == 0:
+                flag = 'same_id'
+            else:
+                flag = 'same_var'
+            summary.add_by_categories(flag=flag, comp=comp)
+        
+        results.append([name, dist, info.mapq, num_var, flag])
 
         if write_wrt_correctness:
             if comp:
@@ -439,28 +478,119 @@ def analyze_diploid_indels(
     summary.show_summary(has_answer=True)
     sam_f.close()
 
-def write_wrt_mapq(sam_fn, mapq_threshold):
-    sam_f = open(sam_fn, 'r')
-    sam_prefix = sam_fn[: sam_fn.find('.')]
-    highmapq_fn = sam_prefix + '-mapqgeq' + str(mapq_threshold) + '.sam'
-    lowmapq_fn = sam_prefix + '-mapql' + str(mapq_threshold) + '.sam'
-    sys.stderr.write('Write sam files %s and %s wrt to mapq...\n' % (highmapq_fn, lowmapq_fn))
+    results_df = pd.DataFrame(results, columns=['name', 'dist', 'mapq', 'numvar', 'category'])
+    results_df.to_pickle(sam_fn + '-stats.pkl')
+
+    return results_df
+
+def print_df_stats(df, threshold):
+    print ()
+    print ('--- Stats ---')
+    unaligned = (df['dist'] == -3)
+    correct = (df['dist'] >= 0) & (df['dist'] <= threshold)
+    aligned_incorrect = (df['dist'] == -1) | (df['dist'] == -2)
+
+    #: categories
+    cat_same_id = (df['category'] == 'same_id')
+    cat_same_var = (df['category'] == 'same_var')
+    cat_diff_id = (df['category'] == 'diff_id')
+    cat_diff_var = (df['category'] == 'diff_var')
+
+    sensitivity_all = df[correct].shape[0] / df.shape[0] * 100
+    print ('sensitivity_all = %.2f (%d / %d)' % (sensitivity_all, df[correct].shape[0], df.shape[0]))
+    try:
+        sensitivity_same_id = df[correct & cat_same_id].shape[0] / df[cat_same_id].shape[0] * 100
+        print ('sensitivity_same_id = %.2f (%d / %d)' % (sensitivity_same_id, df[correct & cat_same_id].shape[0], df[cat_same_id].shape[0]))
+    except:
+        print ('Warning: no element in "same_id"')
+    try:
+        sensitivity_same_var = df[correct & cat_same_var].shape[0] / df[cat_same_var].shape[0] * 100
+        print ('sensitivity_same_var = %.2f (%d / %d)' % (sensitivity_same_var, df[correct & cat_same_var].shape[0], df[cat_same_var].shape[0]))
+    except:
+        print ('Warning: no element in "same_var"')
+    try:
+        sensitivity_diff_id = df[correct & cat_diff_id].shape[0] / df[cat_diff_id].shape[0] * 100
+        print ('sensitivity_diff_id = %.2f (%d / %d)' % (sensitivity_diff_id, df[correct & cat_diff_id].shape[0], df[cat_diff_id].shape[0]))
+    except:
+        print ('Warning: no element in "diff_id"')
+    try:
+        sensitivity_diff_var = df[correct & cat_diff_var].shape[0] / df[cat_diff_var].shape[0] * 100
+        print ('sensitivity_diff_var = %.2f (%d / %d)' % (sensitivity_diff_var, df[correct & cat_diff_var].shape[0], df[cat_diff_var].shape[0]))
+    except:
+        print ('Warning: no element in "diff_var"')
+
+    #: number of overlapping variants
+    print ()
+    var0 = (df['numvar'] == 0)
+    var1 = (df['numvar'] == 1)
+    var2 = (df['numvar'] == 2)
+    var3plus = (df['numvar'] >= 3)
+
+    try:
+        sensitivity_var0 = df[correct & var0].shape[0] / df[var0].shape[0] * 100
+        print ('sensitivity_var0 = %.2f (%d / %d)' % (sensitivity_var0, df[correct & var0].shape[0], df[var0].shape[0]))
+    except:
+        print ('Warning: no read has 0 variants')
+    try:
+        sensitivity_var1 = df[correct & var1].shape[0] / df[var1].shape[0] * 100
+        print ('sensitivity_var1 = %.2f (%d / %d)' % (sensitivity_var1, df[correct & var1].shape[0], df[var1].shape[0]))
+    except:
+        print ('Warning: no read has 1 variants')
+    try:
+        sensitivity_var2 = df[correct & var2].shape[0] / df[var2].shape[0] * 100
+        print ('sensitivity_var2 = %.2f (%d / %d)' % (sensitivity_var2, df[correct & var2].shape[0], df[var2].shape[0]))
+    except:
+        print ('Warning: no read has 2 variants')
+    try:
+        sensitivity_var3plus = df[correct & var3plus].shape[0] / df[var3plus].shape[0] * 100
+        print ('sensitivity_var3plus = %.2f (%d / %d)' % (sensitivity_var3plus, df[correct & var3plus].shape[0], df[var3plus].shape[0]))
+    except:
+        print ('Warning: no read has 3+ variants')
     
-    highmapq_f = open(highmapq_fn, 'w')
-    lowmapq_f = open(lowmapq_fn, 'w')
-    for line in sam_f:
-        name, info = parse_line(line)
-        #: headers
-        if name == 'header':
-            highmapq_f.write(line)
-            lowmapq_f.write(line)
-            continue
-        if info.mapq >= mapq_threshold:
-            highmapq_f.write(line)
-        else:
-            lowmapq_f.write(line)
-        continue
-    return
+    #: mapq
+    print ()
+    mapq5plus = (df['mapq'] >= 5)
+    mapq10plus = (df['mapq'] >= 10)
+    mapq20plus = (df['mapq'] >= 20)
+    mapq30plus = (df['mapq'] >= 30)
+    mapq40plus = (df['mapq'] >= 40)
+    
+    sensitivity_mapq5plus = df[correct & mapq5plus].shape[0] / df.shape[0] * 100
+    print ('sensitivity_mapq5plus = %.2f (%d / %d)' % (sensitivity_mapq5plus, df[correct & mapq5plus].shape[0], df.shape[0]))
+    sensitivity_mapq10plus = df[correct & mapq10plus].shape[0] / df.shape[0] * 100
+    print ('sensitivity_mapq10plus = %.2f (%d / %d)' % (sensitivity_mapq10plus, df[correct & mapq10plus].shape[0], df.shape[0]))
+    sensitivity_mapq20plus = df[correct & mapq20plus].shape[0] / df.shape[0] * 100
+    print ('sensitivity_mapq20plus = %.2f (%d / %d)' % (sensitivity_mapq20plus, df[correct & mapq20plus].shape[0], df.shape[0]))
+    sensitivity_mapq30plus = df[correct & mapq30plus].shape[0] / df.shape[0] * 100
+    print ('sensitivity_mapq30plus = %.2f (%d / %d)' % (sensitivity_mapq30plus, df[correct & mapq30plus].shape[0], df.shape[0]))
+    sensitivity_mapq40plus = df[correct & mapq40plus].shape[0] / df.shape[0] * 100
+    print ('sensitivity_mapq40plus = %.2f (%d / %d)' % (sensitivity_mapq40plus, df[correct & mapq40plus].shape[0], df.shape[0]))
+
+    try:
+        precision_mapq5plus = df[correct & mapq5plus].shape[0] / df[mapq5plus].shape[0] * 100
+        print ('precision_mapq5plus = %.2f (%d / %d)' % (precision_mapq5plus, df[correct & mapq5plus].shape[0], df[mapq5plus].shape[0]))
+    except:
+        print ('Warning: no read is 5+ mapq')
+    try:
+        precision_mapq10plus = df[correct & mapq10plus].shape[0] / df[mapq10plus].shape[0] * 100
+        print ('precision_mapq10plus = %.2f (%d / %d)' % (precision_mapq10plus, df[correct & mapq10plus].shape[0], df[mapq10plus].shape[0]))
+    except:
+        print ('Warning: no read is 10+ mapq')
+    try:
+        precision_mapq20plus = df[correct & mapq20plus].shape[0] / df[mapq20plus].shape[0] * 100
+        print ('precision_mapq20plus = %.2f (%d / %d)' % (precision_mapq20plus, df[correct & mapq20plus].shape[0], df[mapq20plus].shape[0]))
+    except:
+        print ('Warning: no read is 20+ mapq')
+    try:
+        precision_mapq30plus = df[correct & mapq30plus].shape[0] / df[mapq30plus].shape[0] * 100
+        print ('precision_mapq30plus = %.2f (%d / %d)' % (precision_mapq30plus, df[correct & mapq30plus].shape[0], df[mapq30plus].shape[0]))
+    except:
+        print ('Warning: no read is 30+ mapq')
+    try:
+        precision_mapq40plus = df[correct & mapq40plus].shape[0] / df[mapq40plus].shape[0] * 100
+        print ('precision_mapq40plus = %.2f (%d / %d)' % (precision_mapq40plus, df[correct & mapq40plus].shape[0], df[mapq40plus].shape[0]))
+    except:
+        print ('Warning: no read is 40+ mapq')
 
 if __name__ == '__main__':
     args = parse_args()
@@ -495,7 +625,7 @@ if __name__ == '__main__':
         HAPA_G = read_genome(fn_hapA)
         HAPB_G = read_genome(fn_hapB)
 
-    analyze_diploid_indels(
+    results_df = analyze_diploid_indels(
         sam_fn=sam_fn,
         golden_fn=golden_fn,
         threshold=threshold,
@@ -505,6 +635,8 @@ if __name__ == '__main__':
         read_len=read_len,
         write_wrt_correctness=write_wrt_correctness
     )
+
+    print_df_stats(results_df, threshold)
 
     if COMPARE_SEQ:
         print ('Number of alns have higher score than golden =', HIGHC)
