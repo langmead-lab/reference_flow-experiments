@@ -496,26 +496,26 @@ def print_df_stats(df, threshold):
     cat_diff_id = (df['category'] == 'diff_id')
     cat_diff_var = (df['category'] == 'diff_var')
 
-    sensitivity_all = df[correct].shape[0] / df.shape[0] * 100
-    print ('sensitivity_all = %.2f (%d / %d)' % (sensitivity_all, df[correct].shape[0], df.shape[0]))
+    sensitivity_all = df[correct].shape[0] / df.shape[0]
+    print ('sensitivity_all      = {0:.4%} ({1}/{2})'.format(sensitivity_all, df[correct].shape[0], df.shape[0]))
     try:
-        sensitivity_same_id = df[correct & cat_same_id].shape[0] / df[cat_same_id].shape[0] * 100
-        print ('sensitivity_same_id = %.2f (%d / %d)' % (sensitivity_same_id, df[correct & cat_same_id].shape[0], df[cat_same_id].shape[0]))
+        sensitivity_same_id = df[correct & cat_same_id].shape[0] / df[cat_same_id].shape[0]
+        print ('sensitivity_same_id  = {0:.4%} ({1}/{2})'.format(sensitivity_same_id, df[correct & cat_same_id].shape[0], df[cat_same_id].shape[0]))
     except:
         print ('Warning: no element in "same_id"')
     try:
-        sensitivity_same_var = df[correct & cat_same_var].shape[0] / df[cat_same_var].shape[0] * 100
-        print ('sensitivity_same_var = %.2f (%d / %d)' % (sensitivity_same_var, df[correct & cat_same_var].shape[0], df[cat_same_var].shape[0]))
+        sensitivity_same_var = df[correct & cat_same_var].shape[0] / df[cat_same_var].shape[0]
+        print ('sensitivity_same_var = {0:.4%} ({1}/{2})'.format(sensitivity_same_var, df[correct & cat_same_var].shape[0], df[cat_same_var].shape[0]))
     except:
         print ('Warning: no element in "same_var"')
     try:
-        sensitivity_diff_id = df[correct & cat_diff_id].shape[0] / df[cat_diff_id].shape[0] * 100
-        print ('sensitivity_diff_id = %.2f (%d / %d)' % (sensitivity_diff_id, df[correct & cat_diff_id].shape[0], df[cat_diff_id].shape[0]))
+        sensitivity_diff_id = df[correct & cat_diff_id].shape[0] / df[cat_diff_id].shape[0]
+        print ('sensitivity_diff_id  = {0:.4%} ({1}/{2})'.format(sensitivity_diff_id, df[correct & cat_diff_id].shape[0], df[cat_diff_id].shape[0]))
     except:
         print ('Warning: no element in "diff_id"')
     try:
-        sensitivity_diff_var = df[correct & cat_diff_var].shape[0] / df[cat_diff_var].shape[0] * 100
-        print ('sensitivity_diff_var = %.2f (%d / %d)' % (sensitivity_diff_var, df[correct & cat_diff_var].shape[0], df[cat_diff_var].shape[0]))
+        sensitivity_diff_var = df[correct & cat_diff_var].shape[0] / df[cat_diff_var].shape[0]
+        print ('sensitivity_diff_var = {0:.4%} ({1}/{2})'.format(sensitivity_diff_var, df[correct & cat_diff_var].shape[0], df[cat_diff_var].shape[0]))
     except:
         print ('Warning: no element in "diff_var"')
 
@@ -527,23 +527,23 @@ def print_df_stats(df, threshold):
     var3plus = (df['numvar'] >= 3)
 
     try:
-        sensitivity_var0 = df[correct & var0].shape[0] / df[var0].shape[0] * 100
-        print ('sensitivity_var0 = %.2f (%d / %d)' % (sensitivity_var0, df[correct & var0].shape[0], df[var0].shape[0]))
+        sensitivity_var0 = df[correct & var0].shape[0] / df[var0].shape[0]
+        print ('sensitivity_var0     = {0:.4%} ({1}/{2})'.format(sensitivity_var0, df[correct & var0].shape[0], df[var0].shape[0]))
     except:
         print ('Warning: no read has 0 variants')
     try:
-        sensitivity_var1 = df[correct & var1].shape[0] / df[var1].shape[0] * 100
-        print ('sensitivity_var1 = %.2f (%d / %d)' % (sensitivity_var1, df[correct & var1].shape[0], df[var1].shape[0]))
+        sensitivity_var1 = df[correct & var1].shape[0] / df[var1].shape[0]
+        print ('sensitivity_var1     = {0:.4%} ({1}/{2})'.format(sensitivity_var1, df[correct & var1].shape[0], df[var1].shape[0]))
     except:
         print ('Warning: no read has 1 variants')
     try:
-        sensitivity_var2 = df[correct & var2].shape[0] / df[var2].shape[0] * 100
-        print ('sensitivity_var2 = %.2f (%d / %d)' % (sensitivity_var2, df[correct & var2].shape[0], df[var2].shape[0]))
+        sensitivity_var2 = df[correct & var2].shape[0] / df[var2].shape[0]
+        print ('sensitivity_var2     = {0:.4%} ({1}/{2})'.format(sensitivity_var2, df[correct & var2].shape[0], df[var2].shape[0]))
     except:
         print ('Warning: no read has 2 variants')
     try:
-        sensitivity_var3plus = df[correct & var3plus].shape[0] / df[var3plus].shape[0] * 100
-        print ('sensitivity_var3plus = %.2f (%d / %d)' % (sensitivity_var3plus, df[correct & var3plus].shape[0], df[var3plus].shape[0]))
+        sensitivity_var3plus = df[correct & var3plus].shape[0] / df[var3plus].shape[0]
+        print ('sensitivity_var3plus = {0:.4%} ({1}/{2})'.format(sensitivity_var3plus, df[correct & var3plus].shape[0], df[var3plus].shape[0]))
     except:
         print ('Warning: no read has 3+ variants')
     
@@ -555,40 +555,50 @@ def print_df_stats(df, threshold):
     mapq30plus = (df['mapq'] >= 30)
     mapq40plus = (df['mapq'] >= 40)
     
-    sensitivity_mapq5plus = df[correct & mapq5plus].shape[0] / df.shape[0] * 100
-    print ('sensitivity_mapq5plus = %.2f (%d / %d)' % (sensitivity_mapq5plus, df[correct & mapq5plus].shape[0], df.shape[0]))
-    sensitivity_mapq10plus = df[correct & mapq10plus].shape[0] / df.shape[0] * 100
-    print ('sensitivity_mapq10plus = %.2f (%d / %d)' % (sensitivity_mapq10plus, df[correct & mapq10plus].shape[0], df.shape[0]))
-    sensitivity_mapq20plus = df[correct & mapq20plus].shape[0] / df.shape[0] * 100
-    print ('sensitivity_mapq20plus = %.2f (%d / %d)' % (sensitivity_mapq20plus, df[correct & mapq20plus].shape[0], df.shape[0]))
-    sensitivity_mapq30plus = df[correct & mapq30plus].shape[0] / df.shape[0] * 100
-    print ('sensitivity_mapq30plus = %.2f (%d / %d)' % (sensitivity_mapq30plus, df[correct & mapq30plus].shape[0], df.shape[0]))
-    sensitivity_mapq40plus = df[correct & mapq40plus].shape[0] / df.shape[0] * 100
-    print ('sensitivity_mapq40plus = %.2f (%d / %d)' % (sensitivity_mapq40plus, df[correct & mapq40plus].shape[0], df.shape[0]))
+    sensitivity_mapq5plus = df[correct & mapq5plus].shape[0] / df.shape[0]
+    print ('sensitivity_mapq5plus  = {0:.4%} ({1}/{2})'.format(sensitivity_mapq5plus, df[correct & mapq5plus].shape[0], df.shape[0]))
+    sensitivity_mapq10plus = df[correct & mapq10plus].shape[0] / df.shape[0]
+    print ('sensitivity_mapq10plus = {0:.4%} ({1}/{2})'.format(sensitivity_mapq10plus, df[correct & mapq10plus].shape[0], df.shape[0]))
+    sensitivity_mapq20plus = df[correct & mapq20plus].shape[0] / df.shape[0]
+    print ('sensitivity_mapq20plus = {0:.4%} ({1}/{2})'.format(sensitivity_mapq20plus, df[correct & mapq20plus].shape[0], df.shape[0]))
+    sensitivity_mapq30plus = df[correct & mapq30plus].shape[0] / df.shape[0]
+    print ('sensitivity_mapq30plus = {0:.4%} ({1}/{2})'.format(sensitivity_mapq30plus, df[correct & mapq30plus].shape[0], df.shape[0]))
+    sensitivity_mapq40plus = df[correct & mapq40plus].shape[0] / df.shape[0]
+    print ('sensitivity_mapq40plus = {0:.4%} ({1}/{2})'.format(sensitivity_mapq40plus, df[correct & mapq40plus].shape[0], df.shape[0]))
 
     try:
-        precision_mapq5plus = df[correct & mapq5plus].shape[0] / df[mapq5plus].shape[0] * 100
-        print ('precision_mapq5plus = %.2f (%d / %d)' % (precision_mapq5plus, df[correct & mapq5plus].shape[0], df[mapq5plus].shape[0]))
+        precision_mapq5plus = df[correct & mapq5plus].shape[0] / df[mapq5plus].shape[0]
+        print ('precision_mapq5plus = {0:.4%} ({1}/{2})'.format(precision_mapq5plus, df[correct & mapq5plus].shape[0], df[mapq5plus].shape[0]))
+        fdr_mapq5plus = 1 - precision_mapq5plus
+        print ('fdr_mapq5plus = {0:.4%}'.format(fdr_mapq5plus))
     except:
         print ('Warning: no read is 5+ mapq')
     try:
-        precision_mapq10plus = df[correct & mapq10plus].shape[0] / df[mapq10plus].shape[0] * 100
-        print ('precision_mapq10plus = %.2f (%d / %d)' % (precision_mapq10plus, df[correct & mapq10plus].shape[0], df[mapq10plus].shape[0]))
+        precision_mapq10plus = df[correct & mapq10plus].shape[0] / df[mapq10plus].shape[0]
+        print ('precision_mapq10plus = {0:.4%} ({1}/{2})'.format(precision_mapq10plus, df[correct & mapq10plus].shape[0], df[mapq10plus].shape[0]))
+        fdr_mapq10plus = 1 - precision_mapq10plus
+        print ('fdr_mapq10plus = {0:.4%}'.format(fdr_mapq10plus))
     except:
         print ('Warning: no read is 10+ mapq')
     try:
-        precision_mapq20plus = df[correct & mapq20plus].shape[0] / df[mapq20plus].shape[0] * 100
-        print ('precision_mapq20plus = %.2f (%d / %d)' % (precision_mapq20plus, df[correct & mapq20plus].shape[0], df[mapq20plus].shape[0]))
+        precision_mapq20plus = df[correct & mapq20plus].shape[0] / df[mapq20plus].shape[0]
+        print ('precision_mapq20plus = {0:.4%} ({1}/{2})'.format(precision_mapq20plus, df[correct & mapq20plus].shape[0], df[mapq20plus].shape[0]))
+        fdr_mapq20plus = 1 - precision_mapq20plus
+        print ('fdr_mapq20plus = {0:.4%}'.format(fdr_mapq20plus))
     except:
         print ('Warning: no read is 20+ mapq')
     try:
-        precision_mapq30plus = df[correct & mapq30plus].shape[0] / df[mapq30plus].shape[0] * 100
-        print ('precision_mapq30plus = %.2f (%d / %d)' % (precision_mapq30plus, df[correct & mapq30plus].shape[0], df[mapq30plus].shape[0]))
+        precision_mapq30plus = df[correct & mapq30plus].shape[0] / df[mapq30plus].shape[0]
+        print ('precision_mapq30plus = {0:.4%} ({1}/{2})'.format(precision_mapq30plus, df[correct & mapq30plus].shape[0], df[mapq30plus].shape[0]))
+        fdr_mapq30plus = 1 - precision_mapq30plus
+        print ('fdr_mapq30plus = {0:.4%}'.format(fdr_mapq30plus))
     except:
         print ('Warning: no read is 30+ mapq')
     try:
-        precision_mapq40plus = df[correct & mapq40plus].shape[0] / df[mapq40plus].shape[0] * 100
-        print ('precision_mapq40plus = %.2f (%d / %d)' % (precision_mapq40plus, df[correct & mapq40plus].shape[0], df[mapq40plus].shape[0]))
+        precision_mapq40plus = df[correct & mapq40plus].shape[0] / df[mapq40plus].shape[0]
+        print ('precision_mapq40plus = {0:.4%} ({1}/{2})'.format(precision_mapq40plus, df[correct & mapq40plus].shape[0], df[mapq40plus].shape[0]))
+        fdr_mapq40plus = 1 - precision_mapq40plus
+        print ('fdr_mapq40plus = {0:.4%}'.format(fdr_mapq40plus))
     except:
         print ('Warning: no read is 40+ mapq')
 
