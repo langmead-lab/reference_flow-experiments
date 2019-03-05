@@ -247,22 +247,47 @@ def parse_line(line, erg=False, md=False, cigar=False):
     return name, info
 
 def compare_sam_info(info, ginfo, threshold, offset = [0], ignore_chrm=False):
+    '''
+    Inputs:
+        info:
+            info from alignment
+        ginfo:
+            info from simulation profile (golden)
+        offset:
+            positiontal offset
+        ignore_chrm:
+            set True to ignore alignment against different chromosomes
+    
+    Output:
+        an INT representing alignment correctness
+        if < 0:
+            -1: unmatched chromosome
+            -2: unmatched direction
+        if >= 0:
+            the difference in alignment position
+            0 is a perfect match
+    '''
     if (ignore_chrm is False) and (info.chrm != ginfo.chrm):
-        # diff chromosome
-        if __debug__: print ("False: chr, mapq =", info.mapq)
-        return False
+        #: diff chromosome
+        if __debug__:
+            print ("False: chr, mapq =", info.mapq)
+        # return False
+        return -1
     if (info.is_rc() ^ ginfo.is_rc()) is True:
-        # diff direction
+        #: diff direction
         if __debug__: 
             print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), "mapq =", info.mapq)
-        return False
-    for off in offset:
-        if abs(info.pos + off - ginfo.pos) <= threshold:
-            if __debug__: print ("True, mapq =", info.mapq)
-            return True
-    if __debug__: 
-        print ("False: distance > threshold, mapq =", info.mapq)
-    return False
+        # return False
+        return -2
+    # for off in offset:
+    #     if abs(info.pos + off - ginfo.pos) <= threshold:
+    #         if __debug__:
+    #             print ("True, mapq =", info.mapq)
+    #         return True
+    # if __debug__: 
+    #     print ("False: distance > threshold, mapq =", info.mapq)
+    # return False
+    return min([abs(info.pos + off - ginfo.pos) for off in offset])
 
 def dump_golden_dic(filename, seg):
     g_dic = {}
@@ -329,7 +354,11 @@ def analyze_sam(args):
                 continue
             if info.is_secondary() and secondary == 0: # neglect secondary alignments
                 continue
-            comp = compare_sam_info(info, g_dic[name], threshold)
+            dist = compare_sam_info(info, g_dic[name], threshold)
+            if dist < 0 or dist > threshold:
+                comp = False
+            else:
+                comp = True
             if __debug__ & 0:
                 if comp is not True:
                     print (info)
