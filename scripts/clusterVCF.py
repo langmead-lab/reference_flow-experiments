@@ -37,8 +37,8 @@ with open(vcf) as myFile:
 				if len(sval)!=2:
 					print "ERROR ON LINE: " + line
 					break
-				temp_hapA.append(bool(sval[0]))
-				temp_hapB.append(bool(sval[1]))
+				temp_hapA.append(bool(int(sval[0])))
+				temp_hapB.append(bool(int(sval[1])))
 				#temp.append( (sval[0], sval[1]) )
 			#distMatrix.append(temp)
 			matrixHapA.append(temp_hapA)
