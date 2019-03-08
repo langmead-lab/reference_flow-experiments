@@ -56,8 +56,17 @@ normalizedDist=np.subtract(sim2diff,normalizedSim)
 
 # Double output to be 'safe'
 #print normalizedDist
+np.save(outName+".npy", normalizedDist)
 
 with open(outName, 'w') as outFile:
-    json.dump(normalizedDist, outFile)
+    for line in normalizedDist:
+		outLine = ""
+		for val in line:
+			outLine=outLine+"{0:.4f}, ".format(val)
+		outLine=outLine[:-2]
+		outFile.write(outLine+"\n")
+		
+
+#json.dump(normalizedDist, outFile)
 
 
