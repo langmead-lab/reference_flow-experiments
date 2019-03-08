@@ -37,7 +37,10 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
     Format of a .var file:
     hap(A/B) chrm var_type ref_pos hap_pos offset
     '''
-    f = open(vcf, 'r')
+    if vcf != None:
+        f = open(vcf, 'r')
+    else:
+        f = sys.stdin
     labels = None
     line_id = 0
     offsetA = 0
@@ -158,7 +161,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--ref', type=str, required=True, help='Path to fasta file containing reference genome')
-    parser.add_argument("--vcf", type=str, required=True, help="Path to VCF file containing mutation information")
+    parser.add_argument("--vcf", type=str, help="Path to VCF file containing mutation information")
+    #parser.add_argument("--vcf", type=str, required=True, help="Path to VCF file containing mutation information")
     parser.add_argument("--chrom", type=str, required=True, help="Chromosome to process")
     parser.add_argument("--out-prefix", type=str, required=True, help="Path to output prefix")
     parser.add_argument("--name", type=str, help="Name of individual in VCF to process")
