@@ -27,6 +27,15 @@ def parse_args():
         help='the file specifying variants'
     )
     parser.add_argument(
+        '-p', '--personalized', type=int,
+        default=0,
+        help='(int) specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
+    )
+    parser.add_argument(
+        '-c', '--chrm',
+        help='(str) chromosome [None]'
+    )
+    parser.add_argument(
         '-t', '--threshold', type=int,
         default=10,
         help='(int) max allowed distance for a correct mapping [10]'
@@ -35,11 +44,6 @@ def parse_args():
         '--read_len', type=int,
         default=100,
         help='(int) read length [100]'
-    )
-    parser.add_argument(
-        '-p', '--personalized', type=int,
-        default=0,
-        help='(int) specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
         '--step_size', type=int,
@@ -365,6 +369,7 @@ def analyze_diploid_indels(
     threshold,
     var_fn,
     personalized,
+    chrm,
     step,
     read_len,
     write_wrt_correctness
@@ -378,8 +383,8 @@ def analyze_diploid_indels(
     ALT_STRAND = 'B'
     MAIN_HAP = 'hap' + MAIN_STRAND
     ALT_HAP = 'hap' + ALT_STRAND
-    MAIN_CHRM = '9A'
-    ALT_CHRM = '9B'
+    MAIN_CHRM = chrm + 'A'
+    ALT_CHRM = chrm + 'B'
 
     var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
     main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
@@ -684,6 +689,7 @@ if __name__ == '__main__':
     threshold = args.threshold
     var_fn = args.var
     personalized = args.personalized
+    chrm = args.chrm
     write_wrt_correctness = args.write_wrt_correctness
     mapq_threshold = args.write_wrt_mapq
     step = args.step_size
@@ -722,6 +728,7 @@ if __name__ == '__main__':
         threshold=threshold,
         var_fn=var_fn,
         personalized=personalized,
+        chrm=chrm,
         step=step,
         read_len=read_len,
         write_wrt_correctness=write_wrt_correctness
