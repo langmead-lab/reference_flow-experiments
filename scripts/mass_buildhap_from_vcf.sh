@@ -23,7 +23,7 @@ python getRand.py $SCRATCH/phase3_names.txt ${RANDSIZE} > $RANDSET
 
 while read -r NAME
 do
-	python $RELAX/scripts/update_genome.py --ref $STORAGE/indexes/hs37d5.fa --vcf $VCF_FILE --chrom $CHROM_NUM --out-prefix ${RANDSTORAGE}/$NAME --name $NAME --include-indels 1
+	python $RELAX/scripts/update_genome.py --ref $STORAGE/indexes/hs37d5.fa --vcf $VCF_FILE --chrom $CHROM_NUM --out-prefix ${RANDSTORAGE}/$NAME --name $NAME --include-indels 0
 done < $RANDSET
 
 #/scratch/groups/blangme2/naechyun/software/mason-0.1.2-Linux-x86_64/bin/mason \
