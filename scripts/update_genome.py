@@ -77,6 +77,7 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
                     if indels:
                         new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
                     else:
+                        new_offsetA = 0
                         hapA[loc+offsetA-1] = alts[alleleA-1]
                     #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
                     f_var.write(
@@ -88,6 +89,7 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
                     if indels:
                         new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                     else:
+                        new_offsetB = 0
                         hapB[loc+offsetB-1] = alts[alleleB-1]
                     #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
                     f_var.write(
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     parser.add_argument("--chrom", type=str, required=True, help="Chromosome to process")
     parser.add_argument("--out-prefix", type=str, required=True, help="Path to output prefix")
     parser.add_argument("--name", type=str, help="Name of individual in VCF to process")
-    parser.add_argument("--include-indels", type=str, help="If present, extract both SNPs and INDELs.")
+    parser.add_argument("--include-indels", type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0].")
 
     args = parser.parse_args(sys.argv[1:])
 
