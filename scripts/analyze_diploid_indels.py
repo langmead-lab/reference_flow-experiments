@@ -6,7 +6,7 @@ identical in two personalized refs
 import argparse, math, sys, os
 import pandas as pd
 import matplotlib.pyplot as plt
-from analyze_sam import SamInfo, parse_line, load_golden_dic, compare_sam_info, Summary
+from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
 from build_erg import read_var, read_genome
 
 #: TODO LEV should support different scoring schemes
@@ -23,8 +23,12 @@ def parse_args():
         help='golden sam file'
     )
     parser.add_argument(
-        '-v', '--var',
-        help='the file specifying variants'
+        '-vr', '--var_reads',
+        help='the file specifying variants for the synthetic reads'
+    )
+    parser.add_argument(
+        '-vs', '--var_sample',
+        help='the file specifying variants for the current target reference'
     )
     parser.add_argument(
         '-p', '--personalized', type=int,
@@ -207,14 +211,15 @@ def build_offset_index_ref(var_list, step, MAIN_STRAND, ALT_STRAND):
     
     return alt1_offset_index, alt2_offset_index
 
-def print_and_stop(name, offsets, diff, info, g_info):
+def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info):
     '''
     This is for debugging.
     Prints alignment info and stops the script.
     '''
     print ('name', name)
-    print ('offsets', offsets)
-    print ('diff', diff)
+    print ('offsets on reads', reads_offsets)
+    print ('offsets on sample', sample_offsets)
+    print ('dist', dist)
     print ('info')
     info.print(flag=False, mapq=False, score=False)
     print ()
@@ -223,13 +228,13 @@ def print_and_stop(name, offsets, diff, info, g_info):
     input()
 
 # TODO
-def print_aln_within_distance(name, offsets, info, g_info, threshold, read_len):
+def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, threshold, read_len):
     '''
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
     '''
     tmp = []
-    for i in offsets:
+    for i in reads_offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
     diff = min(tmp)
     if (diff < threshold) or (threshold < 0):
@@ -240,7 +245,7 @@ def print_aln_within_distance(name, offsets, info, g_info, threshold, read_len):
             seq_hapA = HAPA_G[g_info.pos: g_info.pos + read_len]
             seq_hapB = HAPB_G[g_info.pos: g_info.pos + read_len]
             leven_score_g = []
-            for i in offsets:
+            for i in reads_offsets:
                 seq_ref_g = REF_G[g_info.pos - i: g_info.pos - i + read_len]
                 leven_score_g.append(levenshtein(seq_ref_g, seq_hapA))
                 leven_score_g.append(levenshtein(seq_ref_g, seq_hapB))
@@ -258,14 +263,61 @@ def print_aln_within_distance(name, offsets, info, g_info, threshold, read_len):
                     print ('called distance', called_d)
                     print ('golden distance', golden_d)
                     print ('CALLED (%10d) = %s' % (info.pos, REF_G[info.pos : info.pos + 80]))
-                    print ('ORIG1  (%10d) = %s' % (g_info.pos - offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - offsets[0] + 80]))
-                    if offsets[0] != offsets[1]:
-                        print ('ORIG2  (%10d) = %s' % (g_info.pos - offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - offsets[1] + 80]))
+                    print ('ORIG1  (%10d) = %s' % (g_info.pos - reads_offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - reads_offsets[0] + 80]))
+                    if reads_offsets[0] != reads_offsets[1]:
+                        print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - reads_offsets[1] + 80]))
                     print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
-                    print_and_stop(name, offsets, diff, info, g_info)
+                    print_and_stop(name, reads_offsets, sample_offsets, diff, info, g_info)
             return
+
+def compare_sam_info(
+        info,
+        ginfo,
+        threshold,
+        sample_offsets=[0],
+        reads_offsets=[0],
+        ignore_chrm=False
+    ):
+    '''
+    Inputs:
+        info:
+            info from alignment
+        ginfo:
+            info from simulation profile (golden)
+        offset:
+            positiontal offset
+        ignore_chrm:
+            set True to ignore alignment against different chromosomes
+        reads_main_offset_index:
+        #TODO
+        reads_alt_offset_index:
+        #TODO
+    
+    Output:
+        an INT representing alignment correctness
+        if < 0:
+            -1: unmatched chromosome
+            -2: unmatched direction
+        if >= 0:
+            the difference in alignment position
+            0 is a perfect match
+    '''
+    if (ignore_chrm is False) and (info.chrm != ginfo.chrm):
+        #: diff chromosome
         if __debug__:
-            print_and_stop(name, offsets, diff, info, g_info)
+            print ("False: chr, mapq =", info.mapq)
+        return -1
+    if (info.is_rc() ^ ginfo.is_rc()) is True:
+        #: diff direction
+        if __debug__: 
+            print ("False: direction (%s, %s)" % (info.is_rc(), ginfo.is_rc()), "mapq =", info.mapq)
+        return -2
+    dist = []
+    for soff in sample_offsets:
+        for roff in reads_offsets:
+            dist.append(abs(info.pos - soff - ginfo.pos + roff))
+    return min(dist)
+    #return min([abs(info.pos + off - ginfo.pos) for off in sample_offsets])
 
 def diploid_compare(
     info, 
@@ -274,75 +326,118 @@ def diploid_compare(
     threshold, 
     dip_flag, 
     step,
-    main_offset_index = {}, 
-    alt_offset_index = {}
+    reads_main_offset_index = {}, 
+    reads_alt_offset_index = {},
+    sample_main_offset_index = {},
+    sample_alt_offset_index = {}
 ):
     '''
     Uses variable 'dip_flag' to handle different cases of a diploid alignment and check if the alignment is correct.
     '''
-    #: don't check the other strand
-    if dip_flag in ['same_id', 'same_var']:
-        return compare_sam_info(info, g_info, threshold)
-    elif dip_flag in ['same_strand_ref']:
+    sample_offsets = [0]
+    if dip_flag in ['same_strand_ref']:
+        pass
         #: neglect chrom name difference
         # info.chrm = g_info.chrm
+        '''
         i_low = int(g_info.pos / step)
         i_high = math.ceil(g_info.pos / step)
         offsets = []
         #: check hapA
         if name.find(MAIN_HAP) > 0:
-            if i_low >= len(main_offset_index):
-                offsets.append(main_offset_index[len(main_offset_index) - 1])
+            if i_low >= len(reads_main_offset_index):
+                offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
             else:
-                offsets.append(main_offset_index[i_low])
-            if i_high >= len(main_offset_index):
-                offsets.append(main_offset_index[len(main_offset_index) - 1])
+                offsets.append(reads_main_offset_index[i_low])
+            if i_high >= len(reads_main_offset_index):
+                offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
             else:
-                offsets.append(main_offset_index[i_high])
+                offsets.append(reads_main_offset_index[i_high])
         #: check hapB
         elif name.find(ALT_HAP) > 0:
-            if i_low >= len(alt_offset_index):
-                offsets.append(alt_offset_index[len(alt_offset_index) - 1])
+            if i_low >= len(reads_alt_offset_index):
+                offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
             else:
-                offsets.append(alt_offset_index[i_low])
-            if i_high >= len(alt_offset_index):
-                offsets.append(alt_offset_index[len(alt_offset_index) - 1])
+                offsets.append(reads_alt_offset_index[i_low])
+            if i_high >= len(reads_alt_offset_index):
+                offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
             else:
-                offsets.append(alt_offset_index[i_high])
-    #: check the other haplotype
-    elif dip_flag in ['diff_id', 'diff_var']:
+                offsets.append(reads_alt_offset_index[i_high])
+            '''
+    ##: don't check the other strand
+    #if dip_flag in ['same_id', 'same_var']:
+    #    pass
+    ##: check the other haplotype
+    #elif dip_flag in ['diff_id', 'diff_var']:
+    #: personalized
+    elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
         i_low = int(info.pos / step)
         i_high = math.ceil(info.pos / step)
         if info.chrm == MAIN_CHRM:
-            if i_low >= len(main_offset_index):
-                offset_low = main_offset_index[len(main_offset_index) - 1]
+            if i_low >= len(sample_main_offset_index):
+                sample_offset_low = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
-                offset_low = main_offset_index[i_low]
-            if i_high >= len(main_offset_index):
-                offset_high = main_offset_index[len(main_offset_index) - 1]
+                sample_offset_low = sample_main_offset_index[i_low]
+            if i_high >= len(sample_main_offset_index):
+                sample_offset_high = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
-                offset_high = main_offset_index[i_high]
+                sample_offset_high = sample_main_offset_index[i_high]
         elif info.chrm == ALT_CHRM:
-            if i_low >= len(alt_offset_index):
-                offset_low = alt_offset_index[len(alt_offset_index) - 1]
+            if i_low >= len(sample_alt_offset_index):
+                sample_offset_low = sample_alt_offset_index[len(sample_alt_offset_index) - 1]
             else:
-                offset_low = alt_offset_index[i_low]
-            if i_high >= len(alt_offset_index):
-                offset_high = alt_offset_index[len(alt_offset_index) - 1]
+                sample_offset_low = sample_alt_offset_index[i_low]
+            if i_high >= len(sample_alt_offset_index):
+                sample_offset_high = sample_alt_offset_index[len(sample_alt_offset_index) - 1]
             else:
-                offset_high = alt_offset_index[i_high]
+                sample_offset_high = sample_alt_offset_index[i_high]
         else:
-            print ('Error: invalid chrm', info.chrm)
+            print ('Error: invalid chrm', info.chrm, MAIN_CHRM, ALT_CHRM)
             exit()
-        offsets = [offset_low, offset_high]
+        sample_offsets = [sample_offset_low, sample_offset_high]
     else:
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
+    
+    i_low = int(g_info.pos / step)
+    i_high = math.ceil(g_info.pos / step)
+    reads_offsets = []
+    #: check hapA
+    if name.find(MAIN_HAP) > 0:
+        if i_low >= len(reads_main_offset_index):
+            reads_offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
+        else:
+            reads_offsets.append(reads_main_offset_index[i_low])
+        if i_high >= len(reads_main_offset_index):
+            reads_offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
+        else:
+            reads_offsets.append(reads_main_offset_index[i_high])
+    #: check hapB
+    elif name.find(ALT_HAP) > 0:
+        if i_low >= len(reads_alt_offset_index):
+            reads_offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
+        else:
+            reads_offsets.append(reads_alt_offset_index[i_low])
+        if i_high >= len(reads_alt_offset_index):
+            reads_offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
+        else:
+            reads_offsets.append(reads_alt_offset_index[i_high])
 
-    comp = compare_sam_info(info, g_info, threshold, offsets, ignore_chrm=True)
-    if comp == False and __debug__:
-        print_aln_within_distance(name, offsets, info, g_info, 1000, read_len)
-    return comp
+    dist = compare_sam_info(
+        info=info,
+        ginfo=g_info,
+        threshold=threshold,
+        sample_offsets=sample_offsets,
+        reads_offsets=reads_offsets,
+        ignore_chrm=True
+    )
+
+    if (dist < 0 or dist > threshold) and __debug__:
+        print (dip_flag)
+        print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info)
+        print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
+
+    return dist
 
 def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
     '''
@@ -367,7 +462,8 @@ def analyze_diploid_indels(
     sam_fn,
     golden_fn,
     threshold,
-    var_fn,
+    var_reads_fn,
+    var_sample_fn,
     personalized,
     chrm,
     step,
@@ -386,16 +482,22 @@ def analyze_diploid_indels(
     MAIN_CHRM = chrm + 'A'
     ALT_CHRM = chrm + 'B'
 
-    var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-    main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
+    main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
-        var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
-        main_offset_index, alt_offset_index = build_offset_index(var_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        #var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=True)
+        var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
+        reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        #var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=True)
+        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
+        sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
-        # var_list = read_var(var_fn, remove_conflict=True, remove_coexist=False)
-        main_offset_index, alt_offset_index = build_offset_index_ref(var_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        # var_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
+        main_offset_index, alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        sample_main_offset_index = {}
+        sample_alt_offset_index = {}
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
@@ -451,7 +553,7 @@ def analyze_diploid_indels(
                     flag = 'same_id'
                 else:
                     flag = 'same_var'
-            dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, main_offset_index, alt_offset_index)
+            dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
             if dist < 0 or dist > threshold:
                 comp = False
             else:
@@ -459,7 +561,7 @@ def analyze_diploid_indels(
             summary.add_by_categories(flag=flag, comp=comp)
         #: alignment against standard ref (and ERG)
         elif personalized == 0:
-            dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, main_offset_index, alt_offset_index)
+            dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
             if dist < 0 or dist > threshold:
                 comp = False
             else:
@@ -479,7 +581,8 @@ def analyze_diploid_indels(
                 incorrect_f.write(line)
 
         if __debug__ and comp == False:
-            print_and_stop(name, [], None, info, golden_dic[name])
+            print (flag)
+            print_and_stop(name, [], [], dist, info, golden_dic[name])
 
     summary.show_summary(has_answer=True)
     sam_f.close()
@@ -687,7 +790,8 @@ if __name__ == '__main__':
     sam_fn = args.sam
     golden_fn = args.golden
     threshold = args.threshold
-    var_fn = args.var
+    var_reads_fn = args.var_reads
+    var_sample_fn = args.var_sample
     personalized = args.personalized
     chrm = args.chrm
     write_wrt_correctness = args.write_wrt_correctness
@@ -726,7 +830,8 @@ if __name__ == '__main__':
         sam_fn=sam_fn,
         golden_fn=golden_fn,
         threshold=threshold,
-        var_fn=var_fn,
+        var_reads_fn=var_reads_fn,
+        var_sample_fn=var_sample_fn,
         personalized=personalized,
         chrm=chrm,
         step=step,
