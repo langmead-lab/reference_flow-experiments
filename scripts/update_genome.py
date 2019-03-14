@@ -1,4 +1,3 @@
-#! /usr/bin/env python2.7
 '''
 Parse a vcf file and lists all the snvs and indels for a sample
 '''
@@ -20,7 +19,7 @@ def get_mutation_type(info):
             return a[3:]
 
 
-def update_genome(indiv, seq, label, vcf, out_prefix, indels=None): 
+def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None): 
     '''
     ##fileformat=VCFv4.1
     '''
@@ -50,9 +49,10 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
         if line[0] == '#' and line[1] == '#':
             continue
 
-        if not labels:
+        #: if "indiv" is set, select corresponding columns
+        if not labels and indiv != None:
             labels = line.rstrip().split('\t')
-
+            print ('labels', labels)
             col = None
             for i in range(9, len(labels)):
                 if labels[i] == indiv:
@@ -64,14 +64,23 @@ def update_genome(indiv, seq, label, vcf, out_prefix, indels=None):
             row = line.rstrip().split('\t')
             type = get_mutation_type(row[7])
             if type == 'SNP' or (indels and type == 'INDEL'):
-                chrom = row[0]
+                # chrom = row[0]
+                if row[0] != chrom:
+                    continue
                 loc = int(row[1])
 
                 orig = row[3]
                 alts = row[4].split(',')
 
-                alleleA = int(row[col][0])
-                alleleB = int(row[col][2])
+                if indiv != None:
+                    alleleA = int(row[col][0])
+                    alleleB = int(row[col][2])
+                else:
+                    alleleA = 1
+                    alleleB = 0
+                    #: ignore multiallelic loci
+                    if len(alts) > 1:
+                        continue
 
                 if alleleA > 0:
                     if indels:
@@ -150,6 +159,7 @@ def read_chrom(ref, chrom):
                     return label, seq
 
                 curr_chrom = line[1:].split(' ')[0]
+                curr_chrom = curr_chrom[: curr_chrom.find('\n')]
                 if curr_chrom == chrom:
                     label = line
             elif label:
@@ -167,11 +177,22 @@ if __name__ == '__main__':
     #parser.add_argument("--vcf", type=str, required=True, help="Path to VCF file containing mutation information")
     parser.add_argument("--chrom", type=str, required=True, help="Chromosome to process")
     parser.add_argument("--out-prefix", type=str, required=True, help="Path to output prefix")
-    parser.add_argument("--name", type=str, help="Name of individual in VCF to process")
+    parser.add_argument("--name", type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]")
     parser.add_argument("--include-indels", type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0].")
 
     args = parser.parse_args(sys.argv[1:])
 
-    label,genome = read_chrom(args.ref, args.chrom)
-    update_genome(args.name, genome, label, args.vcf, args.out_prefix, args.include_indels)
+    if args.name == None:
+        print ('No individual specified, all variants in chrom %s are included' % args.chrom)
 
+    label, genome = read_chrom(args.ref, args.chrom)
+    # update_genome(args.name, genome, label, args.vcf, args.out_prefix, args.include_indels)
+    update_genome(
+        indiv=args.name,
+        seq=genome,
+        label=label,
+        vcf=args.vcf,
+        chrom=args.chrom,
+        out_prefix=args.out_prefix,
+        indels=args.include_indels
+    )
