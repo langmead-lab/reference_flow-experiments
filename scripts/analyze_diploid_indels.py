@@ -495,7 +495,7 @@ def analyze_diploid_indels(
     #: standard ref seq
     elif personalized == 0:
         # var_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
-        main_offset_index, alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         sample_main_offset_index = {}
         sample_alt_offset_index = {}
     else:
