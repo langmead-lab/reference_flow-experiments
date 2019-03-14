@@ -25,10 +25,14 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
     '''
     hapA = list(seq[:])
     hapB = list(seq[:])
-    fA = open(out_prefix + '_hapA.fa', 'w')
-    fA.write(label)
-    fB = open(out_prefix + '_hapB.fa', 'w')
-    fB.write(label)
+    if indiv != None:
+        fA = open(out_prefix + '_hapA.fa', 'w')
+        fA.write(label)
+        fB = open(out_prefix + '_hapB.fa', 'w')
+        fB.write(label)
+    else:
+        fA = open(out_prefix + '.fa', 'w')
+        fA.write(label)
 
     f_var = open(out_prefix + '.var', 'w')
 
@@ -88,19 +92,17 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
                     else:
                         new_offsetA = 0
                         hapA[loc+offsetA-1] = alts[alleleA-1]
-                    #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(offsetA) ))
                     f_var.write(
                         '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
                         ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
                     )
                     offsetA = new_offsetA
-                if alleleB > 0:
+                if alleleB > 0 and indiv != None::
                     if indels:
                         new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                     else:
                         new_offsetB = 0
                         hapB[loc+offsetB-1] = alts[alleleB-1]
-                    #f_var.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(offsetB) ))
                     f_var.write(
                         '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
                         ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
@@ -112,10 +114,12 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
     f_var.close()
     for i in range(0, len(hapA), 60):
         fA.write(''.join(hapA[i:i+60])  + '\n')
-    for i in range(0, len(hapB), 60):
-        fB.write(''.join(hapB[i:i+60])  + '\n') 
     fA.close()
-    fB.close()
+
+    if indiv != None:
+        for i in range(0, len(hapB), 60):
+            fB.write(''.join(hapB[i:i+60])  + '\n') 
+        fB.close()
     f.close()
 
 def add_alt(genome, loc, orig, alt, offset):
@@ -183,7 +187,7 @@ if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
 
     if args.name == None:
-        print ('No individual specified, all variants in chrom %s are included' % args.chrom)
+        print ('Note: no individual specified, all variants in chrom %s are included' % args.chrom)
 
     label, genome = read_chrom(args.ref, args.chrom)
     # update_genome(args.name, genome, label, args.vcf, args.out_prefix, args.include_indels)
