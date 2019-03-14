@@ -75,12 +75,23 @@ class VarInfo():
 
 def read_genome(fn, print_main=False):
     with open(fn, 'r') as f:
-        # seq[0] is empty to fit vcf coordinate (starting from 1)
+        #: seq[0] is empty to fit vcf coordinate (1-based)
         seq = '^'
         for line in f:
             line = line[: line.find('\\')]
             if print_main:
-                print (line)
+                if line.startswith('>'):
+                    #: appends 'A' to the chromosome name if 'A' is not there
+                    header = ''
+                    line = line.split()
+                    if line[0].endswith('A') == False:
+                        line[0] += 'A'
+                    for i in line:
+                        header += (i + ' ')
+                    print (header)
+                    continue
+                else:
+                    print (line)
             if line.startswith('>') == False:
                 seq += line
     return seq
