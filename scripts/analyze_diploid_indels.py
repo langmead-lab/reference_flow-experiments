@@ -132,6 +132,8 @@ def build_index(var_list, MAIN_STRAND, ALT_STRAND):
 
 def build_offset_index(var_list, step, MAIN_STRAND, ALT_STRAND):
     '''
+    CURRENTLY UNUSED
+    
     MAIN/ALT-offset indexes are dictionaries with
         key: pos on MAIN/ALT
         value: pos on ALT/MAIN
@@ -288,10 +290,6 @@ def compare_sam_info(
             positiontal offset
         ignore_chrm:
             set True to ignore alignment against different chromosomes
-        reads_main_offset_index:
-        #TODO
-        reads_alt_offset_index:
-        #TODO
     
     Output:
         an INT representing alignment correctness
@@ -337,39 +335,6 @@ def diploid_compare(
     sample_offsets = [0]
     if dip_flag in ['same_strand_ref']:
         pass
-        #: neglect chrom name difference
-        # info.chrm = g_info.chrm
-        '''
-        i_low = int(g_info.pos / step)
-        i_high = math.ceil(g_info.pos / step)
-        offsets = []
-        #: check hapA
-        if name.find(MAIN_HAP) > 0:
-            if i_low >= len(reads_main_offset_index):
-                offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
-            else:
-                offsets.append(reads_main_offset_index[i_low])
-            if i_high >= len(reads_main_offset_index):
-                offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
-            else:
-                offsets.append(reads_main_offset_index[i_high])
-        #: check hapB
-        elif name.find(ALT_HAP) > 0:
-            if i_low >= len(reads_alt_offset_index):
-                offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
-            else:
-                offsets.append(reads_alt_offset_index[i_low])
-            if i_high >= len(reads_alt_offset_index):
-                offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
-            else:
-                offsets.append(reads_alt_offset_index[i_high])
-            '''
-    ##: don't check the other strand
-    #if dip_flag in ['same_id', 'same_var']:
-    #    pass
-    ##: check the other haplotype
-    #elif dip_flag in ['diff_id', 'diff_var']:
-    #: personalized
     elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
         i_low = int(info.pos / step)
         i_high = math.ceil(info.pos / step)
