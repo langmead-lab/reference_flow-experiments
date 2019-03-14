@@ -97,7 +97,7 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
                         ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
                     )
                     offsetA = new_offsetA
-                if alleleB > 0 and indiv != None::
+                if alleleB > 0 and indiv != None:
                     if indels:
                         new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                     else:
