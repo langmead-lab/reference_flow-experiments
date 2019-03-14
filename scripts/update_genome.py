@@ -52,7 +52,7 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
         #: if "indiv" is set, select corresponding columns
         if not labels and indiv != None:
             labels = line.rstrip().split('\t')
-            print ('labels', labels)
+            # print ('labels', labels)
             col = None
             for i in range(9, len(labels)):
                 if labels[i] == indiv:
