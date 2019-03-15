@@ -334,7 +334,19 @@ def diploid_compare(
     '''
     sample_offsets = [0]
     if dip_flag in ['same_strand_ref']:
-        pass
+        if sample_main_offset_index != {}:
+            i_low = int(info.pos / step)
+            i_high = math.ceil(info.pos / step)
+            if i_low >= len(sample_main_offset_index):
+                sample_offset_low = sample_main_offset_index[len(sample_main_offset_index) - 1]
+            else:
+                sample_offset_low = sample_main_offset_index[i_low]
+            if i_high >= len(sample_main_offset_index):
+                sample_offset_high = sample_main_offset_index[len(sample_main_offset_index) - 1]
+            else:
+                sample_offset_high = sample_main_offset_index[i_high]
+            sample_offsets = [sample_offset_low, sample_offset_high]
+        #pass
     elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
         i_low = int(info.pos / step)
         i_high = math.ceil(info.pos / step)
@@ -461,7 +473,13 @@ def analyze_diploid_indels(
     elif personalized == 0:
         # var_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
         reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-        sample_main_offset_index = {}
+        
+        #: major allele reference with indels
+        if var_sample_fn != None:
+            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
+            sample_main_offset_index, _ = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        else:
+            sample_main_offset_index = {}
         sample_alt_offset_index = {}
     else:
         print ('Error: unsupported personalized parameter', personalized)
