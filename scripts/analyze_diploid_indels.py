@@ -576,6 +576,30 @@ def analyze_diploid_indels(
     return results_df
 
 def print_df_stats(df, threshold, var_opt):
+    PLOT_HIST=True
+    if PLOT_HIST:
+        x = df['dist']
+        x = x.replace([-3, -2, 0], [0.001, 0.01, 1])
+        upper = 10000000
+        rr = [0.001, 0.01, 0.1, 1, 10,100,1000,10000,100000, 1000000, 10000000]
+        n, bins, patches = plt.hist(x=x, bins=rr, log=True)
+        n_upper_outliers = (x > upper).sum()
+        patches[-1].set_height(patches[-1].get_height() + n_upper_outliers)
+        patches[-1].set_facecolor('m')
+        patches[-1].set_label('including above')
+        patches[0].set_facecolor('r')
+        patches[0].set_label('unaligned')
+        patches[1].set_facecolor('y')
+        patches[1].set_label('diff direction')
+        patches[3].set_facecolor('g')
+        patches[3].set_label('correct')
+        plt.ylabel('counts')
+        plt.xlabel('distance')
+        plt.xscale('log')
+        plt.legend()
+        plt.savefig('test_hist.pdf', format='pdf')
+        input ('hist is plotted')
+
     print ()
     print ('--- Stats ---')
     unaligned = (df['dist'] == -3)
