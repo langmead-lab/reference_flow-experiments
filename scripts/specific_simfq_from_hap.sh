@@ -4,11 +4,11 @@ STORAGE=/net/langmead-bigmem-ib.bluecrab.cluster/storage
 SCRATCH=/home-1/bsolomo9\@jhu.edu/scratch/bsolomo9/genome_relaxation/
 #RELAX=/scratch/groups/blangme2/naechyun/relaxing/
 RELAX=/home-1/bsolomo9\@jhu.edu/genome_relaxation/
-#DATE="$1"
-DATE=$(date +"%m-%d-%Y")
+DATE="$1"
+#DATE=$(date +"%m-%d-%Y")
 #RANDSIZE="$2"
-RANDSET="$1" #line separated file
-OUTPREFIX="$2"
+RANDSET="$2" #line separated file
+OUTPREFIX="$3"
 #${SCRATCH}/1000G_R${RANDSIZE}_${DATE}.txt
 RANDSTORAGE=${STORAGE}/bsolomo9/${OUTPREFIX}_${DATE}
 
@@ -25,5 +25,5 @@ mkdir -p $RANDSTORAGE
 # Run script to take hap files and simulate 1M reads in fastq format
 while read -r NAME
 do
-	sbatch simfq_from_hap.sbatch $DATE $RANDSIZE $NAME
+	sbatch simfq_from_hap.sbatch $DATE $OUTPREFIX $NAME
 done < $RANDSET
