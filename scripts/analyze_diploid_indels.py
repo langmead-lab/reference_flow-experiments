@@ -213,7 +213,7 @@ def build_offset_index_ref(var_list, step, MAIN_STRAND, ALT_STRAND):
     
     return alt1_offset_index, alt2_offset_index
 
-def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info):
+def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, flag):
     '''
     This is for debugging.
     Prints alignment info and stops the script.
@@ -222,6 +222,7 @@ def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info):
     print ('offsets on reads', reads_offsets)
     print ('offsets on sample', sample_offsets)
     print ('dist', dist)
+    print ('flag', flag)
     print ('info')
     info.print(flag=False, mapq=False, score=False)
     print ()
@@ -269,7 +270,6 @@ def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info,
                     if reads_offsets[0] != reads_offsets[1]:
                         print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - reads_offsets[1] + 80]))
                     print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
-                    print_and_stop(name, reads_offsets, sample_offsets, diff, info, g_info)
             return
 
 def compare_sam_info(
@@ -410,8 +410,7 @@ def diploid_compare(
     )
 
     if (dist < 0 or dist > threshold) and __debug__:
-        print (dip_flag)
-        print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info)
+        print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, dip_flag)
         print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
 
     return dist
@@ -463,17 +462,13 @@ def analyze_diploid_indels(
     main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
-        #var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=True)
         var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
         reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-        #var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=True)
         var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
         sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
-        # var_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
         reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-        
         #: major allele reference with indels
         if var_sample_fn != None:
             var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
@@ -563,9 +558,8 @@ def analyze_diploid_indels(
             else:
                 incorrect_f.write(line)
 
-        if __debug__ and comp == False:
-            print (flag)
-            print_and_stop(name, [], [], dist, info, golden_dic[name])
+        # if __debug__ and comp == False:
+        #     print_and_stop(name, [], [], dist, info, golden_dic[name], flag)
 
     summary.show_summary(has_answer=True)
     sam_f.close()
@@ -575,31 +569,37 @@ def analyze_diploid_indels(
 
     return results_df
 
-def print_df_stats(df, threshold, var_opt):
-    PLOT_HIST=True
-    if PLOT_HIST:
-        x = df['dist']
-        x = x.replace([-3, -2, 0], [0.001, 0.01, 1])
-        upper = 10000000
-        rr = [0.001, 0.01, 0.1, 1, 10,100,1000,10000,100000, 1000000, 10000000]
-        n, bins, patches = plt.hist(x=x, bins=rr, log=True)
-        n_upper_outliers = (x > upper).sum()
-        patches[-1].set_height(patches[-1].get_height() + n_upper_outliers)
-        patches[-1].set_facecolor('m')
-        patches[-1].set_label('including above')
-        patches[0].set_facecolor('r')
-        patches[0].set_label('unaligned')
-        patches[1].set_facecolor('y')
-        patches[1].set_label('diff direction')
-        patches[3].set_facecolor('g')
-        patches[3].set_label('correct')
-        plt.ylabel('counts')
-        plt.xlabel('distance')
-        plt.xscale('log')
-        plt.legend()
-        plt.savefig('test_hist.pdf', format='pdf')
-        input ('hist is plotted')
+def plot_hist(filename, df):
+    x = df['dist']
+    x = x.replace([-3, -2, 0], [0.001, 0.01, 1])
+    upper = 1000000000
+    rr = [0.001, 0.01, 0.1, 1, 10,100,1000,10000,100000, 1000000, 10000000, 100000000, 1000000000]
+    n, bins, patches = plt.hist(x=x, bins=rr, log=True)
+    # n_upper_outliers = (x > upper).sum()
+    # patches[-1].set_height(patches[-1].get_height() + n_upper_outliers)
+    # patches[-1].set_facecolor('m')
+    # patches[-1].set_label('including longer')
+    
+    # patches[0].set_facecolor('#e00000') #: red
+    patches[0].set_facecolor('#ff9900')
+    patches[0].set_label('unaligned')
+    # patches[1].set_facecolor('#ff9900') #: orange
+    patches[1].set_facecolor('#ffdb4d')
+    patches[1].set_label('diff direction')
+    patches[3].set_facecolor('g')
+    patches[3].set_label('correct')
+    plt.ylabel('counts')
+    plt.ylim(300, 300000)
+    plt.grid(True)
+    plt.xlabel('distance')
+    plt.xscale('log')
+    plt.legend()
+    plt.title(filename.split('/')[-1])
+    plt.savefig(filename+'-hist.pdf', format='pdf')
+    print (filename+'-hist.pdf is plotted')
+    return 
 
+def print_df_stats(df, threshold, var_opt):
     print ()
     print ('--- Stats ---')
     unaligned = (df['dist'] == -3)
@@ -809,10 +809,15 @@ if __name__ == '__main__':
     if mapq_threshold:
         write_wrt_mapq(sam_fn, int(mapq_threshold))
         exit()
-
+    
+    PLOT_HIST = True
     if os.path.isfile(sam_fn + '-stats.pkl'):
         print ('Read stats from {0}-stats.pkl'.format(sam_fn))
         df = pd.read_pickle(sam_fn + '-stats.pkl')
+        
+        if PLOT_HIST:
+            plot_hist(sam_fn, df)
+
         print_df_stats(df, threshold, 'all')
         exit()
 
