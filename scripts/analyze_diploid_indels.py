@@ -426,6 +426,7 @@ def diploid_compare(
     if (dist < 0 or dist > threshold) and __debug__:
         print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, dip_flag)
         #print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
+    if (dist < 0 or dist > threshold) and COMPARE_SEQ:
         print_aln_within_distance(
             name=name,
             reads_offsets=reads_offsets,
@@ -457,30 +458,14 @@ def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM,
             exit()
     return num_var
 
-def analyze_diploid_indels(
-    sam_fn,
-    golden_fn,
-    threshold,
+def build_all_indexes(
     var_reads_fn,
     var_sample_fn,
-    personalized,
-    chrm,
-    step,
-    read_len,
-    write_wrt_correctness
+    personalized
 ):
     '''
-    Handles I/O and different opperating modes of this script.
+    Reads two var files and builds all the indexes we use for computing correctness
     '''
-    # Global variables
-    global MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
-    MAIN_STRAND = 'A'
-    ALT_STRAND = 'B'
-    MAIN_HAP = 'hap' + MAIN_STRAND
-    ALT_HAP = 'hap' + ALT_STRAND
-    MAIN_CHRM = chrm + 'A'
-    ALT_CHRM = chrm + 'B'
-
     var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
     main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
@@ -502,10 +487,26 @@ def analyze_diploid_indels(
     else:
         print ('Error: unsupported personalized parameter', personalized)
         exit()
+    return main_index, alt_index, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index
+
+def analyze_diploid_indels(
+    sam_fn,
+    golden_dic,
+    threshold,
+    all_indexes,
+    personalized,
+    chrm,
+    step,
+    read_len,
+    write_wrt_correctness
+):
+    '''
+    Handles I/O and different opperating modes of this script.
+    '''
+    main_index, alt_index, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index = all_indexes
     
     sam_f = open(sam_fn, 'r')
     sam_prefix = sam_fn[: sam_fn.find('.')]
-    golden_dic = load_golden_dic(golden_fn, 1)
     summary = Summary(has_answer=True)
     results = []
     
@@ -523,7 +524,7 @@ def analyze_diploid_indels(
             continue
         summary.add_one()
 
-        #: count the number of overlapping variants for all aligned reads
+        #: counts the number of overlapping variants for all aligned reads
         num_var = count_overlapping_vars(
             name=name,
             info=info,
@@ -537,13 +538,11 @@ def analyze_diploid_indels(
 
         if info.is_unaligned():
             dist = -3
-            #comp = False
             flag = 'unaligned'
-            #summary.add_by_categories(flag=flag, comp=comp)
         #: alignment against personalized genomes
         elif personalized == 2:
-            name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
             #: aligned to incorrect haplotype
+            name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
             if name_chrm_mismatch:
                 if num_var == 0:
                     flag = 'diff_id'
@@ -554,7 +553,6 @@ def analyze_diploid_indels(
                     flag = 'same_id'
                 else:
                     flag = 'same_var'
-            #dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
             dist = diploid_compare(
                 info=info, 
                 g_info=golden_dic[name],
@@ -569,7 +567,6 @@ def analyze_diploid_indels(
             )
         #: alignment against standard ref (and ERG)
         elif personalized == 0:
-            #dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
             flag = 'same_strand_ref'
             dist = diploid_compare(
                 info=info, 
@@ -855,6 +852,15 @@ if __name__ == '__main__':
     fn_ref = args.debug_ref
     fn_hapA = args.debug_hapA
     fn_hapB = args.debug_hapB
+    
+    #: Global variables
+    global MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
+    MAIN_STRAND = 'A'
+    ALT_STRAND = 'B'
+    MAIN_HAP = 'hap' + MAIN_STRAND
+    ALT_HAP = 'hap' + ALT_STRAND
+    MAIN_CHRM = chrm + MAIN_STRAND
+    ALT_CHRM = chrm + ALT_STRAND
 
     if mapq_threshold:
         write_wrt_mapq(sam_fn, int(mapq_threshold))
@@ -887,12 +893,17 @@ if __name__ == '__main__':
     else:
         COMPARE_SEQ = False
 
-    results_df = analyze_diploid_indels(
-        sam_fn=sam_fn,
-        golden_fn=golden_fn,
-        threshold=threshold,
+    all_indexes = build_all_indexes(
         var_reads_fn=var_reads_fn,
         var_sample_fn=var_sample_fn,
+        personalized=personalized
+    )
+    golden_dic = load_golden_dic(golden_fn, 1)
+    results_df = analyze_diploid_indels(
+        sam_fn=sam_fn,
+        golden_dic=golden_dic,
+        threshold=threshold,
+        all_indexes=all_indexes,
         personalized=personalized,
         chrm=chrm,
         step=step,
@@ -903,15 +914,14 @@ if __name__ == '__main__':
     print_df_stats(results_df, threshold, 'all')
 
     if COMPARE_SEQ:
-        print ('Number of alns have higher score than golden =', HIGHC)
-        print ('Total number of near alignments =', TOTALNEAR)
-        try:
+        print ('Num of near alignments =', TOTALNEAR)
+        print ('Num of alns have higher score than golden =', HIGHC)
+
+        if HIGHC > 0:
             print ('Avg Lev. dist of called ALT alignments =', sum(CALL_D_ALT)/len(CALL_D_ALT))
-            print (CALL_D_ALT)
             print ('Avg Lev. dist of simulated ALT alignments =', sum(SIM_D_ALT)/len(SIM_D_ALT))
-            print (SIM_D_ALT)
+        
+        print ('Num of near alignments with higher golden score', TOTALNEAR - HIGHC)
+        if TOTALNEAR - HIGHC > 0:
             print ('Avg Lev. dist of called ORIG alignments =', sum(CALL_D_ORIG)/(TOTALNEAR-HIGHC))
             print ('Avg Lev. dist of simulated ORIG alignments =', sum(SIM_D_ORIG)/(TOTALNEAR-HIGHC))
-        except:
-            print ('CALL_D_ALT', CALL_D_ALT)
-            print ('SIM_D_ALT', SIM_D_ALT)
