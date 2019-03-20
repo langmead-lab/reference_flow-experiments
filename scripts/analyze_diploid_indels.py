@@ -64,6 +64,18 @@ def parse_args():
         default=None,
         help='(int) If specified, writes two files recording alignments with mapq >= t and mapq < t. This argument is the threshold. The output files use target sam prefix [None].'
     )
+    parser.add_argument(
+        '--debug_ref',
+        help='reference fasta for debug purpose [None]'
+    )
+    parser.add_argument(
+        '--debug_hapA',
+        help='hapA fasta for debug purpose [None]'
+    )
+    parser.add_argument(
+        '--debug_hapB',
+        help='hapB fasta for debug purpose [None]'
+    )
     args = parser.parse_args()
     return args
 
@@ -236,41 +248,42 @@ def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info,
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
     '''
+    if COMPARE_SEQ == False:
+        return
     tmp = []
     for i in reads_offsets:
         tmp.append(abs(info.pos + i - g_info.pos))
     diff = min(tmp)
     if (diff < threshold) or (threshold < 0):
-        if COMPARE_SEQ:
-            global TOTALNEAR
-            TOTALNEAR += 1
-            seq_ref = REF_G[info.pos: info.pos + read_len]
-            seq_hapA = HAPA_G[g_info.pos: g_info.pos + read_len]
-            seq_hapB = HAPB_G[g_info.pos: g_info.pos + read_len]
-            leven_score_g = []
-            for i in reads_offsets:
-                seq_ref_g = REF_G[g_info.pos - i: g_info.pos - i + read_len]
-                leven_score_g.append(levenshtein(seq_ref_g, seq_hapA))
-                leven_score_g.append(levenshtein(seq_ref_g, seq_hapB))
-            called_d = min(levenshtein(seq_ref, seq_hapA), levenshtein(seq_ref, seq_hapB))
-            golden_d = min(leven_score_g)
-            global HIGHC, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
-            if called_d >= golden_d:
-                CALL_D_ORIG.append(called_d)
-                SIM_D_ORIG.append(golden_d)
-            else:
-                HIGHC += 1
-                CALL_D_ALT.append(called_d)
-                SIM_D_ALT.append(golden_d)
-                if called_d > 5 or golden_d > 5 and __debug__:
-                    print ('called distance', called_d)
-                    print ('golden distance', golden_d)
-                    print ('CALLED (%10d) = %s' % (info.pos, REF_G[info.pos : info.pos + 80]))
-                    print ('ORIG1  (%10d) = %s' % (g_info.pos - reads_offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - reads_offsets[0] + 80]))
-                    if reads_offsets[0] != reads_offsets[1]:
-                        print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - reads_offsets[1] + 80]))
-                    print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
-            return
+        global TOTALNEAR
+        TOTALNEAR += 1
+        seq_ref = REF_G[info.pos: info.pos + read_len]
+        seq_hapA = HAPA_G[g_info.pos: g_info.pos + read_len]
+        seq_hapB = HAPB_G[g_info.pos: g_info.pos + read_len]
+        leven_score_g = []
+        for i in reads_offsets:
+            seq_ref_g = REF_G[g_info.pos - i: g_info.pos - i + read_len]
+            leven_score_g.append(levenshtein(seq_ref_g, seq_hapA))
+            leven_score_g.append(levenshtein(seq_ref_g, seq_hapB))
+        called_d = min(levenshtein(seq_ref, seq_hapA), levenshtein(seq_ref, seq_hapB))
+        golden_d = min(leven_score_g)
+        global HIGHC, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
+        if called_d >= golden_d:
+            CALL_D_ORIG.append(called_d)
+            SIM_D_ORIG.append(golden_d)
+        else:
+            HIGHC += 1
+            CALL_D_ALT.append(called_d)
+            SIM_D_ALT.append(golden_d)
+            if called_d > 5 or golden_d > 5 and __debug__:
+                print ('called distance', called_d)
+                print ('golden distance', golden_d)
+                print ('CALLED (%10d) = %s' % (info.pos, REF_G[info.pos : info.pos + 80]))
+                print ('ORIG1  (%10d) = %s' % (g_info.pos - reads_offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - reads_offsets[0] + 80]))
+                if reads_offsets[0] != reads_offsets[1]:
+                    print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - reads_offsets[1] + 80]))
+                print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
+        return
 
 def compare_sam_info(
         info,
@@ -330,7 +343,8 @@ def diploid_compare(
     sample_alt_offset_index = {}
 ):
     '''
-    Uses variable 'dip_flag' to handle different cases of a diploid alignment and check if the alignment is correct.
+    Uses variable 'dip_flag' to handle different cases of a diploid alignment 
+    and check if the alignment is correct.
     '''
     sample_offsets = [0]
     if dip_flag in ['same_strand_ref']:
@@ -411,7 +425,16 @@ def diploid_compare(
 
     if (dist < 0 or dist > threshold) and __debug__:
         print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, dip_flag)
-        print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
+        #print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
+        print_aln_within_distance(
+            name=name,
+            reads_offsets=reads_offsets,
+            sample_offsets=sample_offsets,
+            info=info,
+            g_info=g_info,
+            threshold=1000,
+            read_len=read_len
+        )
 
     return dist
 
@@ -514,9 +537,9 @@ def analyze_diploid_indels(
 
         if info.is_unaligned():
             dist = -3
-            comp = False
+            #comp = False
             flag = 'unaligned'
-            summary.add_by_categories(flag=flag, comp=comp)
+            #summary.add_by_categories(flag=flag, comp=comp)
         #: alignment against personalized genomes
         elif personalized == 2:
             name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
@@ -531,25 +554,46 @@ def analyze_diploid_indels(
                     flag = 'same_id'
                 else:
                     flag = 'same_var'
-            dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
-            if dist < 0 or dist > threshold:
-                comp = False
-            else:
-                comp = True
-            summary.add_by_categories(flag=flag, comp=comp)
+            #dist = diploid_compare(info, golden_dic[name], name, threshold, flag, step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
+            dist = diploid_compare(
+                info=info, 
+                g_info=golden_dic[name],
+                name=name, 
+                threshold=threshold, 
+                dip_flag=flag, 
+                step=step,
+                reads_main_offset_index = reads_main_offset_index, 
+                reads_alt_offset_index = reads_alt_offset_index,
+                sample_main_offset_index = sample_main_offset_index,
+                sample_alt_offset_index = sample_alt_offset_index
+            )
         #: alignment against standard ref (and ERG)
         elif personalized == 0:
-            dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
-            if dist < 0 or dist > threshold:
-                comp = False
-            else:
-                comp = True
+            #dist = diploid_compare(info, golden_dic[name], name, threshold, 'same_strand_ref', step, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index)
+            flag = 'same_strand_ref'
+            dist = diploid_compare(
+                info=info, 
+                g_info=golden_dic[name],
+                name=name, 
+                threshold=threshold, 
+                dip_flag=flag, 
+                step=step,
+                reads_main_offset_index = reads_main_offset_index, 
+                reads_alt_offset_index = reads_alt_offset_index,
+                sample_main_offset_index = sample_main_offset_index,
+                sample_alt_offset_index = sample_alt_offset_index
+            )
             if num_var == 0:
                 flag = 'same_id'
             else:
                 flag = 'same_var'
-            summary.add_by_categories(flag=flag, comp=comp)
-        
+
+        #: converts "dist" to binary comparsion decision "comp" and adds to summary
+        if dist < 0 or dist > threshold:
+            comp = False
+        else:
+            comp = True
+        summary.add_by_categories(flag=flag, comp=comp)
         results.append([name, dist, info.mapq, num_var, flag])
 
         if write_wrt_correctness:
@@ -570,6 +614,9 @@ def analyze_diploid_indels(
     return results_df
 
 def plot_hist(filename, df):
+    '''
+    Plots a histogram with the distance between an alignment and its golden postion as x-axis
+    '''
     x = df['dist']
     x = x.replace([-3, -2, 0], [0.001, 0.01, 1])
     upper = 1000000000
@@ -805,13 +852,17 @@ if __name__ == '__main__':
     mapq_threshold = args.write_wrt_mapq
     step = args.step_size
     read_len = args.read_len
+    fn_ref = args.debug_ref
+    fn_hapA = args.debug_hapA
+    fn_hapB = args.debug_hapB
 
     if mapq_threshold:
         write_wrt_mapq(sam_fn, int(mapq_threshold))
         exit()
     
-    PLOT_HIST = True
-    if os.path.isfile(sam_fn + '-stats.pkl'):
+    USE_PREV_IF_POSSIBLE = False
+    PLOT_HIST = False
+    if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl'):
         print ('Read stats from {0}-stats.pkl'.format(sam_fn))
         df = pd.read_pickle(sam_fn + '-stats.pkl')
         
@@ -822,21 +873,19 @@ if __name__ == '__main__':
         exit()
 
     global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
-    COMPARE_SEQ = False
-    if COMPARE_SEQ:
+    if (fn_ref != None) and (fn_hapA != None) and (fn_hapB != None):
+        COMPARE_SEQ = True
         HIGHC = 0
         TOTALNEAR = 0
         CALL_D_ALT = []
         SIM_D_ALT = []
         CALL_D_ORIG = []
         SIM_D_ORIG = []
-        #TODO
-        fn_ref =  '/scratch/groups/blangme2/naechyun/relaxing/chr9/chr9_singleline.fa'
-        fn_hapA = '/scratch/groups/blangme2/naechyun/relaxing/na12878/indels/hapA_single.fa'
-        fn_hapB = '/scratch/groups/blangme2/naechyun/relaxing/na12878/indels/hapB_single.fa'
         REF_G = read_genome(fn_ref)
         HAPA_G = read_genome(fn_hapA)
         HAPB_G = read_genome(fn_hapB)
+    else:
+        COMPARE_SEQ = False
 
     results_df = analyze_diploid_indels(
         sam_fn=sam_fn,
@@ -856,9 +905,13 @@ if __name__ == '__main__':
     if COMPARE_SEQ:
         print ('Number of alns have higher score than golden =', HIGHC)
         print ('Total number of near alignments =', TOTALNEAR)
-        print ('Avg Lev. dist of called ALT alignments =', sum(CALL_D_ALT)/len(CALL_D_ALT))
-        print (CALL_D_ALT)
-        print ('Avg Lev. dist of simulated ALT alignments =', sum(SIM_D_ALT)/len(SIM_D_ALT))
-        print (SIM_D_ALT)
-        print ('Avg Lev. dist of called ORIG alignments =', sum(CALL_D_ORIG)/(TOTALNEAR-HIGHC))
-        print ('Avg Lev. dist of simulated ORIG alignments =', sum(SIM_D_ORIG)/(TOTALNEAR-HIGHC))
+        try:
+            print ('Avg Lev. dist of called ALT alignments =', sum(CALL_D_ALT)/len(CALL_D_ALT))
+            print (CALL_D_ALT)
+            print ('Avg Lev. dist of simulated ALT alignments =', sum(SIM_D_ALT)/len(SIM_D_ALT))
+            print (SIM_D_ALT)
+            print ('Avg Lev. dist of called ORIG alignments =', sum(CALL_D_ORIG)/(TOTALNEAR-HIGHC))
+            print ('Avg Lev. dist of simulated ORIG alignments =', sum(SIM_D_ORIG)/(TOTALNEAR-HIGHC))
+        except:
+            print ('CALL_D_ALT', CALL_D_ALT)
+            print ('SIM_D_ALT', SIM_D_ALT)
