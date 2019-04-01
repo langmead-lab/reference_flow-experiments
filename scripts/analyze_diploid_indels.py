@@ -279,9 +279,9 @@ def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info,
                 print ('called distance', called_d)
                 print ('golden distance', golden_d)
                 print ('CALLED (%10d) = %s' % (info.pos, REF_G[info.pos : info.pos + 80]))
-                print ('ORIG1  (%10d) = %s' % (g_info.pos - reads_offsets[0], REF_G[g_info.pos - offsets[0] : g_info.pos - reads_offsets[0] + 80]))
+                print ('ORIG1  (%10d) = %s' % (g_info.pos - reads_offsets[0], REF_G[g_info.pos - reads_offsets[0] : g_info.pos - reads_offsets[0] + 80]))
                 if reads_offsets[0] != reads_offsets[1]:
-                    print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - offsets[1] : g_info.pos - reads_offsets[1] + 80]))
+                    print ('ORIG2  (%10d) = %s' % (g_info.pos - reads_offsets[1], REF_G[g_info.pos - reads_offsets[1] : g_info.pos - reads_offsets[1] + 80]))
                 print ('PERSON (#%9d) = %s' % (g_info.pos, HAPA_G[g_info.pos : g_info.pos + 80]))
         return
 
