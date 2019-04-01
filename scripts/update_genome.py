@@ -27,9 +27,12 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
     hapB = list(seq[:])
     if indiv != None:
         fA = open(out_prefix + '_hapA.fa', 'w')
-        fA.write(label)
+        split_label = label.split()
+        label_A = split_label[0] + 'A ' + ' '.join(split_label[1:]) + '\n'
+        fA.write(label_A)
         fB = open(out_prefix + '_hapB.fa', 'w')
-        fB.write(label)
+        label_B = split_label[0] + 'B ' + ' '.join(split_label[1:]) + '\n'
+        fB.write(label_B)
     else:
         fA = open(out_prefix + '.fa', 'w')
         fA.write(label)
@@ -161,10 +164,9 @@ def read_chrom(ref, chrom):
             if line[0] == '>':
                 if label:
                     return label, seq
-
                 curr_chrom = line[1:].split(' ')[0]
-                curr_chrom = curr_chrom[: curr_chrom.find('\n')]
-                if curr_chrom == chrom:
+                curr_chrom = curr_chrom.rstrip()
+                if (curr_chrom == chrom) or (curr_chrom == 'chr' + chrom):
                     label = line
             elif label:
                 seq += line.rstrip()
