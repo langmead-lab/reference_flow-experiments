@@ -14,6 +14,21 @@ class clustStats:
 	def getPop(self):
 		print self.popCount
 
+	def getSuperPop(self):
+		spDic={"EAS":0,"EUR":0,"AFR":0,"AMR":0,"SAS":0}
+		for k in self.popCount.keys():
+			if k=="CHB" or k=="JPT" or k=="CHS" or k=="CDX" or k=="KHV":
+				spDic["EAS"]+=self.popCount[k]
+			elif k=="CEU" or k=="TSI" or k=="FIN" or k=="GBR" or k=="IBS":
+				spDic["EUR"]+=self.popCount[k]
+			elif k=="YRI" or k=="LWK" or k=="GWD" or k=="MSL" or k=="ESN" or k=="ASW" or k=="ACB":
+				spDic["AFR"]+=self.popCount[k]
+			elif k=="MXL" or k=="PUR" or k=="CLM" or k=="PEL":
+				spDic["AMR"]+=self.popCount[k]
+			elif k=="GIH" or k=="PJL" or k=="BEB" or k=="STU" or k=="ITU":
+				spDic["SAS"]+=self.popCount[k]
+		
+		print spDic	
 
 count=0
 popDic={}
@@ -46,3 +61,6 @@ with open(cluster_file) as myFile:
 
 for i in countArray:
 	i.getPop()
+
+for i in countArray:
+	i.getSuperPop()
