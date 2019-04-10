@@ -8,14 +8,16 @@ from analyze_sam import SamInfo, parse_line
 def merge_sam(args):
     sam1_fn = args.sam1
     sam2_fn = args.sam2
+    id1 = args.id1
+    id2 = args.id2
     sam1_f = open(sam1_fn, 'r')
     sam2_f = open(sam2_fn, 'r')
     
     #: prepare output files
     sam1_prefix = sam1_fn[: sam1_fn.find('.sam')]
     sam2_prefix = sam2_fn[: sam2_fn.find('.sam')]
-    sam1_out_fn = sam1_prefix.split('/')[-1] + '_merged.sam'
-    sam2_out_fn = sam2_prefix.split('/')[-1] + '_merged.sam'
+    sam1_out_fn = sam1_prefix.split('/')[-1] + '-merged_' + id2 + '.sam'
+    sam2_out_fn = sam2_prefix.split('/')[-1] + '-merged_' + id1 + '.sam'
     sam1_out_f = open(sam1_out_fn, 'w')
     sam2_out_f = open(sam2_out_fn, 'w')
 
@@ -53,8 +55,16 @@ def parse_args():
         help='sam file 1'
     )
     parser.add_argument(
+        '-id1', '--id1',
+        help='id for sam file 1'
+    )
+    parser.add_argument(
         '-n2', '--sam2',
         help='sam file 2, expect this to be aligned to a partial genome'
+    )
+    parser.add_argument(
+        '-id2', '--id2',
+        help='id for sam file 2'
     )
     args = parser.parse_args()
     return args
