@@ -14,8 +14,8 @@ def merge_sam(args):
     #: prepare output files
     sam1_prefix = sam1_fn[: sam1_fn.find('.sam')]
     sam2_prefix = sam2_fn[: sam2_fn.find('.sam')]
-    sam1_out_fn = sam1_prefix + '_merged.sam'
-    sam2_out_fn = sam2_prefix + '_merged.sam'
+    sam1_out_fn = sam1_prefix.split('/')[-1] + '_merged.sam'
+    sam2_out_fn = sam2_prefix.split('/')[-1] + '_merged.sam'
     sam1_out_f = open(sam1_out_fn, 'w')
     sam2_out_f = open(sam2_out_fn, 'w')
 
