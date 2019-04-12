@@ -22,6 +22,10 @@ def parse_args():
         '-sp', '--superpopulation',
         help='superpopulation table'
     )
+    parser.add_argument(
+        '-c', '--cluster',
+        help='txt file specifying unsupervised clusters'
+    )
     return parser.parse_args()
 
 def read_true_pos(log_fn):
@@ -61,21 +65,24 @@ if __name__ == '__main__':
     sample_fn = args.samples
     log_fn = args.log
     ped_fn = args.ped
+    cluster_fn = args.cluster
     superpop_fn = args.superpopulation
     
     ''' NA12878 '''
     # TP_OFFSET = 0
     # TP_OFFSET = 19719900 # num of TP in the first pass h37maj
-    # TP_H37    = 19908912 # num of TP using purely h37
-    # TP_H37MAJ = 19918604 # num of TP using h37maj (snvs+indels)
-    # TP_PER    = 19929495 # num of TP using personalized genomes
+    # TP_OFFSET = 19706500 # num of TP in the first pass HG02778 (SAS)
+    TP_OFFSET = 19691286 # num of TP in the first pass HG03557 (AFR)
+    TP_H37    = 19908912 # num of TP using purely h37
+    TP_H37MAJ = 19918604 # num of TP using h37maj (snvs+indels)
+    TP_PER    = 19929495 # num of TP using personalized genomes
     
     ''' HG03518 '''
     # TP_OFFSET = 0 # num of TP in the first pass h37maj
-    TP_OFFSET = 19706590 # num of TP in the first pass h37maj
-    TP_H37    = 19903321 # num of TP using purely h37
-    TP_H37MAJ = 19913067 # num of TP using h37maj (snvs+indels)
-    TP_PER    = 19929234 # num of TP using personalized genomes
+    # TP_OFFSET = 19706590 # num of TP in the first pass h37maj
+    # TP_H37    = 19903321 # num of TP using purely h37
+    # TP_H37MAJ = 19913067 # num of TP using h37maj (snvs+indels)
+    # TP_PER    = 19929234 # num of TP using personalized genomes
     
     NUM_READS = 20000000
     
@@ -97,6 +104,7 @@ if __name__ == '__main__':
     
     data_df['Sensitivity'] = data_df['Num TP'] / NUM_READS
 
+    #: process superpop data
     superpop_df = pd.read_csv(superpop_fn, sep='\t', header=None, index_col=0)
     superpop_groups = superpop_df.groupby(2)
     dict_superpop = {}
@@ -109,14 +117,30 @@ if __name__ == '__main__':
     dict_superpop['h37'] = 'h37'
     dict_superpop['h37maj'] = 'h37maj'
     dict_superpop['personalized'] = 'personalized'
-    dict_color = {'AFR': 'C0', 'AMR': 'C1', 'CEU': 'C2', 'EAS': 'C3', 'EUR': 'C4', 'SAS': 'C5', 'h37': 'C6', 'h37maj': 'C7', 'personalized': 'C8'}
 
+    #: sort by sensitivity
     data_df = data_df.sort_values(by='Sensitivity')
+
+    #: add a superpop column
     list_superpop = []
     for i in data_df['Population']:
         list_superpop.append(dict_superpop[i])
     list_superpop
     data_df['Superpopulation'] = list_superpop
+
+    #: process clusrterting data
+    df_cluster = pd.read_csv('../../clusters10_chr22_ward.txt', sep=': ', header=None)
+    dict_cluster = {}
+    dict_cluster['h37'] = 'h37'
+    dict_cluster['h37maj'] = 'h37maj'
+    dict_cluster['personalized'] = 'personalized'
+    for i, name in enumerate(df_cluster[0]):
+        dict_cluster[name] = df_cluster[1][i]
+    c_label = []
+    for name in data_df.index:
+        c_label.append(dict_cluster[name])
+    data_df.insert(data_df.shape[1], 'Cluster', c_label)
+    order_by_cluster = list(data_df.groupby('Cluster').median().sort_values('Sensitivity').index)
 
     #: sort categories by the median of each superpop
     order_by_superpop = list(data_df.groupby('Superpopulation').median().sort_values('Sensitivity').index)
@@ -126,6 +150,7 @@ if __name__ == '__main__':
     # bar = plt.bar(x, data_df['Sensitivity'])
     # plt.ylim(bottom=1.1*min(data_df['Sensitivity'])-0.1*max(data_df['Sensitivity']), top=max(data_df['Sensitivity']))
     # existed_superpop = []
+    # dict_color = {'AFR': 'C0', 'AMR': 'C1', 'CEU': 'C2', 'EAS': 'C3', 'EUR': 'C4', 'SAS': 'C5', 'h37': 'C6', 'h37maj': 'C7', 'personalized': 'C8'}
     # for i in range(data_df.shape[0]):
     #     pop = dict_pop[data_df.index[i]]
     #     superpop = dict_superpop[pop]
@@ -145,15 +170,30 @@ if __name__ == '__main__':
     # plt.clf()
 
     ''' Box plot '''
+    #: by population
     # sns.boxplot(x='Population', y='Sensitivity', hue='Superpopulation', data=data_df)
     # sns.swarmplot(x='Population', y='Sensitivity', hue='Superpopulation', data=data_df)
+    
+    #: by superpopulation
     sns.boxplot(x='Superpopulation', y='Sensitivity', data=data_df, order=order_by_superpop)
     sns.swarmplot(x='Superpopulation', y='Sensitivity', data=data_df, order=order_by_superpop)
+    
+    #: by cluster
+    # sns.boxplot(x='Cluster', y='Sensitivity', data=data_df, order=order_by_cluster)
+    # sns.swarmplot(x='Cluster', y='Sensitivity', data=data_df, order=order_by_cluster)
+    
+    plt.title('First pass: HG03557 (hapA); second pass: 100 random indivs; merged by AS; mapq_th=10 (NA12878)')
+    # plt.title('First pass: HG03557 (hapA); second pass: 100 random indivs; mapq_th=10 (NA12878)')
+    # plt.title('First pass: HG02778 (hapA); second pass: 100 random indivs; mapq_th=10 (NA12878)')
+    # plt.title('First pass: h37maj; second pass: 100 random indivs; merged by AS; mapq_th=10 (NA12878)')
     # plt.title('First pass: h37maj; second pass: 100 random indivs; mapq_th=10 (NA12878)')
     # plt.title('First pass: h37maj; second pass: 100 random indivs (hap); mapq_th=10 (NA12878)')
     # plt.title('Aligned against 100 random indivs (NA12878)')
+    # plt.title('Aligned against 100 random indivs (hap) (NA12878)')
+
     # plt.title('Aligned against 100 random indivs (HG03518)')
-    plt.title('First pass: h37maj; second pass: 100 random indivs; mapq_th=10 (HG03518)')
+    # plt.title('First pass: h37maj; second pass: 100 random indivs (hap); mapq_th=10 (HG03518)')
+    # plt.title('First pass: h37maj; second pass: 100 random indivs; mapq_th=10 (HG03518)')
     plt.show()
     plt.clf()
 
