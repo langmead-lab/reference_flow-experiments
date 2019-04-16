@@ -1,2 +1,3 @@
 slurm-*.out
 **/*.pyc
+.DS_Store
