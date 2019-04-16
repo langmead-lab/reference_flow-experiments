@@ -328,7 +328,6 @@ def compare_sam_info(
         for roff in reads_offsets:
             dist.append(abs(info.pos - soff - ginfo.pos + roff))
     return min(dist)
-    #return min([abs(info.pos + off - ginfo.pos) for off in sample_offsets])
 
 def diploid_compare(
     info, 
@@ -360,7 +359,6 @@ def diploid_compare(
             else:
                 sample_offset_high = sample_main_offset_index[i_high]
             sample_offsets = [sample_offset_low, sample_offset_high]
-        #pass
     elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
         i_low = int(info.pos / step)
         i_high = math.ceil(info.pos / step)
@@ -468,15 +466,15 @@ def build_all_indexes(
     '''
     var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
     main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
-        var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
-        reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        # var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
         var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
         sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
-        reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        # reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         #: major allele reference with indels
         if var_sample_fn != None:
             var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
