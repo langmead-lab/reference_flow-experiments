@@ -22,10 +22,31 @@ outFig=sys.argv[3]
 print("Loading jsons")
 with open(jsonPrefix+"_hapA.json") as myFile:
     matrixHapA=json.load(myFile)
-with open(jsonPrefix+"_hapB.json") as myFile:
-    matrixHapB=json.load(myFile)
+#with open(jsonPrefix+"_hapB.json") as myFile:
+#    matrixHapB=json.load(myFile)
 
 print("Loaded jsons")
+
+
+# int conversion from bool / reduce matrix
+tiny=100
+tinyMatrix=[]
+for i in range(tiny):
+	temp=[]
+	for si in range(tiny): #its all the same but why not
+		if matrixHapA[i][si]:
+			temp.append(1)
+		else:
+			temp.append(0)
+	tinyMatrix.append(temp)
+		
+# change matrix so that samples have arrays of variants rather then variants have arrays of samples
+
+corrTinyMatrix=np.swapaxes(tinyMatrix,0,1)
+
+print(len(corrTinyMatrix))
+print(len(corrTinyMatrix[0]))
+
 
 # Build tissue dictionary
 count=0
@@ -54,20 +75,20 @@ print("Built superpop array")
 			
 print("Building data array lebels")
 dataArray_labels=[]
-for i in range(len(matrixHapA[0])):
+for i in range(len(corrTinyMatrix[0])):
 	dataArray_labels.append("var{}".format(i))
 print("Built data array labels")
 
 
-print(len(matrixHapA))
-print(len(matrixHapB[0]))
+#print(len(matrixHapA))
+#print(len(matrixHapB[0]))
 print(len(dataArray_labels))
 print(superPop)
 print(superPop_labels)
 
 
 print("pandas dataframing")
-onek_df = pd.DataFrame(matrixHapA, columns=dataArray_labels)
+onek_df = pd.DataFrame(corrTinyMatrix, columns=dataArray_labels)
 print("Adding data labels")
 onek_df['superpop'] = pd.Series(superPop).map(dict(zip(range(len(superPop_labels)),superPop_labels)))
 print("Plotting")
