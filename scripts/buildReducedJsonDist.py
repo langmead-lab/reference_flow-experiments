@@ -9,7 +9,7 @@ import json
 
 jsonPrefix=sys.argv[1] #gzipped!
 outName=sys.argv[2]
-minFilter=0.2
+minFilter=0.6
 
 with open(jsonPrefix+"_hapA.json") as myFile:
 	matrixHapA=json.load(myFile)
