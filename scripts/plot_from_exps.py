@@ -32,6 +32,7 @@ def read_true_pos(log_fn):
     list_tp = []
     with open(log_fn, 'r') as f:
         for line in f:
+            #: report sensitivity
             if line.startswith('sensitivity_all'):
                 tp = int(line.split()[3][1:])
                 list_tp.append(tp)
@@ -149,7 +150,7 @@ if __name__ == '__main__':
         list_tpr = [(i + TP_OFFSET) / NUM_READS for i in list_tp]
         df_data[list_exp[id_exp]][0:len(list_tp)] = list_tpr
         
-
+    #: select plot target
     plot_target = list_exp[2]
 
     #: sort categories by the median of each cluster
@@ -205,4 +206,4 @@ if __name__ == '__main__':
     # plt.clf()
 
     #: save data to a tsv
-    df_data.to_csv('experiments.tsv', sep='\t')
+    # df_data.to_csv('experiments.tsv', sep='\t')
