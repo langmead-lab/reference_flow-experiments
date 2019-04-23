@@ -1,0 +1,44 @@
+chr1
+sensitivity_all      = 97.7400% (195480 / 200000)
+chr2
+sensitivity_all      = 98.2600% (196520 / 200000)
+chr3
+sensitivity_all      = 99.0345% (198069 / 200000)
+chr4
+sensitivity_all      = 98.7825% (197565 / 200000)
+chr5
+sensitivity_all      = 98.0385% (196077 / 200000)
+chr6
+sensitivity_all      = 98.9435% (197887 / 200000)
+chr7
+sensitivity_all      = 97.7510% (195502 / 200000)
+chr8
+sensitivity_all      = 98.4850% (196970 / 200000)
+chr9
+sensitivity_all      = 94.1575% (188315 / 200000)
+chr10
+sensitivity_all      = 97.8060% (195612 / 200000)
+chr11
+sensitivity_all      = 98.7540% (197508 / 200000)
+chr12
+sensitivity_all      = 99.0560% (198112 / 200000)
+chr13
+sensitivity_all      = 99.1605% (198321 / 200000)
+chr14
+sensitivity_all      = 98.9180% (197836 / 200000)
+chr15
+sensitivity_all      = 96.7405% (193481 / 200000)
+chr16
+sensitivity_all      = 96.6530% (193306 / 200000)
+chr17
+sensitivity_all      = 98.0140% (196028 / 200000)
+chr18
+sensitivity_all      = 99.2630% (198526 / 200000)
+chr19
+sensitivity_all      = 98.5960% (197192 / 200000)
+chr20
+sensitivity_all      = 99.3150% (198630 / 200000)
+chr21
+sensitivity_all      = 99.5205% (199041 / 200000)
+chr22
+sensitivity_all      = 97.8085% (195617 / 200000)

@@ -1,0 +1,44 @@
+chr1
+sensitivity_all      = 99.9780% (190552 / 190594)
+chr2
+sensitivity_all      = 99.9834% (192328 / 192360)
+chr3
+sensitivity_all      = 99.9883% (195859 / 195882)
+chr4
+sensitivity_all      = 99.9779% (194623 / 194666)
+chr5
+sensitivity_all      = 99.9802% (192275 / 192313)
+chr6
+sensitivity_all      = 99.9831% (195205 / 195238)
+chr7
+sensitivity_all      = 99.9821% (189616 / 189650)
+chr8
+sensitivity_all      = 99.9835% (193848 / 193880)
+chr9
+sensitivity_all      = 99.9826% (178373 / 178404)
+chr10
+sensitivity_all      = 99.9811% (190869 / 190905)
+chr11
+sensitivity_all      = 99.9783% (193930 / 193972)
+chr12
+sensitivity_all      = 99.9883% (195759 / 195782)
+chr13
+sensitivity_all      = 99.9867% (195990 / 196016)
+chr14
+sensitivity_all      = 99.9872% (194851 / 194876)
+chr15
+sensitivity_all      = 99.9860% (186009 / 186035)
+chr16
+sensitivity_all      = 99.9855% (185669 / 185696)
+chr17
+sensitivity_all      = 99.9884% (190075 / 190097)
+chr18
+sensitivity_all      = 99.9883% (196711 / 196734)
+chr19
+sensitivity_all      = 99.9788% (193390 / 193431)
+chr20
+sensitivity_all      = 99.9924% (196660 / 196675)
+chr21
+sensitivity_all      = 99.9909% (196918 / 196936)
+chr22
+sensitivity_all      = 99.9842% (190377 / 190407)

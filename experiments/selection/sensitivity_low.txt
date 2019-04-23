@@ -1,0 +1,44 @@
+chr1
+sensitivity_all      = 52.3921% (4928 / 9406)
+chr2
+sensitivity_all      = 54.8691% (4192 / 7640)
+chr3
+sensitivity_all      = 53.6668% (2210 / 4118)
+chr4
+sensitivity_all      = 55.1556% (2942 / 5334)
+chr5
+sensitivity_all      = 49.4601% (3802 / 7687)
+chr6
+sensitivity_all      = 56.3209% (2682 / 4762)
+chr7
+sensitivity_all      = 56.8696% (5886 / 10350)
+chr8
+sensitivity_all      = 51.0131% (3122 / 6120)
+chr9
+sensitivity_all      = 46.0363% (9942 / 21596)
+chr10
+sensitivity_all      = 52.1495% (4743 / 9095)
+chr11
+sensitivity_all      = 59.3563% (3578 / 6028)
+chr12
+sensitivity_all      = 55.7847% (2353 / 4218)
+chr13
+sensitivity_all      = 58.5090% (2331 / 3984)
+chr14
+sensitivity_all      = 58.2553% (2985 / 5124)
+chr15
+sensitivity_all      = 53.5052% (7472 / 13965)
+chr16
+sensitivity_all      = 53.3907% (7637 / 14304)
+chr17
+sensitivity_all      = 60.1131% (5953 / 9903)
+chr18
+sensitivity_all      = 55.5726% (1815 / 3266)
+chr19
+sensitivity_all      = 57.8779% (3802 / 6569)
+chr20
+sensitivity_all      = 59.2481% (1970 / 3325)
+chr21
+sensitivity_all      = 69.2885% (2123 / 3064)
+chr22
+sensitivity_all      = 54.6232% (5240 / 9593)
