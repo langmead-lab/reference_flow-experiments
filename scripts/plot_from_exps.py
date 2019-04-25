@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
 import numpy as np
 import seaborn as sns
 
@@ -28,19 +29,29 @@ def parse_args():
     )
     return parser.parse_args()
 
-def read_truepos_and_sample(log_fn):
-    list_tp = []
-    list_sample = []
+# def read_truepos_and_sample(log_fn):
+#     list_tp = []
+#     list_sample = []
+#     with open(log_fn, 'r') as f:
+#         for line in f:
+#             if line.startswith('sample'):
+#                 samp = line.split('=')[1].rstrip()
+#                 list_sample.append(samp)
+#             #: report sensitivity
+#             if line.startswith('sensitivity_all'):
+#                 tp = int(line.split()[3][1:])
+#                 list_tp.append(tp)
+#     return list_tp, list_sample
+
+def read_unaligned(log_fn):
+    list_unaligned = []
     with open(log_fn, 'r') as f:
         for line in f:
-            if line.startswith('sample'):
-                samp = line.split('=')[1].rstrip()
-                list_sample.append(samp)
             #: report sensitivity
-            if line.startswith('sensitivity_all'):
-                tp = int(line.split()[3][1:])
-                list_tp.append(tp)
-    return list_tp, list_sample
+            if line.startswith('Unaligned:'):
+                un = int(line.split()[1])
+                list_unaligned.append(un)
+    return list_unaligned
 
 def read_true_pos(log_fn):
     list_tp = []
@@ -83,10 +94,16 @@ if __name__ == '__main__':
     cluster_fn = args.cluster
     superpop_fn = args.superpopulation
 
+    PLOT_UNALIGNED = False
     #: constants
-    NUM_READS = 20000000
-    dict_NA12878 = {'h37': 19908912, 'h37maj': 19918604, 'personalized': 19929501, 'personalized-2pass': 19932867}
-    # 212967
+    if PLOT_UNALIGNED:
+        NUM_READS = 1
+    else:
+        NUM_READS = 20000000
+    if PLOT_UNALIGNED:
+        dict_NA12878 = {'h37': 10196, 'h37maj': 6939, 'personalized': 3849, 'h37maj-personalized': 2655}
+    else:
+        dict_NA12878 = {'h37': 19908912, 'h37maj': 19918604, 'personalized': 19929501, 'h37maj-personalized': 19932867}
     dict_HG03518 = {'h37': 19903321, 'h37maj': 19913067, 'personalized': 19929234}
     dict_samples = {'NA12878': dict_NA12878, 'HG03518': dict_HG03518}
     LABEL_GROUPS = ['Population', 'Superpopulation', 'Cluster', 'Merge']
@@ -106,7 +123,6 @@ if __name__ == '__main__':
     df_data = pd.DataFrame(columns=list_exp, index=list_indivs)
 
     #: adds population info
-    # list_pop = [dict_pop[df_data.index[i]] for i in range(df_data.shape[0])]
     list_pop = []
     for i, indiv in enumerate(df_data.index):
         if i < num_single_indiv:
@@ -129,9 +145,6 @@ if __name__ == '__main__':
             dict_superpop[i] = n
     #: add a superpop column
     list_superpop = [dict_superpop[df_data['Population'][i]] for i in range(num_single_indiv)]
-    # list_superpop = []
-    # for i in df_data['Population']:
-    #     list_superpop.append(dict_superpop[i])
     list_superpop = []
     for i, indiv in enumerate(df_data.index):
         if i < num_single_indiv:
@@ -150,10 +163,6 @@ if __name__ == '__main__':
     dict_cluster = {}
     for i, name in enumerate(df_cluster[0]):
         dict_cluster[name] = str(df_cluster[1][i])
-    # c_label = []
-    # for name in df_data.index:
-    #     c_label.append(dict_cluster[name])
-    # df_data.insert(df_data.shape[1], 'Cluster', c_label)
     list_cluster = []
     for i, indiv in enumerate(df_data.index):
         if i < num_single_indiv:
@@ -168,7 +177,7 @@ if __name__ == '__main__':
     df_data.insert(df_data.shape[1], 'Cluster', list_cluster)
 
     #: adds merging info
-    list_merge = ['Merge by AS' if i.count(',') > 0 else 'No merge' for i in df_data.index]
+    list_merge = ['h37maj-100dip-mergeAS' if i.count(',') > 0 else 'h37maj-100dip' for i in df_data.index]
     df_data.insert(df_data.shape[1], 'Merge', list_merge)
 
     list_included_samples = []
@@ -197,11 +206,11 @@ if __name__ == '__main__':
                 l_per.append('personalized')
             l_id.append(sample+'-personalized')
 
-            TPR_PER2 = dict_samples[sample]['personalized-2pass'] / NUM_READS
+            TPR_PER2 = dict_samples[sample]['h37maj-personalized'] / NUM_READS
             l_per2 = [TPR_PER2] * (len(df_data.columns) - len(LABEL_GROUPS))
             for i in range(len(LABEL_GROUPS)):
-                l_per2.append('personalized-2pass')
-            l_id.append(sample+'-personalized-2pass')
+                l_per2.append('h37maj-personalized')
+            l_id.append(sample+'-h37maj-personalized')
 
             ll = [l_h37, l_h37maj, l_per, l_per2]
             df_ll = pd.DataFrame(ll, columns=list(df_data.columns), index=l_id)
@@ -210,8 +219,14 @@ if __name__ == '__main__':
 
         TP_OFFSET = int(df_exp_spec['1pass-truepos'][id_exp])
         log_fn = df_exp_spec['filename'][id_exp]
-        list_tp = read_true_pos(log_fn)
-        list_tpr = [(i + TP_OFFSET) / NUM_READS for i in list_tp]
+        
+        if PLOT_UNALIGNED:
+            list_tp = read_unaligned(log_fn)
+            list_tpr = [(i) / NUM_READS for i in list_tp]
+        else:
+            list_tp = read_true_pos(log_fn)
+            list_tpr = [(i + TP_OFFSET) / NUM_READS for i in list_tp]
+
         # df_data[list_exp[id_exp]][0:len(list_tp)] = list_tpr
         if df_exp_spec['2pass-merge'][id_exp] == 'False':
             df_data[list_exp[id_exp]][0:num_single_indiv] = list_tpr
@@ -232,6 +247,16 @@ if __name__ == '__main__':
     order_by_superpop = list(df_data.groupby('Superpopulation').median().sort_values(plot_target).index)
     #: sort categories by the median of each merging method
     order_by_merge = list(df_data.groupby('Merge').median().sort_values(plot_target).index)
+
+    df_data['sort_by_superpop'] = [order_by_superpop.index(i) for i in df_data['Superpopulation']]
+    df2 = df_data[:-len(LABEL_GROUPS)].sort_values(by='sort_by_superpop', ascending=True)
+
+    params = {'legend.fontsize': 'x-large',
+         'axes.labelsize': 'x-large',
+         'axes.titlesize':'x-large',
+         'xtick.labelsize':'large',
+         'ytick.labelsize':'x-large'}
+    pylab.rcParams.update(params)
 
     ''' Bar plot '''
     # x = np.arange(data_df.shape[0])
@@ -263,23 +288,34 @@ if __name__ == '__main__':
     # sns.swarmplot(x='Population', y='Sensitivity', hue='Superpopulation', data=data_df)
     
     #: by superpopulation
-    sns.boxplot(x='Superpopulation', y=plot_target, data=df_data.iloc[:-len(LABEL_GROUPS)], order=order_by_superpop)
-    sns.swarmplot(x='Superpopulation', y=plot_target, data=df_data.iloc[:-len(LABEL_GROUPS)], order=order_by_superpop)
+    # sns.boxplot(x='Superpopulation', y=plot_target, data=df_data.iloc[:-len(LABEL_GROUPS)], order=order_by_superpop)
+    # sns.swarmplot(x='Superpopulation', y=plot_target, data=df_data.iloc[:-len(LABEL_GROUPS)], order=order_by_superpop)
     
     #: by cluster
     # sns.boxplot(x='Cluster', y='Sensitivity', data=data_df, order=order_by_cluster)
     # sns.swarmplot(x='Cluster', y='Sensitivity', data=data_df, order=order_by_cluster)
     
     #: by merge
-    sns.boxplot(x='Merge', y='all', data=df_data.iloc[-len(LABEL_GROUPS):], order=order_by_merge)
-    sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[num_single_indiv:-len(LABEL_GROUPS)], order=order_by_merge)
-    sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[:num_single_indiv], order=order_by_merge)
+    if PLOT_UNALIGNED:
+        sns.boxplot(x='Merge', y='all', data=df_data.iloc[-len(LABEL_GROUPS):], order=order_by_merge)
+        sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[num_single_indiv:-len(LABEL_GROUPS)], order=order_by_merge)
+        sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[:num_single_indiv], order=order_by_merge)
+    else:
+        sns.boxplot(x='Merge', y='all', data=df_data.iloc[-len(LABEL_GROUPS):], order=order_by_merge)
+        sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df2.iloc[num_single_indiv:-len(LABEL_GROUPS)], order=order_by_merge)
+        sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df2.iloc[:num_single_indiv], order=order_by_merge)
+    # sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[num_single_indiv:-len(LABEL_GROUPS)], order=order_by_merge)
+    # sns.boxplot(x='Merge', y='all', hue='Superpopulation', data=df_data.iloc[:num_single_indiv], order=order_by_merge)
     # sns.swarmplot(x='Merge', y='NA12878-h37maj-q10-100dip-merged_random_partial', data=df_data.iloc[num_single_indiv:-len(LABEL_GROUPS)], order=order_by_merge)
     # sns.swarmplot(x='Merge', y='NA12878-h37maj-q10-100dip', data=df_data.iloc[:num_single_indiv], order=order_by_merge)
+
     
-    plt.title(plot_target)
+    # plt.title(plot_target)
     plt.xlabel('')
-    plt.ylabel('Sensitivity')
+    if PLOT_UNALIGNED:
+        plt.ylabel('#Unaligned')
+    else:
+        plt.ylabel('Sensitivity')
     plt.show()
     plt.clf()
 
