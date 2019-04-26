@@ -49,30 +49,58 @@ def get_tpr_fdr(df, n_var):
 # df_h37maj = pd.read_pickle('10M-h37maj.sam-stats.pkl')
 # df_per = pd.read_pickle('10M-per.sam-stats.pkl')
 
-df_ref = pd.read_pickle('chr9-10M-ref.sam-stats.pkl')
-df_h37maj = pd.read_pickle('chr9-10M-h37maj.sam-stats.pkl')
-df_per = pd.read_pickle('chr9-10M-per.sam-stats.pkl')
+df_ref = pd.read_pickle('na12878_hapA-chr9-ref.sam-stats.pkl')
+df_h37maj = pd.read_pickle('na12878_hapA-chr9-h37maj.sam-stats.pkl')
+df_per = pd.read_pickle('na12878_hapA-chr9-per_hapA.sam-stats.pkl')
 
+# df_ref = pd.read_pickle('na12878_hapA-chr21-ref.sam-stats.pkl')
+# df_h37maj = pd.read_pickle('na12878_hapA-chr21-h37maj.sam-stats.pkl')
+# df_per = pd.read_pickle('na12878_hapA-chr21-per_hapA.sam-stats.pkl')
 
-# list_num_var = [0, 1, 2, 3]
-list_num_var = [None]
-plt.figure(1)
+PLOT_ALL = False
+if PLOT_ALL:
+    list_num_var = [None]
+else:
+    list_num_var = [0, 1, 2, 3]
+    # list_num_var = [0, 2]
+
+fig = plt.figure(1)
 for i, num_var in enumerate(list_num_var):
-    # plt.subplot(2, 2, i+1)
-    plt.subplot(1, 1, i+1)
+    if PLOT_ALL:
+        plt.subplot(1, 1, i+1)
+    else:
+        # plt.subplot(2, 2, i+1)
+        plt.subplot(1, 4, i+1)
     list_tpr_ref, list_fdr_ref = get_tpr_fdr(df_ref, num_var)
     list_tpr_h37maj, list_fdr_h37maj = get_tpr_fdr(df_h37maj, num_var)
     list_tpr_per, list_fdr_per = get_tpr_fdr(df_per, num_var)
 
     plt.plot(list_fdr_ref, list_tpr_ref, marker='.', label='ref')
     plt.plot(list_fdr_h37maj, list_tpr_h37maj, marker='x', label='h37maj')
-    plt.plot(list_fdr_per, list_tpr_per, marker='+', label='per (diploid)')
+    plt.plot(list_fdr_per, list_tpr_per, marker='+', label='per')
+    # plt.plot(list_fdr_per, list_tpr_per, marker='+', label='per (diploid)')
     plt.xscale('log')
-    plt.ylabel('TPR (sensitivity)')
+    # plt.ylabel('TPR (sensitivity)')
     plt.xlabel('FDR (1-precision)')
-    plt.legend()
+    # plt.legend()
+    plt.ylim((0.7, 1))
 
     # plt.title('Chr21, number of vars = {0}'.format(num_var))
-    plt.title('Chr9, number of vars = {0}'.format(num_var))
+    # plt.title('Chr9, number of vars = {0}'.format(num_var))
+    if num_var == 0:
+        plt.title('Reads without variants')
+        plt.ylabel('TPR (sensitivity)')
+    elif num_var == 1:
+        plt.title('Reads with 1 variant')
+    else:
+        plt.title('Reads with {0} variants'.format(num_var))
+for ax in fig.axes:
+    # ax.axis('off')
+    ax.margins(0,0)
+    # ax.xaxis.set_major_locator(plt.NullLocator())
+    # ax.yaxis.set_major_locator(plt.NullLocator())
+plt.legend()
+# plt.tight_layout()
 plt.show()
+# plt.savefig("test.png",bbox_inches='tight')
 plt.clf()

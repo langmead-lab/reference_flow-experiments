@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 
 list_col = ['num_highq_reads', 'sensitivity_all', 'sensitivity_highq', 'sensitivity_lowq']
+list_no_chr = [str(i) for i in list(range(1,23))]
 list_chr = ['chr'+str(i) for i in list(range(1,23))]
 df = pd.DataFrame(index=list_chr, columns=list_col)
 
@@ -57,13 +58,14 @@ with open('sensitivity_low.txt', 'r') as f:
             ch = None
 df['sensitivity_lowq'] = [dict_sl[i] for i in df.index]
 
+plt.rcParams.update({'font.size': 20})
 
-plt.plot(df.index, df['num_highq_reads'], label='num. q>=10 reads')
-plt.plot(df.index, df['sensitivity_all'], label='sensitivity all')
-plt.plot(df.index, df['sensitivity_highq'], label='sensitivity q>=10')
-plt.plot(df.index, df['sensitivity_lowq'], label='sensitivity q<10')
-plt.yscale('log')
-# plt.ylabel('Sensitivity')
+# plt.plot(list_no_chr, df['num_highq_reads'], label='fraction of q>=10 reads')
+plt.plot(list_no_chr, df['sensitivity_highq'], label='MAPQ>=10')
+plt.plot(list_no_chr, df['sensitivity_lowq'], label='MAPQ<10')
+plt.plot(list_no_chr, df['sensitivity_all'], label='all')
+# plt.yscale('log')
+plt.ylabel('Sensitivity')
 plt.xlabel('Chromosome')
 plt.legend()
 plt.tight_layout()
