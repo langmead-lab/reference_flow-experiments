@@ -120,6 +120,7 @@ for line in f_sam:
 
 golden_dic = load_golden_dic(fn_golden, 1)
 
+f_out = open('per-k3-tiedAS-and-correct.log', 'w')
 dict_overlapping_var_correct = {}
 for key in list(dict_sam_correct.keys()):
     if len(dict_sam_correct[key]) == 1:
@@ -140,7 +141,7 @@ for key in list(dict_sam_correct.keys()):
             var_flag = True
         dist = diploid_compare(
             info = info, 
-            g_info = info,
+            g_info = golden_dic[key],
             name = key, 
             threshold = threshold, 
             dip_flag = 'same_id', 
@@ -163,5 +164,6 @@ for key in list(dict_sam_correct.keys()):
     if var_flag:
         for t in tmp_info:
             print (t)
+            f_out.write(t+'\n')
         # print (golden_dic[key].pos)
         # input ()
