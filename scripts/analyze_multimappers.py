@@ -217,7 +217,7 @@ for key in list(dict_sam_correct.keys()):
     if var_flag:
         df_tmp = df_tmp.sort_values('score', ascending=False)
         best_score = max(df_tmp['score'])
-        if df_tmp.iloc[1]['score'] < best_score:
+        if df_tmp['score'].iloc[1] < best_score and df_tmp['correctness'].iloc[0] == 1:
             df_tmp['tie_broken'].iloc[0] = 1
         df_out = df_out.append(df_tmp)
     df_out.to_csv(fn_out, sep='\t', index=None)
