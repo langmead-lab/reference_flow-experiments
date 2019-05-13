@@ -166,8 +166,9 @@ for line in f_sam:
 
 golden_dic = load_golden_dic(fn_golden, 1)
 
+col_df = ['name', 'pos', 'chrom', 'score', 'num_var', 'dist', 'correctness', 'unique']
 df_out = pd.DataFrame(
-    columns=['name', 'pos', 'chrom', 'score', 'num_var', 'dist', 'correctness', 'tie_broken']
+    columns=col_df
 )
 dict_overlapping_var_correct = {}
 for key in list(dict_sam_correct.keys()):
@@ -175,7 +176,7 @@ for key in list(dict_sam_correct.keys()):
         continue
     var_flag = False
     df_tmp = pd.DataFrame(
-        columns=['name', 'pos', 'chrom', 'score', 'num_var', 'dist', 'correctness', 'tie_broken']
+        columns=col_df
     )
     for i, info in enumerate(dict_sam_correct[key]):
         #: counts the number of overlapping variants for each aligned region
@@ -212,12 +213,15 @@ for key in list(dict_sam_correct.keys()):
             comp = 1
         else:
             comp = 0
-        tmp = pd.DataFrame([[key, info.pos, info.chrm, info.score, num_var, dist, comp, 0]], columns=['name','pos','chrom','score','num_var','dist','correctness', 'tie_broken'])
+        tmp = pd.DataFrame([[key, info.pos, info.chrm, info.score, num_var, dist, comp, 0]], columns=col_df)
         df_tmp = df_tmp.append(tmp)
-    if var_flag:
+    # if var_flag:
+    if 1:
         df_tmp = df_tmp.sort_values('score', ascending=False)
         best_score = max(df_tmp['score'])
         if df_tmp['score'].iloc[1] < best_score and df_tmp['correctness'].iloc[0] == 1:
-            df_tmp['tie_broken'].iloc[0] = 1
+            #: DEFINITION of "unique":
+            #:      has only one highest scoring alignment and it is correct
+            df_tmp['unique'].iloc[0] = 1
         df_out = df_out.append(df_tmp)
     df_out.to_csv(fn_out, sep='\t', index=None)
