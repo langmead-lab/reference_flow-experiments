@@ -9,30 +9,42 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '-set1', '--set1_fn',
+    '-set1', '--fn_set1',
     help='set1, can be .sam, .fq .or .names'
 )
 parser.add_argument(
-    '-set2', '--set2_fn',
+    '-set2', '--fn_set2',
     help='set2, can be .sam, .fq .or .names'
+)
+parser.add_argument(
+    '-o', '--fn_output',
+    help='output filename, extracted intersection based on set2. \n \
+    When -o is set, -set2 needs to be a sam file [None]'
 )
 args = parser.parse_args()
 
-set1_fn = args.set1_fn
-set2_fn = args.set2_fn
-set1_f = open(set1_fn, 'r')
-set2_f = open(set2_fn, 'r')
+fn_set1 = args.fn_set1
+fn_set2 = args.fn_set2
+fn_output = args.fn_output
+f_set1 = open(fn_set1, 'r')
+f_set2 = open(fn_set2, 'r')
+
+if fn_output != None and (fn_set2.endswith('.sam') is False):
+    print ('ERROR: -set2 needs to be a sam file when -o is set.')
+    exit()
+elif fn_output != None:
+    f_output = open(fn_output, 'w')
 
 list_set1_reads = []
-if set1_fn.endswith('.fq') or set1_fn.endswith('.fastq'):
-    for line in set1_f:
+if fn_set1.endswith('.fq') or fn_set1.endswith('.fastq'):
+    for line in f_set1:
         if line.startswith('@'):
             list_set1_reads.append(line.split()[0][1:])
-elif set1_fn.endswith('.sam'):
-    for line in set1_f:
+elif fn_set1.endswith('.sam'):
+    for line in f_set1:
         list_set1_reads.append(line.split()[0])
-elif set1_fn.endswith('.names'):
-    for line in set1_f:
+elif fn_set1.endswith('.names'):
+    for line in f_set1:
         list_set1_reads.append(line.rstrip())
 else:
     print ('unrecognized file format')
@@ -40,15 +52,18 @@ else:
 set_set1_reads = set(list_set1_reads)
 
 list_set2_reads = []
-if set2_fn.endswith('.fq'):
-    for line in set2_f:
+if fn_set2.endswith('.fq'):
+    for line in f_set2:
         if line.startswith('@'):
             list_set2_reads.append(line.split()[0][1:])
-elif set2_fn.endswith('.sam'):
-    for line in set2_f:
+elif fn_set2.endswith('.sam'):
+    for line in f_set2:
         list_set2_reads.append(line.split()[0])
-elif set2_fn.endswith('.names'):
-    for line in set2_f:
+        if fn_output != None:
+            if line.split()[0] in set_set1_reads:
+                f_output.write(line)
+elif fn_set2.endswith('.names'):
+    for line in f_set2:
         list_set2_reads.append(line.rstrip())
 else:
     print ('unrecognized file format')
