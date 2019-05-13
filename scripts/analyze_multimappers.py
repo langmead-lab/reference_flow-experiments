@@ -92,6 +92,8 @@ MAIN_CHRM = chrm + MAIN_STRAND
 ALT_CHRM = chrm + ALT_STRAND
 COMPARE_SEQ = False
 
+golden_dic = load_golden_dic(fn_golden, 1)
+
 dict_correct = {}
 dict_incorrect = {}
 
@@ -148,12 +150,12 @@ for line in f_sam:
         continue
     
     #: aligned incorrectly
-    if name in dict_incorrect:
-        if name in dict_sam_incorrect:
-            dict_sam_incorrect[name].append(info)
-        else:
-            dict_sam_incorrect[name] = [info]
-        continue
+    # if name in dict_incorrect:
+    #     if name in dict_sam_incorrect:
+    #         dict_sam_incorrect[name].append(info)
+    #     else:
+    #         dict_sam_incorrect[name] = [info]
+    #     continue
     
     #: one of the multi-mappers is correct
     if name in dict_sam_correct:
@@ -164,21 +166,21 @@ for line in f_sam:
     else:
         dict_sam_correct[name] = [info]
 
-golden_dic = load_golden_dic(fn_golden, 1)
-
-col_df = ['name', 'pos', 'chrom', 'score', 'num_var', 'dist', 'correctness', 'unique']
+col_df = ['name', 'pos', 'chrom', 'score', 'num_var', 'dist', 'correct', 'unique']
 df_out = pd.DataFrame(
     columns=col_df
 )
 dict_overlapping_var_correct = {}
 for key in list(dict_sam_correct.keys()):
-    if len(dict_sam_correct[key]) == 1:
-        continue
+    # if len(dict_sam_correct[key]) == 1:
+    #     continue
     var_flag = False
     df_tmp = pd.DataFrame(
         columns=col_df
     )
     for i, info in enumerate(dict_sam_correct[key]):
+        if info.is_unaligned():
+            continue
         #: counts the number of overlapping variants for each aligned region
         num_var = count_overlapping_vars(
             name = key,
@@ -216,10 +218,13 @@ for key in list(dict_sam_correct.keys()):
         tmp = pd.DataFrame([[key, info.pos, info.chrm, info.score, num_var, dist, comp, 0]], columns=col_df)
         df_tmp = df_tmp.append(tmp)
     # if var_flag:
-    if 1:
+    if df_tmp.shape[0] > 0:
         df_tmp = df_tmp.sort_values('score', ascending=False)
         best_score = max(df_tmp['score'])
-        if df_tmp['score'].iloc[1] < best_score and df_tmp['correctness'].iloc[0] == 1:
+        if df_tmp.shape[0] == 1:
+            if df_tmp['correct'].iloc[0] == 1:
+                df_tmp['unique'].iloc[0] = 1
+        elif df_tmp['score'].iloc[1] < best_score and df_tmp['correct'].iloc[0] == 1:
             #: DEFINITION of "unique":
             #:      has only one highest scoring alignment and it is correct
             df_tmp['unique'].iloc[0] = 1
