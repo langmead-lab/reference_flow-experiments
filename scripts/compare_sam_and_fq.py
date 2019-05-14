@@ -19,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     '-o', '--fn_output',
     help='output filename, extracted intersection based on set2. \n \
-    When -o is set, -set2 needs to be a sam file [None]'
+    When -o is set, -set2 needs to be a sam/fq file [None]'
 )
 args = parser.parse_args()
 
@@ -29,10 +29,12 @@ fn_output = args.fn_output
 f_set1 = open(fn_set1, 'r')
 f_set2 = open(fn_set2, 'r')
 
-if fn_output != None and (fn_set2.endswith('.sam') is False):
-    print ('ERROR: -set2 needs to be a sam file when -o is set.')
-    exit()
-elif fn_output != None:
+if fn_output != None:
+    assert fn_set2.endswith('.sam') or fn_set2.endswith('.fq')
+#    if (fn_set2.endswith('.sam') is False) and (fn_set2.endswith('.fq') is False):
+#        print ('ERROR: -set2 needs to be either a sam or a fq file when -o is set.')
+#    exit()
+#elif fn_output != None:
     f_output = open(fn_output, 'w')
 
 list_set1_reads = []
@@ -53,9 +55,18 @@ set_set1_reads = set(list_set1_reads)
 
 list_set2_reads = []
 if fn_set2.endswith('.fq'):
+    fq_flag = 0
     for line in f_set2:
         if line.startswith('@'):
             list_set2_reads.append(line.split()[0][1:])
+            if fn_output != None:
+                if line.split()[0][1:] in set_set1_reads:
+                    fq_flag = 1
+        if fq_flag > 0:
+            f_output.write(line)
+            fq_flag += 1
+            if fq_flag > 4:
+                fq_flag = 0
 elif fn_set2.endswith('.sam'):
     for line in f_set2:
         list_set2_reads.append(line.split()[0])
