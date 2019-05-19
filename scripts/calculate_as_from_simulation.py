@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 import re
+import math
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -60,8 +61,7 @@ df['reduced_cigar'] = reduced_cigar
 
 list_as = [None] * df.shape[0]
 for i in range(df.shape[0]):
-# for i in range(15):
-    #: no error
+    #: reads with no error
     if int(df[13].iloc[i].split(':')[-1]) == 0:
         list_as[i] = 0
     else:
@@ -73,11 +73,18 @@ for i in range(df.shape[0]):
         current_pos = 0
         for c in df['md'].iloc[i]:
             if c.isalpha():
-                # TODO
-                # ignores QUAL
-                score -= (len(c) * 6)
-                current_pos += len(c)
+                for a in c:
+                    qual = df[10].iloc[i][current_pos]
+                    qual = ord(qual) - 33
+                    score -= (2 + math.floor(4 * min(qual, 40)/40))
+                    current_pos += 1
+                #: ignores QUAL
+                # score -= (len(c) * 6)
+                # current_pos += len(c)
             else:
                 current_pos += int(c)
         list_as[i] = score
 df['AS'] = list_as
+
+#: TODO
+#: comparison with another sam file
