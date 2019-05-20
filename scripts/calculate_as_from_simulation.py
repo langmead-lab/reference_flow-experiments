@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import re
 import math
+from analyze_sam import SamInfo, parse_line
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -22,7 +23,10 @@ read_len = args.read_len
 fn_gold = args.fn_gold
 fn_sam = args.fn_sam
 
-df = pd.read_csv(fn_gold, sep='\t', header=None)
+#: quoting = csv.QUOTE_NONE (3)
+#: This is important! If not set, there would be issues in the QUAL field 
+#: and resuls in incorrect reading
+df = pd.read_csv(fn_gold, sep='\t', header=None, quoting=3)
 df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI']
 
 # processes MD string
@@ -110,23 +114,39 @@ for i in range(df.shape[0]):
                 #: checks INS
                 overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + int(c) + 1].count(1)
                 if overlapping_ins > 0:
-                    overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + int(c) + 1].count(1)
+                    while vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + int(c) + 1].count(1) > overlapping_ins:
+                        overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + int(c) + 1].count(1)
                 current_pos += int(c) + overlapping_ins
             current_cigar_pos = current_pos + current_count_del
         assert current_pos == read_len
+        #: TODO
+        if current_pos != read_len:
+            print ('{0} != {1} at {2}'.format(current_cigar_pos, read_len, i))
         list_as[i] = score
 df['AS'] = list_as
 
-#: TODO: tags may differ, need parse line by line
 #: compares with another sam file
-df_sam = pd.read_csv(fn_sam, sep='\t', header=None)
-df_sam_mapq_and_score = df_sam[[0,4,11,12]]
-df_sam_mapq_and_score.columns = ['QNAME', 'MAPQ', 'AS', 'XS']
-list_align_as = [int(i.split(':')[-1]) for i in df_sam_mapq_and_score['AS']]
-df_sam_mapq_and_score['AS'] = list_align_as
-list_align_xs = [int(i.split(':')[-1]) for i in df_sam_mapq_and_score['XS']]
-df_sam_mapq_and_score['XS'] = list_align_xs
-df_merge = df.merge(df_sam_mapq_and_score, on='QNAME')
+f_sam = open(fn_sam, 'r')
+list_name = []
+list_as_sam = []
+for line in f_sam:
+    name, info = parse_line(line)
+    #: headers
+    if name == 'header':
+        continue
+    list_name.append(name)
+    list_as_sam.append(info.score)
 
-print (sum(df_merge['AS_x'] <= df_merge['AS_y']))
-print (sum(df_merge['AS_x'] > df_merge['AS_y']))
+df_sam = pd.DataFrame(columns=['QNAME', 'AS'])
+df_sam['QNAME'] = list_name
+df_sam['AS'] = list_as_sam
+
+df_merge = df.merge(df_sam, on='QNAME')
+
+num_as_realign_gt_sim = sum(df_merge['AS_x'] < df_merge['AS_y'])
+num_as_realign_eq_sim = sum(df_merge['AS_x'] == df_merge['AS_y'])
+num_as_realign_lt_sim = sum(df_merge['AS_x'] > df_merge['AS_y'])
+
+print ('num_as_realign_gt_sim = {}'.format(num_as_realign_gt_sim))
+print ('num_as_realign_eq_sim = {}'.format(num_as_realign_eq_sim))
+print ('num_as_realign_lt_sim = {}'.format(num_as_realign_lt_sim))
