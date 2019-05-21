@@ -43,6 +43,9 @@ for i in range(df.shape[0]):
 
 reduced_cigar = []
 for i in range(df.shape[0]):
+    assert len(df['SEQ'].iloc[i]) == read_len
+    assert len(df['QUAL'].iloc[i]) == read_len
+
     # ci = df['cigar'][i]
     ci = split_cigar[i]
     for c in ci:
@@ -100,6 +103,12 @@ for i in range(df.shape[0]):
         current_cigar_pos = current_pos + current_count_del
         for c in df['sMD'].iloc[i]:
             if c.isalpha():
+                #: checks INS
+                overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + len(c)].count(1)
+                if overlapping_ins > 0:
+                    while vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + len(c)].count(1) > overlapping_ins:
+                        overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + len(c)].count(1)
+                current_pos += overlapping_ins
                 for a in c:
                     if vec_aln[current_cigar_pos] == 2:
                         current_count_del += 1
@@ -111,17 +120,18 @@ for i in range(df.shape[0]):
                         current_pos += 1
                     current_cigar_pos = current_pos + current_count_del
             else:
+                # current_pos -= overlapping_ins
                 #: checks INS
                 overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + int(c) + 1].count(1)
                 if overlapping_ins > 0:
                     while vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + int(c) + 1].count(1) > overlapping_ins:
                         overlapping_ins = vec_aln[current_cigar_pos: current_cigar_pos + overlapping_ins + int(c) + 1].count(1)
                 current_pos += int(c) + overlapping_ins
+                # current_pos += int(c)
             current_cigar_pos = current_pos + current_count_del
-        assert current_pos == read_len
-        #: TODO
         if current_pos != read_len:
             print ('{0} != {1} at {2}'.format(current_cigar_pos, read_len, i))
+        assert current_pos == read_len
         list_as[i] = score
 df['AS'] = list_as
 
@@ -143,10 +153,12 @@ df_sam['AS'] = list_as_sam
 
 df_merge = df.merge(df_sam, on='QNAME')
 
-num_as_realign_gt_sim = sum(df_merge['AS_x'] < df_merge['AS_y'])
+num_unaligned = sum(df_merge['AS_y'] == 1)
+num_as_realign_gt_sim = sum(df_merge['AS_x'] < df_merge['AS_y']) - num_unaligned
 num_as_realign_eq_sim = sum(df_merge['AS_x'] == df_merge['AS_y'])
 num_as_realign_lt_sim = sum(df_merge['AS_x'] > df_merge['AS_y'])
 
-print ('num_as_realign_gt_sim = {}'.format(num_as_realign_gt_sim))
-print ('num_as_realign_eq_sim = {}'.format(num_as_realign_eq_sim))
-print ('num_as_realign_lt_sim = {}'.format(num_as_realign_lt_sim))
+print ('num_as_realign_gt_sim = {0} ({1:.4%})'.format(num_as_realign_gt_sim, num_as_realign_gt_sim/df_merge.shape[0]))
+print ('num_as_realign_eq_sim = {0} ({1:.4%})'.format(num_as_realign_eq_sim, num_as_realign_eq_sim/df_merge.shape[0]))
+print ('num_as_realign_lt_sim = {0} ({1:.4%})'.format(num_as_realign_lt_sim, num_as_realign_lt_sim/df_merge.shape[0]))
+print ('num_unaligned         = {0} ({1:.4%})'.format(num_unaligned, num_unaligned/df_merge.shape[0]))
