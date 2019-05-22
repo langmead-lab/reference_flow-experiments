@@ -158,7 +158,7 @@ num_as_realign_gt_sim = sum(df_merge['AS_x'] < df_merge['AS_y']) - num_unaligned
 num_as_realign_eq_sim = sum(df_merge['AS_x'] == df_merge['AS_y'])
 num_as_realign_lt_sim = sum(df_merge['AS_x'] > df_merge['AS_y'])
 
-print ('num_as_realign_gt_sim = {0} ({1:.4%})'.format(num_as_realign_gt_sim, num_as_realign_gt_sim/df_merge.shape[0]))
-print ('num_as_realign_eq_sim = {0} ({1:.4%})'.format(num_as_realign_eq_sim, num_as_realign_eq_sim/df_merge.shape[0]))
-print ('num_as_realign_lt_sim = {0} ({1:.4%})'.format(num_as_realign_lt_sim, num_as_realign_lt_sim/df_merge.shape[0]))
-print ('num_unaligned         = {0} ({1:.4%})'.format(num_unaligned, num_unaligned/df_merge.shape[0]))
+print ('Num. AS_realign >  AS_sim = {0:10d} ({1:.4%})'.format(num_as_realign_gt_sim, num_as_realign_gt_sim/df_merge.shape[0]))
+print ('Num. AS_realign == AS_sim = {0:10d} ({1:.4%})'.format(num_as_realign_eq_sim, num_as_realign_eq_sim/df_merge.shape[0]))
+print ('Num. AS_realign <  AS_sim = {0:10d} ({1:.4%})'.format(num_as_realign_lt_sim, num_as_realign_lt_sim/df_merge.shape[0]))
+print ('Num. unaligned            = {0:10d} ({1:.4%})'.format(num_unaligned, num_unaligned/df_merge.shape[0]))
