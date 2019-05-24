@@ -2,13 +2,24 @@
 Calls variants without correction
 '''
 import argparse
+import sys
 import re
 from analyze_sam import SamInfo, parse_line
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-n', '--sam',
+        '-l', '--var_loc',
+        default=None,
+        help='file specifying targetting variant locations [None]'
+    )
+    parser.add_argument(
+        '-v', '--vcf',
+        default=None,
+        help='vcf file [None]'
+    )
+    parser.add_argument(
+        '-n', 'sam',
         help='target sam file'
     )
     # parser.add_argument(
@@ -112,7 +123,7 @@ def fast_var_call(argrs):
     sam_fn = args.sam
     f = open(sam_fn, 'r')
     for line in f:
-        name, info = parse_line(line, by_score=0, md=True, cigar=True)
+        name, info = parse_line(line, md=True, cigar=True)
         if name == 'header':
             continue
         if info.is_unaligned():
