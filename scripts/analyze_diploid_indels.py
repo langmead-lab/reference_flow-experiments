@@ -243,7 +243,7 @@ def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, flag
     input()
 
 # TODO
-def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, threshold, read_len):
+def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, threshold, read_len, COMPARE_SEQ):
     '''
     Compares alignment with the golden profile if they are near.
     If COMPARE_SEQ is specified, retrieves sequences from ref and haps and calculate the distance.
@@ -336,6 +336,11 @@ def diploid_compare(
     threshold, 
     dip_flag, 
     step,
+    MAIN_CHRM,
+    ALT_CHRM,
+    MAIN_HAP,
+    ALT_HAP,
+    COMPARE_SEQ,
     reads_main_offset_index = {}, 
     reads_alt_offset_index = {},
     sample_main_offset_index = {},
@@ -421,9 +426,9 @@ def diploid_compare(
         ignore_chrm=True
     )
 
-    if (dist < 0 or dist > threshold) and __debug__:
+    '''if (dist < 0 or dist > threshold) and __debug__:
         print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, dip_flag)
-        #print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)
+        #print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)'''
     if (dist < 0 or dist > threshold) and COMPARE_SEQ:
         print_aln_within_distance(
             name=name,
@@ -432,7 +437,8 @@ def diploid_compare(
             info=info,
             g_info=g_info,
             threshold=1000,
-            read_len=read_len
+            read_len=read_len,
+            COMPARE_SEQ=COMPARE_SEQ
         )
 
     return dist
@@ -459,25 +465,28 @@ def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM,
 def build_all_indexes(
     var_reads_fn,
     var_sample_fn,
-    personalized
+    personalized,
+    step,
+    MAIN_STRAND,
+    ALT_STRAND
 ):
     '''
     Reads two var files and builds all the indexes we use for computing correctness
     '''
-    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
+    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
         # var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
-        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
+        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
         # reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         #: major allele reference with indels
         if var_sample_fn != None:
-            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False)
+            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
             sample_main_offset_index, _ = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         else:
             sample_main_offset_index = {}
@@ -496,7 +505,8 @@ def analyze_diploid_indels(
     chrm,
     step,
     read_len,
-    write_wrt_correctness
+    write_wrt_correctness,
+    COMPARE_SEQ
 ):
     '''
     Handles I/O and different opperating modes of this script.
@@ -561,7 +571,12 @@ def analyze_diploid_indels(
                 reads_main_offset_index = reads_main_offset_index, 
                 reads_alt_offset_index = reads_alt_offset_index,
                 sample_main_offset_index = sample_main_offset_index,
-                sample_alt_offset_index = sample_alt_offset_index
+                sample_alt_offset_index = sample_alt_offset_index,
+                MAIN_CHRM=MAIN_CHRM,
+                ALT_CHRM=ALT_CHRM,
+                MAIN_HAP=MAIN_HAP,
+                ALT_HAP=ALT_HAP,
+                COMPARE_SEQ=COMPARE_SEQ
             )
         #: alignment against standard ref (and ERG)
         elif personalized == 0:
@@ -576,7 +591,12 @@ def analyze_diploid_indels(
                 reads_main_offset_index = reads_main_offset_index, 
                 reads_alt_offset_index = reads_alt_offset_index,
                 sample_main_offset_index = sample_main_offset_index,
-                sample_alt_offset_index = sample_alt_offset_index
+                sample_alt_offset_index = sample_alt_offset_index,
+                MAIN_CHRM=MAIN_CHRM,
+                ALT_CHRM=ALT_CHRM,
+                MAIN_HAP=MAIN_HAP,
+                ALT_HAP=ALT_HAP,
+                COMPARE_SEQ=COMPARE_SEQ
             )
             if num_var == 0:
                 flag = 'same_id'
@@ -809,31 +829,6 @@ def print_df_stats(df, threshold, var_opt):
 
     return x, y
 
-def plot_ROC(list_roc, title):
-    q = [0, 5, 10, 20, 30, 40]
-
-    fig, ax = plt.subplots()
-    plt.title(title)
-    plt.xscale('log')
-    plt.xlabel('FDR (1-precision)')
-    plt.ylabel('TPR (sensitivity)')
-    
-    marker_dict={0:'.', 1:'x', 2:'+'}
-    
-    for iroc, roc in enumerate(list_roc):
-        x = roc[0]
-        y = roc[1]
-        # ax.scatter(x, y, label=roc[2])
-        c = 'C' + str(iroc)
-        ax.plot(x, y, color=c, label=roc[2], marker=marker_dict[iroc%3])
-        for i, txt in enumerate(q):
-            ax.annotate(txt, (x[i], y[i]), color=c)
-            # ax.annotate(txt, (x[i], y[i]+0.005*(iroc==0)), color=c)
-    ax.legend()
-    # plt.ylim(0.8, 0.95)
-    # plt.show()
-    plt.savefig('roc_' + title.lower() + '.pdf')
-
 if __name__ == '__main__':
     args = parse_args()
     sam_fn = args.sam
@@ -866,7 +861,7 @@ if __name__ == '__main__':
     
     USE_PREV_IF_POSSIBLE = False
     PLOT_HIST = False
-    if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl'):
+    if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl') and write_wrt_correctness == None:
         print ('Read stats from {0}-stats.pkl'.format(sam_fn))
         df = pd.read_pickle(sam_fn + '-stats.pkl')
         
@@ -876,7 +871,8 @@ if __name__ == '__main__':
         print_df_stats(df, threshold, 'all')
         exit()
 
-    global COMPARE_SEQ, HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
+    # global COMPARE_SEQ, 
+    global HIGHC, TOTALNEAR, REF_G, HAPA_G, HAPB_G, CALL_D_ALT, SIM_D_ALT, CALL_D_ORIG, SIM_D_ORIG
     if (fn_ref != None) and (fn_hapA != None) and (fn_hapB != None):
         COMPARE_SEQ = True
         HIGHC = 0
@@ -894,7 +890,10 @@ if __name__ == '__main__':
     all_indexes = build_all_indexes(
         var_reads_fn=var_reads_fn,
         var_sample_fn=var_sample_fn,
-        personalized=personalized
+        personalized=personalized,
+        step=step,
+        MAIN_STRAND=MAIN_STRAND,
+        ALT_STRAND=ALT_STRAND
     )
     golden_dic = load_golden_dic(golden_fn, 1)
     results_df = analyze_diploid_indels(
@@ -906,7 +905,8 @@ if __name__ == '__main__':
         chrm=chrm,
         step=step,
         read_len=read_len,
-        write_wrt_correctness=write_wrt_correctness
+        write_wrt_correctness=write_wrt_correctness,
+        COMPARE_SEQ=COMPARE_SEQ
     )
 
     print_df_stats(results_df, threshold, 'all')
