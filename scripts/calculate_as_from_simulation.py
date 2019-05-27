@@ -1,3 +1,22 @@
+'''
+This script reads a target sam file and a golden sam file (from simulation)
+and summarizes the number of reads with following characteristics:
+    1. Alignment score (AS:i, or AS) relationship between alignment
+       (target, aln) and simulation (sim)
+        * aln > sim
+        * aln = sim
+        * aln < sim
+    2. Carrying a sequencing error or not. This characteristic is 
+       calculated using AS_sim, if it's 0 there are no errors added 
+       during simulation
+        * no seq error
+        * has seq error(s)
+    3. Correctness. This script doesn't calculated correctness by itself,
+       but retrieves the information in the given .sam-stats.pkl file
+        * correct
+        * incorrect
+    4. #TODO Overlapping a unique variant or not.
+'''
 import pandas as pd
 import numpy as np
 import argparse
