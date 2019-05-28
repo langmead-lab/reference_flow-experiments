@@ -40,9 +40,14 @@ parser.add_argument(
     help='golden .fq.sam file'
 )
 parser.add_argument(
-    '-v', '--fn_var',
-    help='var file specifying unique variants of the \
-        personalized genome and the aligned genome'
+    '-vr', '--fn_var_sim',
+    help='var file specifying unique variants \
+        of the personalized genome'
+)
+parser.add_argument(
+    '-vs', '--fn_var_aln',
+    help='var file specifying unique variants \
+        of the aligned genome'
 )
 parser.add_argument(
     '-read_len', '--read_len', type=int, default=100,
@@ -53,7 +58,8 @@ read_len = args.read_len
 fn_gold = args.fn_gold
 fn_sam = args.fn_sam
 fn_sam_stats = args.fn_sam_stats
-fn_var = args.fn_var
+fn_var_sim = args.fn_var_sim
+fn_var_aln = args.fn_var_aln
 
 def report_stats(df):
     assert sum(df['AS_sim'] > 0) == 0
@@ -128,7 +134,10 @@ def report_stats(df):
 #: This is important! If not set, there would be issues in the QUAL field 
 #: and resuls in incorrect reading
 df = pd.read_csv(fn_gold, sep='\t', header=None, quoting=3)
-df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI']
+df.columns = \
+    ['QNAME', 'FLAG', 'RNAME_sim', 'POS_sim', 'MAPQ', 
+    'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 
+    'NM', 'MD', 'XE', 'XS', 'XI']
 
 #: processes MD string
 split_md = []
@@ -239,6 +248,8 @@ df['AS_sim'] = list_as
 f_sam = open(fn_sam, 'r')
 list_name = []
 list_as_sam = []
+list_pos = []
+list_rname = []
 for line in f_sam:
     name, info = parse_line(line)
     #: headers
@@ -246,16 +257,20 @@ for line in f_sam:
         continue
     list_name.append(name)
     list_as_sam.append(info.score)
+    list_rname.append(info.chrm)
+    list_pos.append(info.pos)
 
 df_sam = pd.DataFrame(columns=['QNAME', 'AS_aln'])
 df_sam['QNAME'] = list_name
+df_sam['RNAME_aln'] = list_rname
+df_sam['POS_aln'] = list_pos
 df_sam['AS_aln'] = list_as_sam
 
 df_merge = df.merge(df_sam, on='QNAME')
 # df_merge.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI', 'sMD', 'rCIGAR', 'AS_sim', 'AS_aln'] 
 
 df_results = pd.read_pickle(fn_sam_stats)
-list_correctness = [i >=0 and i <=10 for i in df_results['dist']]
+list_correctness = [1 if i >=0 and i <=10 else 0 for i in df_results['dist']]
 df_results['correctness'] = list_correctness
 df_results.columns = ['QNAME', 'dist', 'mapq', 'numvar', 'category', 'correctness']
 df_results_tmp = df_results[['QNAME', 'correctness']]
@@ -263,10 +278,55 @@ df_results_tmp = df_results[['QNAME', 'correctness']]
 df_merge2 = df_merge.merge(df_results_tmp, on='QNAME')
 report_stats(df_merge2)
 
-# f_var = open(fn_var, 'r')
-# for line in f_var:
 
+def count_overlapping_vars_pos(chrom, pos, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
+    '''
+    For an alignment, count the number of overlapping variants.
+    '''
+    num_var = 0   
+    for i in range(pos, pos + read_len):
+        if chrom == MAIN_CHRM:
+            if main_index.get(i) != None:
+                num_var += 1
+        elif chrom == ALT_CHRM:
+            if alt_index.get(i) != None:
+                num_var += 1
+        #: unaligned
+        elif chrom == '*':
+            num_var = -1
+            return num_var
+        else:
+            print ('Error: unexpected chrm', chrom)
+            exit()
+    return num_var
+
+CHROM = '21'
 MAIN_STRAND = 'A'
 ALT_STRAND = 'B'
-var_reads_list = read_var(fn_var, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+MAIN_CHRM = CHROM + MAIN_STRAND
+ALT_CHRM = CHROM + ALT_STRAND
+list_var_sim = read_var(fn_var_sim, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+main_index_sim, alt_index_sim = build_index(list_var_sim, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+
+list_var_aln = read_var(fn_var_aln, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+main_index_aln, _ = build_index(list_var_aln, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+
+list_num_overlapping_var_sim = []
+list_num_overlapping_var_aln = []
+for i in range(df_merge2.shape[0]):
+    num_ov_sim = count_overlapping_vars_pos(
+        df_merge2['RNAME_sim'].iloc[i], df_merge2['POS_sim'].iloc[i], 
+        main_index_sim, alt_index_sim, MAIN_CHRM, ALT_CHRM, read_len
+    )
+    list_num_overlapping_var_sim.append(num_ov_sim)
+    num_ov_aln = count_overlapping_vars_pos(
+        df_merge2['RNAME_aln'].iloc[i], df_merge2['POS_aln'].iloc[i], 
+        main_index_aln, _, '21', '21', read_len
+    )
+    list_num_overlapping_var_aln.append(num_ov_aln)
+df_merge2['NumOV_sim'] = list_num_overlapping_var_sim
+df_merge2['NumOV_aln'] = list_num_overlapping_var_aln
+
+from scipy.stats import pearsonr
+pearsonr(df_merge2['NumOV_sim'], df_merge2['correctness'])
+pearsonr(df_merge2['NumOV_aln'], df_merge2['correctness'])

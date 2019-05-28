@@ -446,7 +446,8 @@ def diploid_compare(
 def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
     '''
     For an alignment, count the number of overlapping variants.
-    Counting is based on raw read (look up golden dictionary)
+    The count is based on simulated position 
+    (look up golden dictionary).
     '''
     num_var = 0   
     for i in range(g_info.pos, g_info.pos + read_len):
