@@ -215,12 +215,14 @@ def build_erg(
         print ('Num ergs =', num_erg)
         print ('Avg len of an erg =', float(total_len_erg) / num_erg)
 
-def read_var(var_fn, remove_conflict, remove_coexist=False):
+def read_var(var_fn, remove_conflict, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND):
     '''
     Build a dictionary for the .var file.
 
     remove_conflict: 
-        If set, removes conflict-represented variants. There might be other type of conflicts, but we only solve the following type here.
+        If set, removes conflict-represented variants.
+        There might be other type of conflicts, but we only 
+        solve the following type here.
         
         Example:
         A   9   INDEL   333711  333728  TA  T
@@ -343,7 +345,7 @@ if __name__ == '__main__':
     else:
         test_genome = None
     
-    var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True)
+    var_list = read_var(var_fn, remove_conflict=True, remove_coexist=True, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 
     build_erg(
         main_genome=main_genome, 
