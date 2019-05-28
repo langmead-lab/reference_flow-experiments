@@ -1,32 +1,13 @@
 import pandas as pd
 import argparse
 from analyze_sam import SamInfo, parse_line, load_golden_dic
-from analyze_diploid_indels import build_index, diploid_compare, build_all_indexes
+from analyze_diploid_indels import build_index, diploid_compare, build_all_indexes, count_overlapping_vars
 from build_erg import read_var
 
 def check_accuracy_by_dist(dist, threshold):
     if dist >= 0 and dist <= threshold:
         return True
     return False
-
-def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
-    '''
-    For an alignment, count the number of overlapping variants.
-    Counting is based on raw read (look up golden dictionary)
-    '''
-    num_var = 0   
-    for i in range(g_info.pos, g_info.pos + read_len):
-        if g_info.chrm == MAIN_CHRM:
-            if main_index.get(i) != None:
-                num_var += 1
-        elif g_info.chrm == ALT_CHRM:
-            if alt_index.get(i) != None:
-                num_var += 1
-        else:
-            print ('Error: unexpected chrm', info.chrm)
-            info.print()
-            exit()
-    return num_var
 
 
 parser = argparse.ArgumentParser()
