@@ -23,6 +23,8 @@ import argparse
 import re
 import math
 from analyze_sam import SamInfo, parse_line
+from build_erg import VarInfo, read_var
+from analyze_diploid_indels import build_index
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -38,6 +40,11 @@ parser.add_argument(
     help='golden .fq.sam file'
 )
 parser.add_argument(
+    '-v', '--fn_var',
+    help='var file specifying unique variants of the \
+        personalized genome and the aligned genome'
+)
+parser.add_argument(
     '-read_len', '--read_len', type=int, default=100,
     help='read length (100)'
 )
@@ -46,6 +53,76 @@ read_len = args.read_len
 fn_gold = args.fn_gold
 fn_sam = args.fn_sam
 fn_sam_stats = args.fn_sam_stats
+fn_var = args.fn_var
+
+def report_stats(df):
+    assert sum(df['AS_sim'] > 0) == 0
+    #: unaligned
+    num_unaligned = sum(df['AS_aln'] == 1)
+    num_unaligned_noerr = df[(df['AS_aln'] == 1) & (df['AS_sim'] == 0)].shape[0]
+    num_unaligned_haserr = df[(df['AS_aln'] == 1) & (df['AS_sim'] < 0)].shape[0]
+    #: AS -- align > simulation
+    num_aln_gt_sim = sum(df['AS_aln'] > df['AS_sim']) - num_unaligned
+    num_aln_gt_sim_noerr  = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_gt_sim_noerr_true  = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True)  & (df['AS_sim'] == 0)].shape[0]
+    num_aln_gt_sim_noerr_false = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_gt_sim_haserr = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] < 0)].shape[0]
+    num_aln_gt_sim_haserr_true  = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True)  & (df['AS_sim'] < 0)].shape[0]
+    num_aln_gt_sim_haserr_false = df[(df['AS_aln'] > df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] < 0)].shape[0]
+    #: AS -- align == simulation
+    num_aln_eq_sim = sum(df['AS_aln'] == df['AS_sim'])
+    num_aln_eq_sim_noerr = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_eq_sim_noerr_true  = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True)  & (df['AS_sim'] == 0)].shape[0]
+    num_aln_eq_sim_noerr_false = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_eq_sim_haserr = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] < 0)].shape[0]
+    num_aln_eq_sim_haserr_true  = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True) & (df['AS_sim'] < 0)].shape[0]
+    num_aln_eq_sim_haserr_false = df[(df['AS_aln'] == df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] < 0)].shape[0]
+    #: AS -- align < simulation
+    num_aln_lt_sim = sum(df['AS_aln'] < df['AS_sim'])
+    num_aln_lt_sim_noerr = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_lt_sim_noerr_true  = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True)  & (df['AS_sim'] == 0)].shape[0]
+    num_aln_lt_sim_noerr_false = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] == 0)].shape[0]
+    num_aln_lt_sim_haserr = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['AS_sim'] < 0)].shape[0]
+    num_aln_lt_sim_haserr_true  = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == True) & (df['AS_sim'] < 0)].shape[0]
+    num_aln_lt_sim_haserr_false = df[(df['AS_aln'] < df['AS_sim']) & (df['AS_aln'] != 1) & (df['correctness'] == False) & (df['AS_sim'] < 0)].shape[0]
+
+    print ('Num. AS_aln >  AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_gt_sim, num_aln_gt_sim/df.shape[0]))
+    if num_aln_gt_sim > 0:
+        print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr, num_aln_gt_sim_noerr/num_aln_gt_sim))
+        if num_aln_gt_sim_noerr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr_true, num_aln_gt_sim_noerr_true/num_aln_gt_sim_noerr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr_false, num_aln_gt_sim_noerr_false/num_aln_gt_sim_noerr))
+        print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr, num_aln_gt_sim_haserr/num_aln_gt_sim))
+        if num_aln_gt_sim_haserr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr_true, num_aln_gt_sim_haserr_true/num_aln_gt_sim_haserr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr_false, num_aln_gt_sim_haserr_false/num_aln_gt_sim_haserr))
+
+    print ('Num. AS_aln == AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_eq_sim, num_aln_eq_sim/df.shape[0]))
+    if num_aln_eq_sim > 0:
+        print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr, num_aln_eq_sim_noerr/num_aln_eq_sim))
+        if num_aln_eq_sim_noerr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr_true, num_aln_eq_sim_noerr_true/num_aln_eq_sim_noerr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr_false, num_aln_eq_sim_noerr_false/num_aln_eq_sim_noerr))
+        print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr, num_aln_eq_sim_haserr/num_aln_eq_sim))
+        if num_aln_eq_sim_haserr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr_true, num_aln_eq_sim_haserr_true/num_aln_eq_sim_haserr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr_false, num_aln_eq_sim_haserr_false/num_aln_eq_sim_haserr))
+
+    print ('Num. AS_aln <  AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_lt_sim, num_aln_lt_sim/df.shape[0]))
+    if num_aln_lt_sim > 0:
+        print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr, num_aln_lt_sim_noerr/num_aln_lt_sim))
+        if num_aln_lt_sim_noerr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr_true, num_aln_lt_sim_noerr_true/num_aln_lt_sim_noerr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr_false, num_aln_lt_sim_noerr_false/num_aln_lt_sim_noerr))
+        print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr, num_aln_lt_sim_haserr/num_aln_lt_sim))
+        if num_aln_lt_sim_haserr > 0:
+            print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr_true, num_aln_lt_sim_haserr_true/num_aln_lt_sim_haserr))
+            print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr_false, num_aln_lt_sim_haserr_false/num_aln_lt_sim_haserr))
+
+    print ('Num. unaligned          = {0:8d} ({1:.4%})'.format(num_unaligned, num_unaligned/df.shape[0]))
+    if num_unaligned > 0:
+        print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_unaligned_noerr, num_unaligned_noerr/num_unaligned))
+        print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_unaligned_haserr, num_unaligned_haserr/num_unaligned))
 
 #: quoting = csv.QUOTE_NONE (3)
 #: This is important! If not set, there would be issues in the QUAL field 
@@ -53,24 +130,22 @@ fn_sam_stats = args.fn_sam_stats
 df = pd.read_csv(fn_gold, sep='\t', header=None, quoting=3)
 df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI']
 
-# processes MD string
+#: processes MD string
 split_md = []
 for i in range(df.shape[0]):
     split_md.append(re.findall('([0-9]+|[a-zA-Z]+)', df['MD'].iloc[i].split(':')[-1]))
 df['sMD'] = split_md
 
-# processes CIGAR string
+#: processes CIGAR string
 split_cigar = []
 for i in range(df.shape[0]):
     split_cigar.append(re.findall('([0-9]+[a-zA-Z]+)', df['CIGAR'].iloc[i]))
-# df['cigar'] = split_cigar
 
 reduced_cigar = []
 for i in range(df.shape[0]):
     assert len(df['SEQ'].iloc[i]) == read_len
     assert len(df['QUAL'].iloc[i]) == read_len
 
-    # ci = df['cigar'][i]
     ci = split_cigar[i]
     for c in ci:
         if c.count('P') > 0:
@@ -98,6 +173,7 @@ for i in range(df.shape[0]):
     reduced_cigar.append(ci)
 df['rCIGAR'] = reduced_cigar
 
+#: calculates AS:i from simulation
 list_as = [None] * df.shape[0]
 for i in range(df.shape[0]):
     #: reads with no error
@@ -157,9 +233,9 @@ for i in range(df.shape[0]):
             print ('{0} != {1} at {2}'.format(current_cigar_pos, read_len, i))
         assert current_pos == read_len
         list_as[i] = score
-df['AS'] = list_as
+df['AS_sim'] = list_as
 
-#: compares with another sam file
+#: reads target sam file
 f_sam = open(fn_sam, 'r')
 list_name = []
 list_as_sam = []
@@ -171,12 +247,12 @@ for line in f_sam:
     list_name.append(name)
     list_as_sam.append(info.score)
 
-df_sam = pd.DataFrame(columns=['QNAME', 'AS'])
+df_sam = pd.DataFrame(columns=['QNAME', 'AS_aln'])
 df_sam['QNAME'] = list_name
-df_sam['AS'] = list_as_sam
+df_sam['AS_aln'] = list_as_sam
 
 df_merge = df.merge(df_sam, on='QNAME')
-df_merge.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI', 'sMD', 'rCIGAR', 'AS_sim', 'AS_aln'] 
+# df_merge.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'NM', 'MD', 'XE', 'XS', 'XI', 'sMD', 'rCIGAR', 'AS_sim', 'AS_aln'] 
 
 df_results = pd.read_pickle(fn_sam_stats)
 list_correctness = [i >=0 and i <=10 for i in df_results['dist']]
@@ -185,71 +261,12 @@ df_results.columns = ['QNAME', 'dist', 'mapq', 'numvar', 'category', 'correctnes
 df_results_tmp = df_results[['QNAME', 'correctness']]
 
 df_merge2 = df_merge.merge(df_results_tmp, on='QNAME')
+report_stats(df_merge2)
 
-assert sum(df_merge2['AS_sim'] > 0) == 0
-#: unaligned
-num_unaligned = sum(df_merge2['AS_aln'] == 1)
-num_unaligned_noerr = df_merge2[(df_merge2['AS_aln'] == 1) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_unaligned_haserr = df_merge2[(df_merge2['AS_aln'] == 1) & (df_merge2['AS_sim'] < 0)].shape[0]
-#: AS -- align > simulation
-num_aln_gt_sim = sum(df_merge2['AS_aln'] > df_merge2['AS_sim']) - num_unaligned
-num_aln_gt_sim_noerr  = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_gt_sim_noerr_true  = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True)  & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_gt_sim_noerr_false = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_gt_sim_haserr = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_gt_sim_haserr_true  = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True)  & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_gt_sim_haserr_false = df_merge2[(df_merge2['AS_aln'] > df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] < 0)].shape[0]
-#: AS -- align == simulation
-num_aln_eq_sim = sum(df_merge2['AS_aln'] == df_merge2['AS_sim'])
-num_aln_eq_sim_noerr = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_eq_sim_noerr_true  = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True)  & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_eq_sim_noerr_false = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_eq_sim_haserr = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_eq_sim_haserr_true  = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True) & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_eq_sim_haserr_false = df_merge2[(df_merge2['AS_aln'] == df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] < 0)].shape[0]
-#: AS -- align < simulation
-num_aln_lt_sim = sum(df_merge2['AS_aln'] < df_merge2['AS_sim'])
-num_aln_lt_sim_noerr = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_lt_sim_noerr_true  = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True)  & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_lt_sim_noerr_false = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] == 0)].shape[0]
-num_aln_lt_sim_haserr = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_lt_sim_haserr_true  = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == True) & (df_merge2['AS_sim'] < 0)].shape[0]
-num_aln_lt_sim_haserr_false = df_merge2[(df_merge2['AS_aln'] < df_merge2['AS_sim']) & (df_merge2['AS_aln'] != 1) & (df_merge2['correctness'] == False) & (df_merge2['AS_sim'] < 0)].shape[0]
+# f_var = open(fn_var, 'r')
+# for line in f_var:
 
-print ('Num. AS_aln >  AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_gt_sim, num_aln_gt_sim/df_merge2.shape[0]))
-if num_aln_gt_sim > 0:
-    print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr, num_aln_gt_sim_noerr/num_aln_gt_sim))
-    if num_aln_gt_sim_noerr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr_true, num_aln_gt_sim_noerr_true/num_aln_gt_sim_noerr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_noerr_false, num_aln_gt_sim_noerr_false/num_aln_gt_sim_noerr))
-    print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr, num_aln_gt_sim_haserr/num_aln_gt_sim))
-    if num_aln_gt_sim_haserr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr_true, num_aln_gt_sim_haserr_true/num_aln_gt_sim_haserr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_gt_sim_haserr_false, num_aln_gt_sim_haserr_false/num_aln_gt_sim_haserr))
-
-print ('Num. AS_aln == AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_eq_sim, num_aln_eq_sim/df_merge2.shape[0]))
-if num_aln_eq_sim > 0:
-    print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr, num_aln_eq_sim_noerr/num_aln_eq_sim))
-    if num_aln_eq_sim_noerr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr_true, num_aln_eq_sim_noerr_true/num_aln_eq_sim_noerr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_noerr_false, num_aln_eq_sim_noerr_false/num_aln_eq_sim_noerr))
-    print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr, num_aln_eq_sim_haserr/num_aln_eq_sim))
-    if num_aln_eq_sim_haserr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr_true, num_aln_eq_sim_haserr_true/num_aln_eq_sim_haserr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_eq_sim_haserr_false, num_aln_eq_sim_haserr_false/num_aln_eq_sim_haserr))
-
-print ('Num. AS_aln <  AS_sim   = {0:8d} ({1:.4%})'.format(num_aln_lt_sim, num_aln_lt_sim/df_merge2.shape[0]))
-if num_aln_lt_sim > 0:
-    print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr, num_aln_lt_sim_noerr/num_aln_lt_sim))
-    if num_aln_lt_sim_noerr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr_true, num_aln_lt_sim_noerr_true/num_aln_lt_sim_noerr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_noerr_false, num_aln_lt_sim_noerr_false/num_aln_lt_sim_noerr))
-    print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr, num_aln_lt_sim_haserr/num_aln_lt_sim))
-    if num_aln_lt_sim_haserr > 0:
-        print ('        Num. correct    =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr_true, num_aln_lt_sim_haserr_true/num_aln_lt_sim_haserr))
-        print ('        Num. incorrect  =               {0:8d} ({1:.4%})'.format(num_aln_lt_sim_haserr_false, num_aln_lt_sim_haserr_false/num_aln_lt_sim_haserr))
-
-print ('Num. unaligned          = {0:8d} ({1:.4%})'.format(num_unaligned, num_unaligned/df_merge2.shape[0]))
-if num_unaligned > 0:
-    print ('    Num. no  seq. error =       {0:8d} ({1:.4%})'.format(num_unaligned_noerr, num_unaligned_noerr/num_unaligned))
-    print ('    Num. has seq. error =       {0:8d} ({1:.4%})'.format(num_unaligned_haserr, num_unaligned_haserr/num_unaligned))
+MAIN_STRAND = 'A'
+ALT_STRAND = 'B'
+var_reads_list = read_var(fn_var, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)

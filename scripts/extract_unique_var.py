@@ -72,7 +72,7 @@ def read_file_and_get_unique_var(f, dict_var1):
 
         #: not unique
         if dict_var1.get(dict_key):
-            # print ('not unique')
+            # print ('not unique @ {}'.format(dict_key))
             del dict_var1_unique[dict_key]
         else:
             dict_var2_unique[dict_key] = v
