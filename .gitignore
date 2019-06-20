@@ -8,3 +8,6 @@ slurm-*.out
 **/*.csv
 **/*.sam
 **/*.names
+experiments/figs
+.*
+**/*.key
