@@ -1,3 +1,10 @@
 slurm-*.out
 **/*.pyc
 .DS_Store
+**/*.pdf
+**/*.log
+**/*.pkl
+**/*.tsv
+**/*.csv
+**/*.sam
+**/*.names
