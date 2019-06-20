@@ -63,12 +63,29 @@ class VarInfo():
         return True
 
     def samevar(self, a):
+        ''' 
+        returns True:
+            if two variants (on different strands) are exactly the same
+            (same type, pos, ref allele and alt allele)
+        returns False: otherwise
+        '''
         if type(a) != type(self):
             return False
         if a.vtype == self.vtype and \
             a.ref_pos == self.ref_pos and \
             a.ref_allele == self.ref_allele and \
             a.alt_allele == self.alt_allele:
+            return True
+        return False
+    
+    def samepos(self, a):
+        ''' 
+        returns True:
+            if two variants (on different strands) are at the same position
+            (don't care about type and allele information)
+        returns False: otherwise
+        '''
+        if a.ref_pos == self.ref_pos:
             return True
         return False
 
@@ -215,7 +232,15 @@ def build_erg(
         print ('Num ergs =', num_erg)
         print ('Avg len of an erg =', float(total_len_erg) / num_erg)
 
-def read_var(var_fn, remove_conflict, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND):
+def read_var(
+    var_fn,
+    remove_conflict,
+    remove_homo_alt=False,
+    remove_indel=False,
+    remove_tri_allelic=False,
+    MAIN_STRAND=MAIN_STRAND,
+    ALT_STRAND=ALT_STRAND
+):
     '''
     Build a dictionary for the .var file.
 
@@ -228,16 +253,24 @@ def read_var(var_fn, remove_conflict, remove_homo_alt=False, MAIN_STRAND=MAIN_ST
         A   9   INDEL   333711  333728  TA  T
         A   9   SNP     333712  333729  A   T
     
-    remove_coexsit:
+    remove_homo_alt:
         If set, removes variant locating on both strands.
 
         Example:
         A   9   INDEL   10362   10363   C   CT
         B   9   INDEL   10362   10363   C   CT
+    
+    remove_indel:
+        If set, removes INDELS
     '''
+    
+    #: flag for debugging
     SHOW_REMOVED = False
+
     count_conflict = 0
-    count_coexist = 0
+    count_homo_alt = 0
+    count_indels = 0
+    count_tri_allelic = 0
     var_f = open(var_fn, 'r')
     del_pos = {MAIN_STRAND:[], ALT_STRAND:[]}
     del_allele = {MAIN_STRAND:[], ALT_STRAND:[]}
@@ -247,11 +280,22 @@ def read_var(var_fn, remove_conflict, remove_homo_alt=False, MAIN_STRAND=MAIN_ST
         if remove_conflict == False:
             var_list.append(v)
             continue
+        if remove_indel and v.is_indel() == True:
+            count_indels += 1
+            continue
         if remove_homo_alt and len(var_list) > 0:
             top_v = var_list[len(var_list) - 1]
             if v.samevar(top_v):
                 var_list.pop(len(var_list) - 1)
-                count_coexist += 1
+                count_homo_alt += 1
+                continue
+        if remove_tri_allelic and len(var_list) > 0:
+            top_v = var_list[len(var_list) - 1]
+            if v.samepos(top_v):
+                # print (var_list[len(var_list) - 1].line.split('\t'))
+                # print (v.line.split('\t'))
+                var_list.pop(len(var_list) - 1)
+                count_tri_allelic += 1
                 continue
         if v.is_del():
             vd = del_pos[v.strand]
@@ -275,14 +319,16 @@ def read_var(var_fn, remove_conflict, remove_homo_alt=False, MAIN_STRAND=MAIN_ST
         else:
             var_list.append(v)
 
-    # Set this True to show remove information
+    #: Set this True to show remove information
     SHOW_REMOVE_INFO = False
     if SHOW_REMOVE_INFO:
         print (count_conflict, 'conflict vars are removed')
-        print (count_coexist, 'coexisted vars are removed')
+        print (count_homo_alt, 'homozyous ALTs are removed')
+        print (count_indels, 'indels are removed')
+        print (count_tri_allelic, 'tri allelic vars are removed')
         print ('Num of variants =', len(var_list))
 
-    # Set this True to write variants and then exit
+    #: Set this True to write variants and then exit
     WRITE_VARS = False
     if WRITE_VARS:
         for v in var_list:
