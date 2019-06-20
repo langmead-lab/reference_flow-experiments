@@ -157,7 +157,7 @@ def build_varlist_from_vcf(args):
     min_qual = float(args.min_qual)
     target_vcf_f = open(target_vcf_fn, 'r')
     
-    gvar_list = read_var(golden_vcf_fn, remove_conflict=True, remove_coexist=False)
+    gvar_list = read_var(golden_vcf_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     var_list = []
 
     num_vars = 0

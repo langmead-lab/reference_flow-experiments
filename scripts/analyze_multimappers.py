@@ -117,7 +117,7 @@ all_indexes = build_all_indexes(
 
 # main_index, alt_index, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index = all_indexes
 _, _, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index = all_indexes
-var_reads_list = read_var(fn_var_sample, remove_conflict=True, remove_coexist=False)
+var_reads_list = read_var(fn_var_sample, remove_conflict=True, remove_homo_alt=False)
 main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 
 

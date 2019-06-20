@@ -474,20 +474,20 @@ def build_all_indexes(
     '''
     Reads two var files and builds all the indexes we use for computing correctness
     '''
-    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: diploid personalized ref
     if personalized == 2:
         # var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
-        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
     #: standard ref seq
     elif personalized == 0:
         # reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         #: major allele reference with indels
         if var_sample_fn != None:
-            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
             sample_main_offset_index, _ = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         else:
             sample_main_offset_index = {}

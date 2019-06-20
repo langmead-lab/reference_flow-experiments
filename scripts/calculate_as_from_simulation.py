@@ -305,10 +305,10 @@ MAIN_STRAND = 'A'
 ALT_STRAND = 'B'
 MAIN_CHRM = CHROM + MAIN_STRAND
 ALT_CHRM = CHROM + ALT_STRAND
-list_var_sim = read_var(fn_var_sim, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+list_var_sim = read_var(fn_var_sim, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 main_index_sim, alt_index_sim = build_index(list_var_sim, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 
-list_var_aln = read_var(fn_var_aln, remove_conflict=True, remove_coexist=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+list_var_aln = read_var(fn_var_aln, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 main_index_aln, _ = build_index(list_var_aln, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 
 list_num_overlapping_var_sim = []
