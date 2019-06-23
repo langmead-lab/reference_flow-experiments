@@ -29,11 +29,12 @@ parser.add_argument(
 # )
 parser.add_argument(
     '-vr', '--fn_var_reads',
-    help='.var file specifying variants included in the genome'
+    help='.var file specifying variants\
+         included in the genome where reads are simluated from'
 )
 parser.add_argument(
     '-vs', '--fn_var_sample',
-    help='.var file specifying variants included in the genome'
+    help='.var file specifying variants for the reference used for alignment'
 )
 parser.add_argument(
     '-o', '--fn_out',
