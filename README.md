@@ -67,4 +67,6 @@ Supported characteristics:
 `python calculate_as_from_simulation.py 
 --fn_sam chr21-10M-h37maj-mapql10.sam 
 --fn_sam_stats chr21-10M-h37maj-mapql10.sam-stats.pkl 
---fn_gold chr21-h37maj-lowq.fq.sam`
+--fn_gold chr21-h37maj-lowq.fq.sam
+-vr chr21_na12878.var
+-vs chr21_h37maj.var`
