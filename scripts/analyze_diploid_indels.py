@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
 from build_erg import read_var, read_genome
+import constants
 
 #: TODO LEV should support different scoring schemes
 from get_levenshtein import levenshtein
@@ -102,7 +103,8 @@ def write_wrt_mapq(sam_fn, mapq_threshold):
         continue
     return
 
-def build_index(var_list, MAIN_STRAND, ALT_STRAND):
+# def build_index(var_list, MAIN_STRAND, ALT_STRAND):
+def build_index(var_list):
     '''
     Reads var_list and maps variants from hapA/B to the reference coordinate
     
@@ -120,7 +122,7 @@ def build_index(var_list, MAIN_STRAND, ALT_STRAND):
     for v in var_list:
         pos = v.alt_pos
         c_pos = v.ref_pos + v.cor_offset
-        if v.strand == MAIN_STRAND:
+        if v.strand == constants.MAIN_STRAND:
             if SHOW_MULT:
                 if main_index.get(pos):
                     print (pos, main_index[pos])
@@ -142,7 +144,8 @@ def build_index(var_list, MAIN_STRAND, ALT_STRAND):
                 alt_index[i] = [v.ref_pos, v.vtype, v.ref_allele, v.alt_allele]
     return main_index, alt_index
 
-def build_offset_index(var_list, step, MAIN_STRAND, ALT_STRAND):
+def build_offset_index(var_list):
+    # , step, MAIN_STRAND, ALT_STRAND):
     '''
     CURRENTLY UNUSED
     
@@ -162,7 +165,7 @@ def build_offset_index(var_list, step, MAIN_STRAND, ALT_STRAND):
     SHOW_DUP_WARN = False
     tmp_v = 0
     for v in var_list:
-        if v.strand == MAIN_STRAND:
+        if v.strand == constants.MAIN_STRAND:
             main_pos = v.alt_pos
             alt_pos = v.ref_pos + v.cor_offset
             main_offset = -v.offset + v.cor_offset
@@ -171,7 +174,7 @@ def build_offset_index(var_list, step, MAIN_STRAND, ALT_STRAND):
                 if SHOW_DUP_WARN:
                     print ('Warning: duplicated variant', v.line)
             tmp_v = v.ref_pos
-        elif v.strand == ALT_STRAND:
+        elif v.strand == constants.ALT_STRAND:
             main_pos = v.ref_pos + v.cor_offset
             alt_pos = v.alt_pos
             main_offset = v.offset - v.cor_offset
@@ -180,18 +183,18 @@ def build_offset_index(var_list, step, MAIN_STRAND, ALT_STRAND):
             print ('Error: unspecified strand', v.strand)
             exit()
         
-        i_main = math.ceil(main_pos / step)
+        i_main = math.ceil(main_pos / constants.STEP)
         while i_main >= len(main_offset_index):
             main_offset_index.append(main_offset_index[len(main_offset_index) - 1])
         main_offset_index[i_main] = main_offset
-        i_alt = math.ceil(alt_pos / step)
+        i_alt = math.ceil(alt_pos / constants.STEP)
         while i_alt >= len(alt_offset_index):
             alt_offset_index.append(alt_offset_index[len(alt_offset_index) - 1])
         alt_offset_index[i_alt] = alt_offset
     
     return main_offset_index, alt_offset_index
 
-def build_offset_index_ref(var_list, step, MAIN_STRAND, ALT_STRAND):
+def build_offset_index_ref(var_list):
     '''
     ALT1/ALT2-offset indexes are dictionaries with
         key: pos on ALT1/ALT2
@@ -210,12 +213,12 @@ def build_offset_index_ref(var_list, step, MAIN_STRAND, ALT_STRAND):
     for v in var_list:
         #: offset: ref to hap
         offset = v.offset
-        idx = math.ceil(v.alt_pos / step)
-        if v.strand == MAIN_STRAND:
+        idx = math.ceil(v.alt_pos / constants.STEP)
+        if v.strand == constants.MAIN_STRAND:
             while idx >= len(alt1_offset_index):
                 alt1_offset_index.append(alt1_offset_index[len(alt1_offset_index) - 1])
             alt1_offset_index[idx] = offset
-        elif v.strand == ALT_STRAND:
+        elif v.strand == constants.ALT_STRAND:
             while idx >= len(alt2_offset_index):
                 alt2_offset_index.append(alt2_offset_index[len(alt2_offset_index) - 1])
             alt2_offset_index[idx] = offset
@@ -335,11 +338,6 @@ def diploid_compare(
     name, 
     threshold, 
     dip_flag, 
-    step,
-    MAIN_CHRM,
-    ALT_CHRM,
-    MAIN_HAP,
-    ALT_HAP,
     COMPARE_SEQ,
     reads_main_offset_index = {}, 
     reads_alt_offset_index = {},
@@ -353,8 +351,8 @@ def diploid_compare(
     sample_offsets = [0]
     if dip_flag in ['same_strand_ref']:
         if sample_main_offset_index != {}:
-            i_low = int(info.pos / step)
-            i_high = math.ceil(info.pos / step)
+            i_low = int(info.pos / constants.STEP)
+            i_high = math.ceil(info.pos / constants.STEP)
             if i_low >= len(sample_main_offset_index):
                 sample_offset_low = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
@@ -365,9 +363,9 @@ def diploid_compare(
                 sample_offset_high = sample_main_offset_index[i_high]
             sample_offsets = [sample_offset_low, sample_offset_high]
     elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
-        i_low = int(info.pos / step)
-        i_high = math.ceil(info.pos / step)
-        if info.chrm == MAIN_CHRM:
+        i_low = int(info.pos / constants.STEP)
+        i_high = math.ceil(info.pos / constants.STEP)
+        if info.chrm == constants.MAIN_CHROM:
             if i_low >= len(sample_main_offset_index):
                 sample_offset_low = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
@@ -376,7 +374,7 @@ def diploid_compare(
                 sample_offset_high = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
                 sample_offset_high = sample_main_offset_index[i_high]
-        elif info.chrm == ALT_CHRM:
+        elif info.chrm == constants.ALT_CHROM:
             if i_low >= len(sample_alt_offset_index):
                 sample_offset_low = sample_alt_offset_index[len(sample_alt_offset_index) - 1]
             else:
@@ -386,18 +384,18 @@ def diploid_compare(
             else:
                 sample_offset_high = sample_alt_offset_index[i_high]
         else:
-            print ('Error: invalid chrm', info.chrm, MAIN_CHRM, ALT_CHRM)
+            print ('Error: invalid chrm', info.chrm, constants.MAIN_CHROM, constants.ALT_CHROM)
             exit()
         sample_offsets = [sample_offset_low, sample_offset_high]
     else:
         print ('Error: undistinguished dip_flag: %s' % dip_flag)
         return False
     
-    i_low = int(g_info.pos / step)
-    i_high = math.ceil(g_info.pos / step)
+    i_low = int(g_info.pos / constants.STEP)
+    i_high = math.ceil(g_info.pos / constants.STEP)
     reads_offsets = []
     #: check hapA
-    if name.find(MAIN_HAP) > 0:
+    if name.find(constants.MAIN_HAP) > 0:
         if i_low >= len(reads_main_offset_index):
             reads_offsets.append(reads_main_offset_index[len(reads_main_offset_index) - 1])
         else:
@@ -407,7 +405,7 @@ def diploid_compare(
         else:
             reads_offsets.append(reads_main_offset_index[i_high])
     #: check hapB
-    elif name.find(ALT_HAP) > 0:
+    elif name.find(constants.ALT_HAP) > 0:
         if i_low >= len(reads_alt_offset_index):
             reads_offsets.append(reads_alt_offset_index[len(reads_alt_offset_index) - 1])
         else:
@@ -443,18 +441,24 @@ def diploid_compare(
 
     return dist
 
-def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
+def count_overlapping_vars(
+    name,
+    info,
+    g_info,
+    main_index,
+    alt_index
+):
     '''
     For an alignment, count the number of overlapping variants.
     The count is based on simulated position 
     (look up golden dictionary).
     '''
     num_var = 0   
-    for i in range(g_info.pos, g_info.pos + read_len):
-        if g_info.chrm == MAIN_CHRM:
+    for i in range(g_info.pos, g_info.pos + constants.READ_LEN):
+        if g_info.chrm == constants.MAIN_CHROM:
             if main_index.get(i) != None:
                 num_var += 1
-        elif g_info.chrm == ALT_CHRM:
+        elif g_info.chrm == constants.ALT_CHROM:
             if alt_index.get(i) != None:
                 num_var += 1
         else:
@@ -466,29 +470,36 @@ def count_overlapping_vars(name, info, g_info, main_index, alt_index, MAIN_CHRM,
 def build_all_indexes(
     var_reads_fn,
     var_sample_fn,
-    personalized,
-    step,
-    MAIN_STRAND,
-    ALT_STRAND
+    personalized
 ):
     '''
     Reads two var files and builds all the indexes we use for computing correctness
     '''
-    var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    var_reads_list = read_var(
+        var_reads_fn,
+        remove_conflict=True,
+        remove_homo_alt=False
+    )
+    main_index, alt_index = build_index(var_reads_list)
+    reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list)
     #: diploid personalized ref
     if personalized == 2:
-        # var_reads_list = read_var(var_reads_fn, remove_conflict=True, remove_coexist=False)
-        var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-        sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+        var_sample_list = read_var(
+            var_sample_fn,
+            remove_conflict=True,
+            remove_homo_alt=False
+        )
+        sample_main_offset_index, sample_alt_offset_index = build_offset_index_ref(var_sample_list)
     #: standard ref seq
     elif personalized == 0:
-        # reads_main_offset_index, reads_alt_offset_index = build_offset_index_ref(var_reads_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
         #: major allele reference with indels
         if var_sample_fn != None:
-            var_sample_list = read_var(var_sample_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-            sample_main_offset_index, _ = build_offset_index_ref(var_sample_list, step, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+            var_sample_list = read_var(
+                var_sample_fn,
+                remove_conflict=True,
+                remove_homo_alt=False
+            )
+            sample_main_offset_index, _ = build_offset_index_ref(var_sample_list)
         else:
             sample_main_offset_index = {}
         sample_alt_offset_index = {}
@@ -539,10 +550,7 @@ def analyze_diploid_indels(
             info=info,
             g_info=golden_dic[name],
             main_index=main_index,
-            alt_index=alt_index,
-            MAIN_CHRM=MAIN_CHRM,
-            ALT_CHRM=ALT_CHRM,
-            read_len=read_len
+            alt_index=alt_index
         )
 
         if info.is_unaligned():
@@ -551,7 +559,10 @@ def analyze_diploid_indels(
         #: alignment against personalized genomes
         elif personalized == 2:
             #: aligned to incorrect haplotype
-            name_chrm_mismatch = (name.find(MAIN_HAP) > 0 and info.chrm != MAIN_CHRM) or (name.find(ALT_HAP) > 0 and info.chrm != ALT_CHRM)
+            name_chrm_mismatch = (
+                (name.find(constants.MAIN_HAP) > 0 and info.chrm != constants.MAIN_CHROM) or 
+                (name.find(constants.ALT_HAP) > 0 and info.chrm != constants.ALT_CHROM)
+            )
             if name_chrm_mismatch:
                 if num_var == 0:
                     flag = 'diff_id'
@@ -568,15 +579,10 @@ def analyze_diploid_indels(
                 name=name, 
                 threshold=threshold, 
                 dip_flag=flag, 
-                step=step,
                 reads_main_offset_index = reads_main_offset_index, 
                 reads_alt_offset_index = reads_alt_offset_index,
                 sample_main_offset_index = sample_main_offset_index,
                 sample_alt_offset_index = sample_alt_offset_index,
-                MAIN_CHRM=MAIN_CHRM,
-                ALT_CHRM=ALT_CHRM,
-                MAIN_HAP=MAIN_HAP,
-                ALT_HAP=ALT_HAP,
                 COMPARE_SEQ=COMPARE_SEQ
             )
         #: alignment against standard ref (and ERG)
@@ -588,15 +594,10 @@ def analyze_diploid_indels(
                 name=name, 
                 threshold=threshold, 
                 dip_flag=flag, 
-                step=step,
                 reads_main_offset_index = reads_main_offset_index, 
                 reads_alt_offset_index = reads_alt_offset_index,
                 sample_main_offset_index = sample_main_offset_index,
                 sample_alt_offset_index = sample_alt_offset_index,
-                MAIN_CHRM=MAIN_CHRM,
-                ALT_CHRM=ALT_CHRM,
-                MAIN_HAP=MAIN_HAP,
-                ALT_HAP=ALT_HAP,
                 COMPARE_SEQ=COMPARE_SEQ
             )
             if num_var == 0:
@@ -847,14 +848,17 @@ if __name__ == '__main__':
     fn_hapA = args.debug_hapA
     fn_hapB = args.debug_hapB
     
+    constants.set_chrom(chrm)
+    constants.set_step(step)
+    constants.set_read_len(read_len)
     #: Global variables
-    global MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
-    MAIN_STRAND = 'A'
-    ALT_STRAND = 'B'
-    MAIN_HAP = 'hap' + MAIN_STRAND
-    ALT_HAP = 'hap' + ALT_STRAND
-    MAIN_CHRM = chrm + MAIN_STRAND
-    ALT_CHRM = chrm + ALT_STRAND
+    # global MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
+    # MAIN_STRAND = 'A'
+    # ALT_STRAND = 'B'
+    # MAIN_HAP = 'hap' + MAIN_STRAND
+    # ALT_HAP = 'hap' + ALT_STRAND
+    # MAIN_CHRM = chrm + MAIN_STRAND
+    # ALT_CHRM = chrm + ALT_STRAND
 
     if mapq_threshold:
         write_wrt_mapq(sam_fn, int(mapq_threshold))
@@ -891,10 +895,7 @@ if __name__ == '__main__':
     all_indexes = build_all_indexes(
         var_reads_fn=var_reads_fn,
         var_sample_fn=var_sample_fn,
-        personalized=personalized,
-        step=step,
-        MAIN_STRAND=MAIN_STRAND,
-        ALT_STRAND=ALT_STRAND
+        personalized=personalized
     )
     golden_dic = load_golden_dic(golden_fn, 1)
     results_df = analyze_diploid_indels(

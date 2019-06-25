@@ -1,5 +1,6 @@
 import pandas as pd
 import argparse
+import constants
 from analyze_sam import SamInfo, parse_line, load_golden_dic
 from analyze_diploid_indels import build_index, diploid_compare, build_all_indexes, count_overlapping_vars
 from build_erg import read_var
@@ -65,13 +66,17 @@ step = args.step
 threshold = args.threshold
 df = pd.read_pickle(fn_stats)
 
-chrm='21'
-MAIN_STRAND = 'A'
-ALT_STRAND = 'B'
-MAIN_HAP = 'hap' + MAIN_STRAND
-ALT_HAP = 'hap' + ALT_STRAND
-MAIN_CHRM = chrm + MAIN_STRAND
-ALT_CHRM = chrm + ALT_STRAND
+constants.set_chrom('21')
+constants.set_step(step)
+constants.set_read_len(read_len)
+# chrm='21'
+# MAIN_STRAND = 'A'
+# ALT_STRAND = 'B'
+# MAIN_HAP = 'hap' + MAIN_STRAND
+# ALT_HAP = 'hap' + ALT_STRAND
+# MAIN_CHRM = chrm + MAIN_STRAND
+# ALT_CHRM = chrm + ALT_STRAND
+
 COMPARE_SEQ = False
 
 golden_dic = load_golden_dic(fn_golden, 1)
@@ -110,16 +115,12 @@ print ('Sensitivity = {0:.4%} ( {1} / {2} )'.format(num_correct/num_total, num_c
 all_indexes = build_all_indexes(
     var_reads_fn=fn_var_reads,
     var_sample_fn=fn_var_sample,
-    personalized=2,
-    step=step,
-    MAIN_STRAND=MAIN_STRAND,
-    ALT_STRAND=ALT_STRAND
+    personalized=2
 )
 
-# main_index, alt_index, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index = all_indexes
 _, _, reads_main_offset_index, reads_alt_offset_index, sample_main_offset_index, sample_alt_offset_index = all_indexes
 var_reads_list = read_var(fn_var_sample, remove_conflict=True, remove_homo_alt=False)
-main_index, alt_index = build_index(var_reads_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+main_index, alt_index = build_index(var_reads_list)
 
 
 dict_sam_incorrect = {}
@@ -170,10 +171,7 @@ for key in list(dict_sam_correct.keys()):
             g_info = info,
             # g_info = golden_dic[key],
             main_index = main_index,
-            alt_index = alt_index,
-            MAIN_CHRM = MAIN_CHRM,
-            ALT_CHRM = ALT_CHRM,
-            read_len = read_len)
+            alt_index = alt_index)
         if num_var > 0:
             var_flag = True
         dist = diploid_compare(
@@ -181,17 +179,12 @@ for key in list(dict_sam_correct.keys()):
             g_info = golden_dic[key],
             name = key, 
             threshold = threshold, 
-            dip_flag = 'same_id', 
-            step = step,
+            dip_flag = 'same_id',
             COMPARE_SEQ = COMPARE_SEQ,
             reads_main_offset_index = reads_main_offset_index, 
             reads_alt_offset_index = reads_alt_offset_index,
             sample_main_offset_index = sample_main_offset_index,
-            sample_alt_offset_index = sample_alt_offset_index,
-            MAIN_CHRM = MAIN_CHRM,
-            ALT_CHRM = ALT_CHRM,
-            MAIN_HAP = MAIN_HAP,
-            ALT_HAP = ALT_HAP
+            sample_alt_offset_index = sample_alt_offset_index
         )
         if dist >= 0 and dist <= threshold:
             comp = 1
