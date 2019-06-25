@@ -22,6 +22,7 @@ import numpy as np
 import argparse
 import re
 import math
+import constants
 from analyze_sam import SamInfo, parse_line
 from build_erg import VarInfo, read_var
 from analyze_diploid_indels import build_index
@@ -279,16 +280,23 @@ df_merge2 = df_merge.merge(df_results_tmp, on='QNAME')
 report_stats(df_merge2)
 
 
-def count_overlapping_vars_pos(chrom, pos, main_index, alt_index, MAIN_CHRM, ALT_CHRM, read_len):
+def count_overlapping_vars_pos(
+    chrom,
+    pos,
+    main_index,
+    alt_index,
+    main_chrom,
+    alt_chrom
+):
     '''
     For an alignment, count the number of overlapping variants.
     '''
     num_var = 0   
-    for i in range(pos, pos + read_len):
-        if chrom == MAIN_CHRM:
+    for i in range(pos, pos + constants.READ_LEN):
+        if chrom == main_chrom:
             if main_index.get(i) != None:
                 num_var += 1
-        elif chrom == ALT_CHRM:
+        elif chrom == alt_chrom:
             if alt_index.get(i) != None:
                 num_var += 1
         #: unaligned
@@ -300,28 +308,42 @@ def count_overlapping_vars_pos(chrom, pos, main_index, alt_index, MAIN_CHRM, ALT
             exit()
     return num_var
 
-CHROM = '21'
-MAIN_STRAND = 'A'
-ALT_STRAND = 'B'
-MAIN_CHRM = CHROM + MAIN_STRAND
-ALT_CHRM = CHROM + ALT_STRAND
-list_var_sim = read_var(fn_var_sim, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-main_index_sim, alt_index_sim = build_index(list_var_sim, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+constants.set_chrom('21')
+constants.set_read_len(read_len)
 
-list_var_aln = read_var(fn_var_aln, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-main_index_aln, _ = build_index(list_var_aln, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+list_var_sim = read_var(
+    fn_var_sim,
+    remove_conflict=True,
+    remove_homo_alt=False
+)
+main_index_sim, alt_index_sim = build_index(list_var_sim)
+
+list_var_aln = read_var(
+    fn_var_aln,
+    remove_conflict=True,
+    remove_homo_alt=False
+)
+main_index_aln, _ = build_index(list_var_aln)
 
 list_num_overlapping_var_sim = []
 list_num_overlapping_var_aln = []
 for i in range(df_merge2.shape[0]):
     num_ov_sim = count_overlapping_vars_pos(
-        df_merge2['RNAME_sim'].iloc[i], df_merge2['POS_sim'].iloc[i], 
-        main_index_sim, alt_index_sim, MAIN_CHRM, ALT_CHRM, read_len
+        df_merge2['RNAME_sim'].iloc[i],
+        df_merge2['POS_sim'].iloc[i], 
+        main_index_sim,
+        alt_index_sim,
+        constants.MAIN_CHROM,
+        constants.ALT_CHROM
     )
     list_num_overlapping_var_sim.append(num_ov_sim)
     num_ov_aln = count_overlapping_vars_pos(
-        df_merge2['RNAME_aln'].iloc[i], df_merge2['POS_aln'].iloc[i], 
-        main_index_aln, _, '21', '21', read_len
+        df_merge2['RNAME_aln'].iloc[i],
+        df_merge2['POS_aln'].iloc[i], 
+        main_index_aln,
+        _,
+        constants.CHROM,
+        constants.CHROM
     )
     list_num_overlapping_var_aln.append(num_ov_aln)
 df_merge2['NumOV_sim'] = list_num_overlapping_var_sim
