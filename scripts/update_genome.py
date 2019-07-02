@@ -51,6 +51,8 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
     line_id = 0
     offsetA = 0
     offsetB = 0
+    headA = 0
+    headB = 0
     for line in f:
         # Skip header lines
         if line[0] == '#' and line[1] == '#':
@@ -70,7 +72,10 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
         else:
             row = line.rstrip().split('\t')
             type = get_mutation_type(row[7])
-            if type == 'SNP' or (indels and type == 'INDEL'):
+
+            # if type == 'SNP' or (indels and type == 'INDEL'):
+            #: supports tri-allelic
+            if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
                 # chrom = row[0]
                 if row[0] != chrom:
                     continue
@@ -86,31 +91,54 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
                     alleleA = 1
                     alleleB = 0
                     #: ignore multiallelic loci
-                    if len(alts) > 1:
-                        continue
-
+                    # if len(alts) > 1:
+                    #     continue
+                    
                 if alleleA > 0:
+                    if len(orig) != len(alts[alleleA-1]):
+                        type = 'INDEL'
+                    else:
+                        type = 'SNP'
                     if indels:
-                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
+                        #: ignores conflicts
+                        if loc >= headA:
+                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
                     else:
                         new_offsetA = 0
                         hapA[loc+offsetA-1] = alts[alleleA-1]
-                    f_var.write(
-                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                        ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
-                    )
-                    offsetA = new_offsetA
+                    
+                    if indels and (loc < headA):
+                        pass
+                    else:
+                        f_var.write(
+                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
+                        )
+                        offsetA = new_offsetA
+                        headA = loc + len(orig)
+                
                 if alleleB > 0 and indiv != None:
+                    if len(orig) != len(alts[alleleB-1]):
+                        type = 'INDEL'
+                    else:
+                        type = 'SNP'
                     if indels:
-                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
+                        #: ignores conflicts
+                        if loc >= headB:
+                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
                     else:
                         new_offsetB = 0
                         hapB[loc+offsetB-1] = alts[alleleB-1]
-                    f_var.write(
-                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                        ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
-                    )
-                    offsetB = new_offsetB
+                    
+                    if indels and (loc < headB):
+                        pass
+                    else:
+                        f_var.write(
+                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
+                        )
+                        offsetB = new_offsetB
+                        headB = loc + len(orig)
 
                 line_id += 1
 
