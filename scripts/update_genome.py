@@ -19,23 +19,24 @@ def get_mutation_type(info):
             return a[3:]
 
 
-def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None): 
+def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only): 
     '''
     ##fileformat=VCFv4.1
     '''
     hapA = list(seq[:])
     hapB = list(seq[:])
-    if indiv != None:
-        fA = open(out_prefix + '_hapA.fa', 'w')
-        split_label = label.split()
-        label_A = split_label[0] + 'A ' + ' '.join(split_label[1:]) + '\n'
-        fA.write(label_A)
-        fB = open(out_prefix + '_hapB.fa', 'w')
-        label_B = split_label[0] + 'B ' + ' '.join(split_label[1:]) + '\n'
-        fB.write(label_B)
-    else:
-        fA = open(out_prefix + '.fa', 'w')
-        fA.write(label)
+    if var_only == 0:
+        if indiv != None:
+            fA = open(out_prefix + '_hapA.fa', 'w')
+            split_label = label.split()
+            label_A = split_label[0] + 'A ' + ' '.join(split_label[1:]) + '\n'
+            fA.write(label_A)
+            fB = open(out_prefix + '_hapB.fa', 'w')
+            label_B = split_label[0] + 'B ' + ' '.join(split_label[1:]) + '\n'
+            fB.write(label_B)
+        else:
+            fA = open(out_prefix + '.fa', 'w')
+            fA.write(label)
 
     f_var = open(out_prefix + '.var', 'w')
 
@@ -143,14 +144,16 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels=None):
                 line_id += 1
 
     f_var.close()
-    for i in range(0, len(hapA), 60):
-        fA.write(''.join(hapA[i:i+60])  + '\n')
-    fA.close()
+    
+    if var_only == 0:
+        for i in range(0, len(hapA), 60):
+            fA.write(''.join(hapA[i:i+60])  + '\n')
+        fA.close()
 
-    if indiv != None:
-        for i in range(0, len(hapB), 60):
-            fB.write(''.join(hapB[i:i+60])  + '\n') 
-        fB.close()
+        if indiv != None:
+            for i in range(0, len(hapB), 60):
+                fB.write(''.join(hapB[i:i+60])  + '\n') 
+            fB.close()
     f.close()
 
 def add_alt(genome, loc, orig, alt, offset):
@@ -206,13 +209,28 @@ if __name__ == '__main__':
     # Print file's docstring if -h is invoked
     parser = argparse.ArgumentParser(description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--ref', type=str, required=True, help='Path to fasta file containing reference genome')
-    parser.add_argument("--vcf", type=str, help="Path to VCF file containing mutation information")
-    #parser.add_argument("--vcf", type=str, required=True, help="Path to VCF file containing mutation information")
-    parser.add_argument("--chrom", type=str, required=True, help="Chromosome to process")
-    parser.add_argument("--out-prefix", type=str, required=True, help="Path to output prefix")
-    parser.add_argument("--name", type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]")
-    parser.add_argument("--include-indels", type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0].")
+    parser.add_argument(
+        '-r', '--ref', type=str, required=True, help='Path to fasta file containing reference genome'
+    )
+    parser.add_argument(
+        '-v', '--vcf', type=str, help="Path to VCF file containing mutation information"
+    )
+    parser.add_argument(
+        '-c', '--chrom', type=str, required=True, help="Chromosome to process"
+    )
+    parser.add_argument(
+        '-op', '--out-prefix', type=str, required=True, help="Path to output prefix"
+    )
+    parser.add_argument(
+        '-s', '--name', type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]"
+    )
+    parser.add_argument(
+        '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]."
+    )
+    parser.add_argument(
+        '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]."
+    )
+
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -228,5 +246,6 @@ if __name__ == '__main__':
         vcf=args.vcf,
         chrom=args.chrom,
         out_prefix=args.out_prefix,
-        indels=args.include_indels
+        indels=args.include_indels,
+        var_only=args.var_only
     )
