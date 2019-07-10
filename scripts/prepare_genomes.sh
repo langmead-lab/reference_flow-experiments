@@ -13,9 +13,7 @@ module load vcftools
 
 #: keep SNPs and INDELs, remove others
 ~/bin/bcftools-1.9 view -V mnps,other $VCF > ${CHROM}_remove_mnps_other.vcf
-#: TODO
-#: see if using bcftools for building consensus genome
-#: build personalized genome
+#: build var indexes
 python ${SCRIPT}/update_genome.py \
     --ref $GENOME --vcf ${CHROM}_remove_mnps_other.vcf \
     --chrom $CHROM --out-prefix $SAMPLE --name $SAMPLE --include-indels 1
