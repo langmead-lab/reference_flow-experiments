@@ -100,17 +100,23 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only):
                         type = 'INDEL'
                     else:
                         type = 'SNP'
+                    flag_skip = False
                     if indels:
-                        #: ignores conflicts
-                        if loc >= headA:
-                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA)
+                        #: ignores conflicts or overlapped variants
+                        #: but accepts overlapped INS
+                        if loc == headA-1 and (len(orig) < len(alts[alleleA-1])):
+                            print ('Warning: overlapped INS at {} for hapA'.format(loc))
+                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, True)
+                        elif loc >= headA:
+                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, False)
+                        else:
+                            flag_skip = True
+                            print ('Warning: conflict at {} for hapA'.format(loc))
                     else:
                         new_offsetA = 0
                         hapA[loc+offsetA-1] = alts[alleleA-1]
                     
-                    if indels and (loc < headA):
-                        pass
-                    else:
+                    if not flag_skip:
                         f_var.write(
                             '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
                             ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
@@ -123,17 +129,23 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only):
                         type = 'INDEL'
                     else:
                         type = 'SNP'
+                    flag_skip = False
                     if indels:
-                        #: ignores conflicts
-                        if loc >= headB:
-                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB)
+                        #: ignores conflicts or overlapped variants
+                        #: but accepts overlapped INS
+                        if loc == headB-1 and (len(orig) < len(alts[alleleB-1])):
+                            print ('Warning: overlapped INS at {} for hapB'.format(loc))
+                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, True)
+                        elif loc >= headB:
+                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, False)
+                        else:
+                            flag_skip = True
+                            print ('Warning: conflict at {} for hapB'.format(loc))
                     else:
                         new_offsetB = 0
                         hapB[loc+offsetB-1] = alts[alleleB-1]
                     
-                    if indels and (loc < headB):
-                        pass
-                    else:
+                    if not flag_skip:
                         f_var.write(
                             '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
                             ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
@@ -156,7 +168,7 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only):
             fB.close()
     f.close()
 
-def add_alt(genome, loc, orig, alt, offset):
+def add_alt(genome, loc, orig, alt, offset, overlap_ins):
     '''
     loc here is the index for str
     i.e., loc = vcf_loc -1
@@ -175,9 +187,17 @@ def add_alt(genome, loc, orig, alt, offset):
         del genome[loc+len(alt):loc+len(orig)]
         offset -= (len(orig) - len(alt))
     elif len(alt) > len(orig):
-        # Insertion
-        for i in range(len(orig)):
-            genome[loc+i] = alt[i]
+        #: Insertion
+        
+        # if overlap_ins:
+        #     for i in range(len(orig)):
+        #         if genome[loc+i] != alt[i]:
+        #             print ('Warning: genome ({0}) differs from ALT ({1}) at {2}'.format(genome[loc+i], alt[i], loc))
+        
+        #: don't replace if overlap_ins is True
+        if not overlap_ins:
+            for i in range(len(orig)):
+                genome[loc+i] = alt[i]
         genome[loc+len(orig):loc+len(orig)] = list(alt[len(orig):])
         offset += len(alt) - len(orig)
     else:
