@@ -538,7 +538,8 @@ def analyze_diploid_indels(
         incorrect_f = open(incorrect_fn, 'w')
 
     for line in sam_f:
-        name, info = parse_line(line, erg=True)
+        #name, info = parse_line(line, erg=True)
+        name, info = parse_line(line, erg=True, mason2=True)
         #: headers
         if name == 'header':
             continue

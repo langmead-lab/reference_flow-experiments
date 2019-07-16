@@ -238,11 +238,14 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def parse_line(line, erg=False, md=False, cigar=False):
+def parse_line(line, erg=False, md=False, cigar=False, mason2=False):
     if line[0] == '@':
         return 'header', False
     line = line.split()
-    name = line[0]
+    if mason2:
+        name = line[0][:line[0].find('/')]
+    else:
+        name = line[0]
     info = SamInfo(line, erg, md, cigar)
     return name, info
 
