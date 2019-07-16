@@ -8,6 +8,7 @@ display_usage() {
 }
 if [ "$#" -ne "3" ]; then
     display_usage
+    exit
 else
     set -x
     FILENAMEA=`echo $1 | rev | cut -d '/' -f1 | rev`
@@ -22,13 +23,18 @@ else
     SAMPLEB=`cut -d_ -f1 <<< ${PREFIXB}`
     if [ $SAMPLEA != $SAMPLEB ]; then
         echo "Error: sample A (${SAMPLEA}) doesn't match sample B (${SAMPLEB})"
+        exit
     else
         SAMPLE=$SAMPLEA
         cat ${PREFIXA}_1.fq > ${SAMPLE}_1.fq
         cat ${PREFIXB}_1.fq >> ${SAMPLE}_1.fq
         cat ${PREFIXA}_2.fq > ${SAMPLE}_2.fq
         cat ${PREFIXB}_2.fq >> ${SAMPLE}_2.fq
-        cat ${PREFIXA}.sam > ${SAMPLE}.sam
-        cat ${PREFIXB}.sam >> ${SAMPLE}.sam
+        #cat ${PREFIXA}.sam > ${SAMPLE}.sam
+        #cat ${PREFIXB}.sam >> ${SAMPLE}.sam
+        grep ^@ ${PREFIXA}.sam > ${SAMPLE}.sam
+        grep ^@ ${PREFIXB}.sam | tail -n +2 >> ${SAMPLE}.sam
+        grep -v ^@ ${PREFIXA}.sam >> ${SAMPLE}.sam
+        grep -v ^@ ${PREFIXB}.sam >> ${SAMPLE}.sam
     fi
 fi
