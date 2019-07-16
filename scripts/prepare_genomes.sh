@@ -5,14 +5,14 @@ CHROM="21"
 SAMPLE="NA12878"
 NUM_SIM_READS=1000000
 
-set -x
-
 #: marcc modules
 module load gcc/5.5.0
 module load vcftools
 
+set -x
+
 #: keep SNPs and INDELs, remove others
-~/bin/bcftools-1.9 view -V mnps,other $VCF > ${CHROM}_remove_mnps_other.vcf
+~/bin/bcftools view --threads 8 -V mnps,other $VCF > ${CHROM}_remove_mnps_other.vcf
 #: build var indexes
 python ${SCRIPT}/update_genome.py \
     --ref $GENOME --vcf ${CHROM}_remove_mnps_other.vcf \
@@ -25,14 +25,14 @@ sh ${SCRIPT}/simulate_reads_mason2.sh ../${SAMPLE}_hapA.fa ../${SAMPLE}_hapB.fa 
 cd ..
 
 #: build major allele reference
-~/bin/bcftools-1.9 view -O v --threads 8 -q 0.5 $VCF -e 'AF = 0.5' -v snps,indels | \
+~/bin/bcftools view -O v --threads 8 -q 0.5 $VCF -e 'AF = 0.5' -v snps,indels | \
     vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | \
-    bgzip -@ 8 > ${CHROM}_maj_with_indels.vcf.gz
-~/bin/bcftools-1.9 index ${CHROM}_maj_with_indels.vcf.gz
-~/bin/bcftools-1.9 consensus -f $GENOME ${CHROM}_maj_with_indels.vcf.gz > ${CHROM}_h37maj_with_indels.fa
-bgzip -cd ${CHROM}_maj_with_indels.vcf.gz | python ${SCRIPT}/update_genome.py \
+    bgzip -@ 8 > ${CHROM}_maj.vcf.gz
+~/bin/bcftools index ${CHROM}_maj.vcf.gz
+~/bin/bcftools consensus -f $GENOME ${CHROM}_maj.vcf.gz > ${CHROM}_h37maj.fa
+bgzip -cd ${CHROM}_maj.vcf.gz | python ${SCRIPT}/update_genome.py \
     --ref $GENOME \
-    --chrom $CHROM --out-prefix ${CHROM}_h37maj_with_indels \
+    --chrom $CHROM --out-prefix ${CHROM}_h37maj \
     --include-indels 1 --var-only 1
 
 #: run test

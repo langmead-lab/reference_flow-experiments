@@ -2,7 +2,7 @@ PREP_PATH="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/
 INDIV=$1
 CHROM=$2
 
-if [ "0" -eq "$(diff ${INDIV}_hapA.fa ${PREP_PATH}/${INDIV}_hapA.fa | wc -l)" ];
+if [ "0" -eq "$(diff ${INDIV}_hapA.fa ${PREP_PATH}/bcftools_1.9_206-${INDIV}_1.fa | wc -l)" ];
 then
     echo "test -hapA.fa: pass"
 else
@@ -10,7 +10,7 @@ else
     exit
 fi
 
-if [ 0 -eq "$(diff ${INDIV}_hapB.fa ${PREP_PATH}/${INDIV}_hapB.fa | wc -l)" ];
+if [ 0 -eq "$(diff ${INDIV}_hapB.fa ${PREP_PATH}/bcftools_1.9_206-${INDIV}_2.fa | wc -l)" ];
 then
     echo "test -hapB.fa: pass"
 else
@@ -26,7 +26,7 @@ else
     exit
 fi
 
-if [ 0 -eq "$(diff ${CHROM}_h37maj_with_indels.fa ${PREP_PATH}/${CHROM}_h37maj_with_indels.fa | wc -l)" ];
+if [ 0 -eq "$(diff ${CHROM}_h37maj.fa ${PREP_PATH}/${CHROM}_h37maj.fa | wc -l)" ];
 then
     echo "test maj_allele_ref.fa: pass"
 else
@@ -34,7 +34,7 @@ else
     exit
 fi
 
-if [ 0 -eq "$(diff ${CHROM}_h37maj_with_indels.var ${PREP_PATH}/${CHROM}_h37maj_with_indels.var | wc -l)" ];
+if [ 0 -eq "$(diff ${CHROM}_h37maj.var ${PREP_PATH}/${CHROM}_h37maj.var | wc -l)" ];
 then
     echo "test maj_allele_ref.var: pass"
 else
