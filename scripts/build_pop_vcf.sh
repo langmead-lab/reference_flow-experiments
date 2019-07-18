@@ -53,7 +53,7 @@ do
 
     bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
         python $REL/scripts/update_genome.py \
-            --ref $GENOME --chrom $CHROM --out-prefix py-${CHROM}_${CAT}_${s}_thrsd${FRAC} \
+            --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
             --include-indels 1 --var-only 1
     #bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
     #    python $REL/scripts/update_genome.py \
