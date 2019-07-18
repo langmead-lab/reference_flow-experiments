@@ -38,10 +38,18 @@ set -x
 
 for s in "${array[@]}"
 do
-    ~/bin/bcftools view -S $DIR_SAMPLE/samples_${CAT}_${s}.txt --force-samples $VCF -V mnps,other |\
-        vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | \
-        bgzip -@ 8 > ${CHROM}_${CAT}_${s}.vcf.gz
-    ~/bin/bcftools view -h ${CHROM}_${CAT}_${s}.vcf.gz | tail -1 > vcf_${CAT}_${s}_samples.txt
+    if [ -f "${CHROM}_${CAT}_${s}.vcf.gz" ]; then
+        echo "Use existing ${CHROM}_${CAT}_${s}.vcf.gz"
+    else
+        ~/bin/bcftools view -S $DIR_SAMPLE/samples_${CAT}_${s}.txt --force-samples $VCF -V mnps,other |\
+            vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | \
+            bgzip -@ 8 > ${CHROM}_${CAT}_${s}.vcf.gz
+    fi
+    if [ -f "vcf_${CAT}_${s}_samples.txt" ]; then
+        echo "Use existing vcf_${CAT}_${s}_samples.txt"
+    else
+        ~/bin/bcftools view -h ${CHROM}_${CAT}_${s}.vcf.gz | tail -1 > vcf_${CAT}_${s}_samples.txt
+    fi
 
     THRSD=$(( ($(cat vcf_${CAT}_${s}_samples.txt | wc -w) - 9) * 2 / $FRAC ))
     FILTER="AC > $THRSD"
