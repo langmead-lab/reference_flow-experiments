@@ -18,38 +18,59 @@ parser.add_argument(
 )
 parser.add_argument(
     '-o', '--fn_output',
-    help='output filename, extracted intersection based on set2. \n \
+    help='output filename, extracted intersection based on set2. \
     When -o is set, -set2 needs to be a sam/fq file [None]'
+)
+parser.add_argument(
+    '--mason2',
+    type=int, default=0,
+    help='set to ignore texts after "/" of a read name. \
+            0: use full read name, \
+            1: ignore for set1, \
+            2: ignore for set2, \
+            12, ignore for set1 and set2 [(INT) 0]'
 )
 args = parser.parse_args()
 
 fn_set1 = args.fn_set1
 fn_set2 = args.fn_set2
 fn_output = args.fn_output
+mason2 = args.mason2
+assert mason2 in [0, 1, 2, 12]
+
 f_set1 = open(fn_set1, 'r')
 f_set2 = open(fn_set2, 'r')
 
 if fn_output != None:
     assert fn_set2.endswith('.sam') or fn_set2.endswith('.fq')
-#    if (fn_set2.endswith('.sam') is False) and (fn_set2.endswith('.fq') is False):
-#        print ('ERROR: -set2 needs to be either a sam or a fq file when -o is set.')
-#    exit()
-#elif fn_output != None:
     f_output = open(fn_output, 'w')
 
 list_set1_reads = []
 if fn_set1.endswith('.fq') or fn_set1.endswith('.fastq'):
     for line in f_set1:
         if line.startswith('@'):
-            list_set1_reads.append(line.split()[0][1:])
+            read_name = line.split()[0][1:]
+            if mason2 in [1, 12]:
+                read_name = read_name.split('/')[0]
+            list_set1_reads.append(read_name)
 elif fn_set1.endswith('.sam'):
     for line in f_set1:
-        list_set1_reads.append(line.split()[0])
+        #: skips header
+        if line[0] == '@':
+            continue
+
+        read_name = line.split()[0]
+        if mason2 in [1, 12]:
+            read_name = read_name.split('/')[0]
+        list_set1_reads.append(read_name)
 elif fn_set1.endswith('.names'):
     for line in f_set1:
-        list_set1_reads.append(line.rstrip())
+        read_name = line.rstrip()
+        if mason2 in [1, 12]:
+            read_name = read_name.split('/')[0]
+        list_set1_reads.append(read_name)
 else:
-    print ('unrecognized file format')
+    print ('Error: unrecognized file format: {}'.format(fn_set1))
     exit()
 set_set1_reads = set(list_set1_reads)
 
@@ -58,9 +79,12 @@ if fn_set2.endswith('.fq'):
     fq_flag = 0
     for line in f_set2:
         if line.startswith('@'):
-            list_set2_reads.append(line.split()[0][1:])
+            read_name = line.split()[0][1:]
+            if mason2 in [2, 12]:
+                read_name = read_name.split('/')[0]
+            list_set2_reads.append(read_name)
             if fn_output != None:
-                if line.split()[0][1:] in set_set1_reads:
+                if read_name in set_set1_reads:
                     fq_flag = 1
         if fq_flag > 0:
             f_output.write(line)
@@ -69,19 +93,26 @@ if fn_set2.endswith('.fq'):
                 fq_flag = 0
 elif fn_set2.endswith('.sam'):
     for line in f_set2:
-        list_set2_reads.append(line.split()[0])
+        #: skips header
+        if line[0] == '@':
+            continue
+
+        read_name = line.split()[0]
+        if mason2 in [2, 12]:
+            read_name = read_name.split('/')[0]
+        list_set2_reads.append(read_name)
         if fn_output != None:
-            if line.split()[0] in set_set1_reads:
+            if read_name in set_set1_reads:
                 f_output.write(line)
 elif fn_set2.endswith('.names'):
     for line in f_set2:
         list_set2_reads.append(line.rstrip())
 else:
-    print ('unrecognized file format')
+    print ('Error: unrecognized file format: {}'.format(fn_set2))
     exit()
 set_set2_reads = set(list_set2_reads)
 
-print ('size of set1', len(set_set1_reads))
-print ('size of set2', len(set_set2_reads))
-print ('size of intersection', len(set_set1_reads.intersection(set_set2_reads)))
-print ('size of union', len(set_set1_reads.union(set_set2_reads)))
+print ('Size of set1', len(set_set1_reads))
+print ('Size of set2', len(set_set2_reads))
+print ('Size of intersection', len(set_set1_reads.intersection(set_set2_reads)))
+print ('Size of union', len(set_set1_reads.union(set_set2_reads)))
