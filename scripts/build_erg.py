@@ -114,7 +114,7 @@ def read_genome(fn, print_main=False):
                 seq += line
     return seq
 
-def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
+def write_erg(var_list, main_genome, f_len, alt_genome, ref_genome):
     '''
     Write one ERG seq
     '''
@@ -158,37 +158,43 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     alt_end_pos = ref_end_pos + offset_end
 
     # set this True for testing mode
-    TEST_DETAILS = False
+    TEST_DETAILS = True
     USE_GOLDEN_ERG = True
-    if test_genome:
-        full_g = test_genome[alt_start_pos : alt_end_pos]
+    #USE_GOLDEN_ERG = False
+    if alt_genome:
+        full_g = alt_genome[alt_start_pos : alt_end_pos]
 
         if USE_GOLDEN_ERG:
             print (
                 '>%sB-erg-%s-%s' % 
-                (chrm, alt_start_pos, alt_end_pos)
+                (chrm, alt_start_pos, alt_end_pos-1)
             )
             print (full_g)
+            #for i in range(0, len(hapA), 60):
+            #    fA.write(''.join(hapA[i:i+60])  + '\n')
+        #: testing mode
         else:
             if erg == full_g:
                 print ('pass')
-                return
-            print ('fail')
+            else:
+                print ('fail')
+                print (erg)
+                print (full_g)
         
-        if TEST_DETAILS:
-            print (alt_start_pos, alt_end_pos)
-            print ('erg:\t', erg)
-            print ('golden:\t', full_g)
-            print ('ref:\t', erg_ref)
-            for v in var_list:
-                print (v.line)
-            input()
+                if TEST_DETAILS:
+                    print (alt_start_pos, alt_end_pos)
+                    print ('erg:\t', erg)
+                    print ('golden:\t', full_g)
+                    print ('ref:\t', erg_ref)
+                    for v in var_list:
+                        print (v.line)
+                    input()
         return len(full_g)
     else:
         # write erg
         print (
             '>%sB-erg-%s-%s' % 
-            (chrm, alt_start_pos, alt_end_pos)
+            (chrm, alt_start_pos, alt_end_pos-1)
         )
         print (erg)
         return len(erg)
@@ -196,9 +202,8 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
 def build_erg(
     main_genome, 
     ref_genome,
-    test_genome,
+    alt_genome,
     var_list,
-    hap_mode, 
     f_len
 ):
     '''
@@ -216,7 +221,7 @@ def build_erg(
         if len(tmp_var_list) > 0 and \
             vinfo.ref_pos > prev_var.ref_pos + 2 * f_len:
             # write previous vars
-            len_erg = write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+            len_erg = write_erg(tmp_var_list, main_genome, f_len, alt_genome, ref_genome)
             num_erg += 1
             total_len_erg += len_erg
             # reset
@@ -225,7 +230,7 @@ def build_erg(
             tmp_var_list.append(vinfo)
         else: # len == 0
             tmp_var_list = [vinfo]
-    len_erg = write_erg(tmp_var_list, main_genome, f_len, test_genome, ref_genome)
+    len_erg = write_erg(tmp_var_list, main_genome, f_len, alt_genome, ref_genome)
     num_erg += 1
     total_len_erg += len_erg
     SHOW_SUMMARY = False
@@ -346,57 +351,50 @@ def parse_args():
         help='ref genome file'
     )
     parser.add_argument(
-        '-t', '--test_genome',
+        '-a', '--alt_genome',
         default=None,
-        help='test (alt) genome file'
+        help='alt genome file'
     )
     parser.add_argument(
         '-v', '--var',
         help='var file'
     )
     parser.add_argument(
-        '--hap', type=int,
-        default=1,
-        help='set 1 to enable haplotype-based erg [1]'
-    )
-    parser.add_argument(
-        '--print_mg', type=int,
+        '--print-mg', type=int,
         default=0,
         help='set 1 to print main genome [0]'
     )
     parser.add_argument(
-        '-f', '--flanking_len', type=int,
+        '-f', '--flanking-len', type=int,
         default=100,
         help='the length of flanking regions, total length of an erg is 2*f+1 [100]'
     )
     args = parser.parse_args()
     mg_fn = args.main_genome
     rg_fn = args.ref_genome
-    tg_fn = args.test_genome
+    tg_fn = args.alt_genome
     var_fn = args.var
-    hap_mode = args.hap
     print_mg = args.print_mg
     f_len = args.flanking_len
 
-    return mg_fn, rg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg
+    return mg_fn, rg_fn, tg_fn, var_fn, f_len, print_mg
 
 if __name__ == '__main__':
-    mg_fn, rg_fn, tg_fn, var_fn, hap_mode, f_len, print_mg = parse_args()
+    mg_fn, rg_fn, tg_fn, var_fn, f_len, print_mg = parse_args()
 
     ref_genome = read_genome(rg_fn, None)
     main_genome = read_genome(mg_fn, print_mg)
     if tg_fn:
-        test_genome = read_genome(tg_fn, None)
+        alt_genome = read_genome(tg_fn, None)
     else:
-        test_genome = None
+        alt_genome = None
     
     var_list = read_var(var_fn, remove_conflict=True, remove_homo_alt=True)
 
     build_erg(
         main_genome=main_genome, 
         ref_genome=ref_genome,
-        test_genome=test_genome, 
+        alt_genome=alt_genome, 
         var_list=var_list,
-        hap_mode=hap_mode, 
         f_len=f_len
     )
