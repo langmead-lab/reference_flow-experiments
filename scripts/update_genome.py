@@ -1,16 +1,15 @@
 '''
-Parse a vcf file and lists all the snvs and indels for a sample
+Updates a genome with a set of SNPs (and INDELS) and
+write to a new file.
 '''
 
 import sys
 import argparse
-
-# Update a genome with a set of SNPs and write to a new file
-
+import random
 
 def get_mutation_type(info):
     '''
-        Return the value of the VT attribute from the info field
+    Returns the value of the VT attribute from the info field
     '''
 
     attrs = info.split(';')
@@ -18,8 +17,36 @@ def get_mutation_type(info):
         if a[:3] == 'VT=':
             return a[3:]
 
+def get_allele_freq(info, num_haps):
+    '''
+    Returns allele frequency for a variant.
+    Not using the "AF" attribute because it's calculated
+    based on the entire 1KG population.
+    '''
+    attrs = info.split(';')
+    for a in attrs:
+        if a[:3] == 'AC=':
+            try:
+                count = int(a[3:])
+            #: when there are multiple alleles,
+            #: use the highest frequency
+            except:
+                a = a[3:].split(',')
+                inta = [int(i) for i in a]
+                count = max(inta)
+    return count / num_haps
 
-def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only): 
+def update_genome(
+    indiv,
+    seq,
+    label,
+    vcf,
+    chrom,
+    out_prefix,
+    indels,
+    var_only,
+    is_stochastic
+):
     '''
     ##fileformat=VCFv4.1
     '''
@@ -39,6 +66,7 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only):
             fA.write(label)
 
     f_var = open(out_prefix + '.var', 'w')
+    f_vcf = open(out_prefix + '.vcf', 'w')
 
     '''
     Format of a .var file:
@@ -54,107 +82,117 @@ def update_genome(indiv, seq, label, vcf, chrom, out_prefix, indels, var_only):
     offsetB = 0
     headA = 0
     headB = 0
+    num_haps = 0
     for line in f:
-        # Skip header lines
+        #: Skip header lines
         if line[0] == '#' and line[1] == '#':
+            f_vcf.write(line)
             continue
-
-        #: if "indiv" is set, select corresponding columns
-        if not labels and indiv != None:
+        if line[0] == '#':
+            f_vcf.write(line)
             labels = line.rstrip().split('\t')
-            # print ('labels', labels)
-            col = None
-            for i in range(9, len(labels)):
-                if labels[i] == indiv:
-                    col = i
-            if not col:
-                print('Error! Couldn\'t find individual %s in VCF' % indiv)
-                exit()
-        else:
-            row = line.rstrip().split('\t')
-            type = get_mutation_type(row[7])
+            num_haps = 2 * (len(labels) - 9)
+            #: if "indiv" is set, select corresponding columns
+            if indiv != None:
+                col = None
+                for i in range(9, len(labels)):
+                    if labels[i] == indiv:
+                        col = i
+                if not col:
+                    print('Error! Couldn\'t find individual %s in VCF' % indiv)
+                    exit()
+            continue
+        row = line.rstrip().split('\t')
+        type = get_mutation_type(row[7])
+        if is_stochastic:
+            freq = get_allele_freq(row[7], num_haps)
+            rr = random.random()
+            if rr > freq:
+                continue
 
-            # if type == 'SNP' or (indels and type == 'INDEL'):
-            #: supports tri-allelic
-            if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
-                # chrom = row[0]
-                if row[0] != chrom:
-                    continue
-                loc = int(row[1])
+        #: supports tri-allelic
+        if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
+            if row[0] != chrom:
+                continue
+            loc = int(row[1])
 
-                orig = row[3]
-                alts = row[4].split(',')
+            orig = row[3]
+            alts = row[4].split(',')
 
-                if indiv != None:
-                    alleleA = int(row[col][0])
-                    alleleB = int(row[col][2])
-                else:
-                    alleleA = 1
-                    alleleB = 0
-                    #: ignore multiallelic loci
-                    # if len(alts) > 1:
-                    #     continue
-                    
-                if alleleA > 0:
-                    if len(orig) != len(alts[alleleA-1]):
-                        type = 'INDEL'
-                    else:
-                        type = 'SNP'
-                    flag_skip = False
-                    if indels:
-                        #: ignores conflicts or overlapped variants
-                        #: but accepts overlapped INS
-                        if loc == headA-1 and (len(orig) < len(alts[alleleA-1])):
-                            print ('Warning: overlapped INS at {} for hapA'.format(loc))
-                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, True)
-                        elif loc >= headA:
-                            new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, False)
-                        else:
-                            flag_skip = True
-                            print ('Warning: conflict at {} for hapA'.format(loc))
-                    else:
-                        new_offsetA = 0
-                        hapA[loc+offsetA-1] = alts[alleleA-1]
-                    
-                    if not flag_skip:
-                        f_var.write(
-                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
-                        )
-                        offsetA = new_offsetA
-                        headA = loc + len(orig)
+            if indiv != None:
+                alleleA = int(row[col][0])
+                alleleB = int(row[col][2])
+            else:
+                alleleA = 1
+                alleleB = 0
+                #: ignore multiallelic loci
+                # if len(alts) > 1:
+                #     continue
                 
-                if alleleB > 0 and indiv != None:
-                    if len(orig) != len(alts[alleleB-1]):
-                        type = 'INDEL'
+            if alleleA > 0:
+                if len(orig) != len(alts[alleleA-1]):
+                    type = 'INDEL'
+                else:
+                    type = 'SNP'
+                flag_skip = False
+                if indels:
+                    #: ignores conflicts or overlapped variants
+                    #: but accepts overlapped INS
+                    if loc == headA-1 and (len(orig) < len(alts[alleleA-1])):
+                        print ('Warning: overlapped INS at {} for hapA'.format(loc))
+                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, True)
+                    elif loc >= headA:
+                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, False)
                     else:
-                        type = 'SNP'
-                    flag_skip = False
-                    if indels:
-                        #: ignores conflicts or overlapped variants
-                        #: but accepts overlapped INS
-                        if loc == headB-1 and (len(orig) < len(alts[alleleB-1])):
-                            print ('Warning: overlapped INS at {} for hapB'.format(loc))
-                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, True)
-                        elif loc >= headB:
-                            new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, False)
-                        else:
-                            flag_skip = True
-                            print ('Warning: conflict at {} for hapB'.format(loc))
+                        flag_skip = True
+                        print ('Warning: conflict at {} for hapA'.format(loc))
+                else:
+                    new_offsetA = 0
+                    hapA[loc+offsetA-1] = alts[alleleA-1]
+                
+                if not flag_skip:
+                    f_var.write(
+                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                        ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
+                    )
+                    offsetA = new_offsetA
+                    headA = loc + len(orig)
+            
+            if alleleB > 0 and indiv != None:
+                if len(orig) != len(alts[alleleB-1]):
+                    type = 'INDEL'
+                else:
+                    type = 'SNP'
+                flag_skip = False
+                if indels:
+                    #: ignores conflicts or overlapped variants
+                    #: but accepts overlapped INS
+                    if loc == headB-1 and (len(orig) < len(alts[alleleB-1])):
+                        print ('Warning: overlapped INS at {} for hapB'.format(loc))
+                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, True)
+                    elif loc >= headB:
+                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, False)
                     else:
-                        new_offsetB = 0
-                        hapB[loc+offsetB-1] = alts[alleleB-1]
-                    
-                    if not flag_skip:
-                        f_var.write(
-                            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                            ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
-                        )
-                        offsetB = new_offsetB
-                        headB = loc + len(orig)
+                        flag_skip = True
+                        print ('Warning: conflict at {} for hapB'.format(loc))
+                else:
+                    new_offsetB = 0
+                    hapB[loc+offsetB-1] = alts[alleleB-1]
+                
+                if not flag_skip:
+                    f_var.write(
+                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+                        ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
+                    )
+                    offsetB = new_offsetB
+                    headB = loc + len(orig)
 
-                line_id += 1
-
+            if (alleleA > 0) or \
+                (alleleB > 0 and indiv != None):
+                f_vcf.write(line)
+            line_id += 1
+    
+    f_vcf.close()
     f_var.close()
     
     if var_only == 0:
@@ -221,7 +259,9 @@ def read_chrom(ref, chrom):
                     label = line
             elif label:
                 seq += line.rstrip()
-
+        if label == None:
+            print ('Error: no matched chromosome. Label = {}'.format(chrom))
+            exit ()
         return label, seq
 
 if __name__ == '__main__':
@@ -248,6 +288,9 @@ if __name__ == '__main__':
         '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]."
     )
     parser.add_argument(
+        '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]."
+    )
+    parser.add_argument(
         '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]."
     )
 
@@ -256,16 +299,18 @@ if __name__ == '__main__':
 
     if args.name == None:
         print ('Note: no individual specified, all variants in chrom %s are included' % args.chrom)
+    if args.stochastic == 1:
+        print ('Note: stochastic update is enabled')
 
     label, genome = read_chrom(args.ref, args.chrom)
-    # update_genome(args.name, genome, label, args.vcf, args.out_prefix, args.include_indels)
     update_genome(
-        indiv=args.name,
-        seq=genome,
-        label=label,
-        vcf=args.vcf,
-        chrom=args.chrom,
-        out_prefix=args.out_prefix,
-        indels=args.include_indels,
-        var_only=args.var_only
+        indiv = args.name,
+        seq = genome,
+        label = label,
+        vcf = args.vcf,
+        chrom = args.chrom,
+        out_prefix = args.out_prefix,
+        indels = args.include_indels,
+        var_only = args.var_only,
+        is_stochastic = args.stochastic
     )
