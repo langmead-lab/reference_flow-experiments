@@ -3,6 +3,7 @@ Build enhanced reference genome using a
 pre-identified haplotype and a var file
 '''
 import argparse
+import constants
 
 # In var file, the strand occurs
 # earlier is the main_strand
@@ -124,7 +125,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     
     # coordinate on REF
     v = var_list[0]
-    if v.strand == MAIN_STRAND:
+    if v.strand == constants.MAIN_STRAND:
         offset_start = v.cor_offset
     else:
         offset_start = v.offset
@@ -132,7 +133,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
 
     v = var_list[len(var_list) - 1]
     ins_len = len(v.alt_allele) - len(v.ref_allele)
-    if v.strand == MAIN_STRAND:
+    if v.strand == constants.MAIN_STRAND:
         offset_end = v.cor_offset
     else:
         offset_end = v.offset + ins_len
@@ -141,7 +142,7 @@ def write_erg(var_list, main_genome, f_len, test_genome, ref_genome):
     
     nxt_start_pos = ref_start_pos
     for v in var_list:
-        if v.strand == ALT_STRAND:
+        if v.strand == constants.ALT_STRAND:
             # v: ref hapB
             ref_pos = v.ref_pos
             erg += ref_genome[nxt_start_pos : ref_pos]
@@ -237,9 +238,7 @@ def read_var(
     remove_conflict,
     remove_homo_alt=False,
     remove_indel=False,
-    remove_tri_allelic=False,
-    MAIN_STRAND=MAIN_STRAND,
-    ALT_STRAND=ALT_STRAND
+    remove_tri_allelic=False
 ):
     '''
     Build a dictionary for the .var file.
@@ -272,8 +271,8 @@ def read_var(
     count_indels = 0
     count_tri_allelic = 0
     var_f = open(var_fn, 'r')
-    del_pos = {MAIN_STRAND:[], ALT_STRAND:[]}
-    del_allele = {MAIN_STRAND:[], ALT_STRAND:[]}
+    del_pos = {constants.MAIN_STRAND:[], constants.ALT_STRAND:[]}
+    del_allele = {constants.MAIN_STRAND:[], constants.ALT_STRAND:[]}
     var_list = []
     for line in var_f:
         v = VarInfo(line)
@@ -391,7 +390,7 @@ if __name__ == '__main__':
     else:
         test_genome = None
     
-    var_list = read_var(var_fn, remove_conflict=True, remove_homo_alt=True, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    var_list = read_var(var_fn, remove_conflict=True, remove_homo_alt=True)
 
     build_erg(
         main_genome=main_genome, 
