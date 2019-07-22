@@ -19,6 +19,7 @@ else
     exit
 fi
 
+echo "------------------------------"
 echo "test_update_genome has PASSED!"
 read -p "Delete generated test files? [y/N]:" if_del
 case $if_del in
