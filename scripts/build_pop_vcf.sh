@@ -6,13 +6,14 @@ FRAC=$2
 GENOME="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa"
 
 usage(){
-    echo "Usage $0 <mode> <frac>"
+    echo "Usage $0 <mode> <frac> <stochastic>"
     echo "    mode: operating mode [\"pop/superpop\"]"
-    echo "    frac: frequency cutoff, e.g. 2: major allele [INT]"
+    echo "    frac: frac := #haps/min_frequency, e.g. 2: major allele, 4: first quantile and above [INT]"
+    echo "    stochastic: 1 to enable stochastic genome update; 0 to disable"
     exit
 }
 
-if [ "$#" -ne 2 ]
+if [ "$#" -ne 3 ]
 then
     echo "ERROR: incorrect number of arguments"
     usage
@@ -51,20 +52,35 @@ do
         ~/bin/bcftools view -h ${CHROM}_${CAT}_${s}.vcf.gz | tail -1 > vcf_${CAT}_${s}_samples.txt
     fi
 
-    THRSD=$(( ($(cat vcf_${CAT}_${s}_samples.txt | wc -w) - 9) * 2 / $FRAC ))
-    FILTER="AC > $THRSD"
+    if [ -f "${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz" ]; then
+        echo "Use existing ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz"
+    else
+        if [ "$FRAC" == "0" ]; then
+            THRSD=0
+        else
+            THRSD=$(( ($(cat vcf_${CAT}_${s}_samples.txt | wc -w) - 9) * 2 / $FRAC ))
+        fi
+        FILTER="AC > $THRSD"
+        ~/bin/bcftools view -i "$FILTER" -v snps,indels ${CHROM}_${CAT}_${s}.vcf.gz |\
+        bgzip -@ 8 > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz
+        ~/bin/bcftools index ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz
+    fi
+    
+    #: non-stochastic update
+    if [ $3 == "0" ]; then
+        ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
+        bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
+            python $REL/scripts/update_genome.py \
+                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
+                --include-indels 1 --var-only 1
+    elif [ $3 == "1" ]; then
+        bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
+            python $REL/scripts/update_genome.py \
+                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic \
+                --include-indels 1 --stochastic 1
+    fi
 
-    ~/bin/bcftools view -i "$FILTER" -v snps,indels ${CHROM}_${CAT}_${s}.vcf.gz |\
-       bgzip -@ 8 > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz
-    ~/bin/bcftools index ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz
-    ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
-
-    bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-        python $REL/scripts/update_genome.py \
-            --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
-            --include-indels 1 --var-only 1
     #bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
     #    python $REL/scripts/update_genome.py \
     #        --ref $GENOME --chrom $CHROM --out-prefix py-${CHROM}_${CAT}_${s}_thrsd${FRAC} --include-indels 1
-
 done
