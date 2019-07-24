@@ -14,6 +14,99 @@ import sys
 import random
 from analyze_sam import SamInfo, parse_line
 
+def compare_score_and_mapq(list_info):
+    order = list(range(len(list_info)))
+    list_is_unaligned = [0 if info.is_unaligned() else 1 for info in list_info]
+    list_as = [info.score for info in list_info]
+    list_mapq = [info.mapq for info in list_info]
+
+    list_mapq, list_as, list_is_unaligned, order = \
+        zip(
+            *sorted(zip(list_mapq, list_as, list_is_unaligned, order), reverse = True)
+        )
+    list_as, list_mapq, list_is_unaligned, order = \
+        zip(
+            *sorted(zip(list_as, list_mapq, list_is_unaligned, order), reverse = True)
+        )
+    list_is_unaligned, list_as, list_mapq, order = \
+        zip(
+            *sorted(zip(list_is_unaligned, list_as, list_mapq, order), reverse = True)
+        )
+
+    for i in range(1, len(list_info)):
+        #: if not a tie
+        if (list_is_unaligned[i] != list_is_unaligned[0]) or \
+            (list_as[i] != list_as[0]) or \
+            (list_mapq[i] != list_mapq[0]):
+            order = order[:i]
+            break
+    return random.sample(order, 1)
+
+def merge_sam_list(args):
+    fn_sam = args.sam_list
+    fn_ids = args.id_list
+    tie_break = args.tie_break
+    assert tie_break in ['1', '2', 'r']
+
+    with open(fn_sam, 'r') as f:
+        list_fn_sam = [] #: list of SAM names
+        list_f_sam = [] #: list of opened SAM files
+        for line in f:
+            fn_sam = line.rstrip()
+            list_fn_sam.append(fn_sam)
+            list_f_sam.append(open(fn_sam, 'r'))
+    with open(fn_ids, 'r') as f:
+        list_ids = []
+        for line in f:
+            list_ids.append(line.rstrip())
+
+    assert len(list_fn_sam) == len(list_ids)
+    num_sam = len(list_fn_sam)
+
+    #: prepare output files
+    list_f_out = []
+    for i in range(num_sam):
+        fn_sam = list_fn_sam[i]
+        sam_prefix = fn_sam[: fn_sam.find('.sam')]
+        fn_out = sam_prefix.split('/')[-1] + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
+        print (fn_out)
+        list_f_out.append(open(fn_out, 'w'))
+    print ('------')
+    
+    #: save aligned reads into a list of dictionaries
+    list_dicts = []
+    for i in range(num_sam):
+        list_dicts.append({})
+        for line in list_f_sam[i]:
+            name, info = parse_line(line, erg=True)
+            if name == 'header':
+                list_f_out[i].write(line)
+                continue
+            #TODO
+            #if info.is_unaligned():
+            #    continue
+            list_dicts[i][name] = [info, line]
+
+    #: check if lists have the same key (i.e. read names)
+    list_set_dict = []
+    for i in range(num_sam):
+        list_set_dict.append(set(list_dicts[i].keys()))
+        if i > 0:
+            assert list_set_dict[0] == list_set_dict[i]
+    
+    for read_name in list_dicts[0].keys():
+        curr = [list_dicts[i][read_name][0] for i in range(num_sam)]
+        selected_idx = compare_score_and_mapq(curr)
+        assert len(selected_idx) == 1
+        selected_idx = selected_idx[0]
+        list_f_out[selected_idx].write(list_dicts[selected_idx][read_name][1])
+
+    #: close files
+    for i in range(num_sam):
+        list_f_sam[i].close()
+        list_f_out[i].close()
+
+
 def merge_sam(args):
     sam1_fn = args.sam1
     sam2_fn = args.sam2
@@ -117,9 +210,26 @@ def parse_args():
                 "2": always use -n2 \
                 "r": random selection [r]'
     )
+    parser.add_argument(
+        '-l', '--list',
+        type=int, default=0,
+        help='list mode [0]'
+    )
+    parser.add_argument(
+        '-ns', '--sam-list',
+        help='list of paths of SAM files'
+    )
+    parser.add_argument(
+        '-ids', '--id-list',
+        help='list of ids of files'
+    )
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = parse_args()
-    merge_sam(args)
+    if args.list == 1:
+        print ('Note: list mode enabled, outputs:')
+        merge_sam_list(args)
+    else:
+        merge_sam(args)
