@@ -1,5 +1,5 @@
 '''
-Merge two SAM files.
+Merge a set of SAM files.
 
 The selection rule is Alignment Score (AS) > Mapping Quality (MAPQ)
 
@@ -20,6 +20,8 @@ def compare_score_and_mapq(list_info):
     list_as = [info.score for info in list_info]
     list_mapq = [info.mapq for info in list_info]
 
+    #: sort order: if_aligned > AS > MAPQ
+    #: so perform sorting in reversed order
     list_mapq, list_as, list_is_unaligned, order = \
         zip(
             *sorted(zip(list_mapq, list_as, list_is_unaligned, order), reverse = True)
@@ -47,6 +49,9 @@ def merge_sam_list(args):
     fn_ids = args.id_list
     tie_break = args.tie_break
     assert tie_break in ['1', '2', 'r']
+    random.seed(args.rand_seed)
+    if args.rand_seed:
+        print ('Set random seed: {}'.format(args.rand_seed))
 
     with open(fn_sam, 'r') as f:
         list_fn_sam = [] #: list of SAM names
@@ -82,9 +87,6 @@ def merge_sam_list(args):
             if name == 'header':
                 list_f_out[i].write(line)
                 continue
-            #TODO
-            #if info.is_unaligned():
-            #    continue
             list_dicts[i][name] = [info, line]
 
     #: check if lists have the same key (i.e. read names)
@@ -114,6 +116,9 @@ def merge_sam(args):
     id2 = args.id2
     tie_break = args.tie_break
     assert tie_break in ['1', '2', 'r']
+    random.seed(args.rand_seed)
+    if args.rand_seed:
+        print ('Set random seed: {}'.format(args.rand_seed))
 
     sam1_f = open(sam1_fn, 'r')
     sam2_f = open(sam2_fn, 'r')
@@ -211,11 +216,6 @@ def parse_args():
                 "r": random selection [r]'
     )
     parser.add_argument(
-        '-l', '--list',
-        type=int, default=0,
-        help='list mode [0]'
-    )
-    parser.add_argument(
         '-ns', '--sam-list',
         help='list of paths of SAM files'
     )
@@ -223,12 +223,17 @@ def parse_args():
         '-ids', '--id-list',
         help='list of ids of files'
     )
+    parser.add_argument(
+        '-rs', '--rand-seed',
+        help='random seed for controlled randomness [None]'
+    )
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = parse_args()
-    if args.list == 1:
+    #if args.list == 1:
+    if args.sam_list and args.id_list:
         print ('Note: list mode enabled, outputs:')
         merge_sam_list(args)
     else:
