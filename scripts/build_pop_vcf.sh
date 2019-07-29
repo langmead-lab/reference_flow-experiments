@@ -6,14 +6,15 @@ FRAC=$2
 GENOME="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa"
 
 usage(){
-    echo "Usage $0 <mode> <frac> <stochastic>"
+    echo "Usage $0 <mode> <frac> <stochastic> <block_size>"
     echo "    mode: operating mode [\"pop/superpop\"]"
     echo "    frac: frac := #haps/min_frequency, e.g. 2: major allele, 4: first quantile and above [INT]"
-    echo "    stochastic: 1 to enable stochastic genome update; 0 to disable"
+    echo "    stochastic: 1 to enable stochastic genome update; 0 to disable [INT]"
+    echo "    block_size: size of stochastic update blocks; set anything for deterministic updates [INT]"
     exit
 }
 
-if [ "$#" -ne 3 ]
+if [ "$#" -ne 4 ]
 then
     echo "ERROR: incorrect number of arguments"
     usage
@@ -35,7 +36,7 @@ fi
 module load gcc/5.5.0
 module load vcftools
 
-set -x 
+# set -x 
 
 for s in "${array[@]}"
 do
@@ -68,19 +69,15 @@ do
     
     #: non-stochastic update
     if [ $3 == "0" ]; then
-        ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
+        # ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
             python $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
-                --include-indels 1 --var-only 1
+                --include-indels 1
     elif [ $3 == "1" ]; then
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
             python $REL/scripts/update_genome.py \
-                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic \
-                --include-indels 1 --stochastic 1
+                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${4} \
+                --include-indels 1 --stochastic -rs 0 --block-size $4
     fi
-
-    #bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-    #    python $REL/scripts/update_genome.py \
-    #        --ref $GENOME --chrom $CHROM --out-prefix py-${CHROM}_${CAT}_${s}_thrsd${FRAC} --include-indels 1
 done

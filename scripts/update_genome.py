@@ -45,14 +45,16 @@ def update_genome(
     out_prefix,
     indels,
     var_only,
-    is_stochastic
+    is_stochastic,
+    block_size
 ):
     '''
     ##fileformat=VCFv4.1
     '''
     hapA = list(seq[:])
     hapB = list(seq[:])
-    if var_only == 0:
+    # if var_only == 0:
+    if not var_only:
         if indiv != None:
             fA = open(out_prefix + '_hapA.fa', 'w')
             split_label = label.split()
@@ -83,6 +85,10 @@ def update_genome(
     headA = 0
     headB = 0
     num_haps = 0
+
+    current_block_pos = 0
+    rr = 0 # initial number for random.random()
+
     for line in f:
         #: Skip header lines
         if line[0] == '#' and line[1] == '#':
@@ -104,17 +110,29 @@ def update_genome(
             continue
         row = line.rstrip().split('\t')
         type = get_mutation_type(row[7])
+
+        if row[0] != chrom:
+            continue
+        loc = int(row[1])
+
         if is_stochastic:
             freq = get_allele_freq(row[7], num_haps)
-            rr = random.random()
+            #: only updates the random number when exceeding current block
+            if loc > current_block_pos + block_size:
+                #print ('--update block--')
+                #print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+                rr = random.random()
+                current_block_pos = int(loc / block_size) * block_size
+                #print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+
             if rr > freq:
                 continue
+            #print ('selected, rr = {}'.format(rr), row[:2], freq)
 
         #: supports tri-allelic
         if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
-            if row[0] != chrom:
-                continue
-            loc = int(row[1])
+            # if row[0] != chrom:
+            #     continue
 
             orig = row[3]
             alts = row[4].split(',')
@@ -195,7 +213,8 @@ def update_genome(
     f_vcf.close()
     f_var.close()
     
-    if var_only == 0:
+    # if var_only == 0:
+    if not var_only:
         for i in range(0, len(hapA), 60):
             fA.write(''.join(hapA[i:i+60])  + '\n')
         fA.close()
@@ -285,16 +304,25 @@ if __name__ == '__main__':
         '-s', '--name', type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]"
     )
     parser.add_argument(
-        '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]."
+        '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]"
+    )
+    # parser.add_argument(
+    #     '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]"
+    # )
+    parser.add_argument(
+        '-S', '--stochastic', action='store_true', help="Set to enable stochastic flipping"
     )
     parser.add_argument(
-        '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]."
+        '-rs', '--rand-seed', help="random seed for controlled randomness [None]"
+    )
+    # parser.add_argument(
+    #     '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]"
+    # )
+    parser.add_argument(
+        '--var-only', action='store_true', help="Set to report .var file only (no .fa output)"
     )
     parser.add_argument(
-        '-rs', '--rand-seed', help="random seed for controlled randomness [None]."
-    )
-    parser.add_argument(
-        '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]."
+        '-b', '--block-size', type=int, default=1, help="Size of block for stochastic update [1]"
     )
 
 
@@ -302,7 +330,8 @@ if __name__ == '__main__':
 
     if args.name == None:
         print ('Note: no individual specified, all variants in chrom %s are included' % args.chrom)
-    if args.stochastic == 1:
+    # if args.stochastic == 1:
+    if args.stochastic:
         print ('Note: stochastic update is enabled')
         if args.rand_seed:
             random.seed(args.rand_seed)
@@ -318,5 +347,6 @@ if __name__ == '__main__':
         out_prefix = args.out_prefix,
         indels = args.include_indels,
         var_only = args.var_only,
-        is_stochastic = args.stochastic
+        is_stochastic = args.stochastic,
+        block_size = args.block_size
     )
