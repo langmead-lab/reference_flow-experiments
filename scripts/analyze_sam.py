@@ -139,7 +139,7 @@ class SamInfo:
     cigar = ''
     tag_md = ''
 
-    def __init__(self, line, erg=False, md=False, cigar=False):
+    def __init__(self, line, erg=False, md=False, cigar=False, score=True):
         self.flag = int(line[1])
         self.pos = int(line[3])
         self.mapq = int(line[4])
@@ -160,7 +160,8 @@ class SamInfo:
                     check_md = True
                     break
             assert check_md
-        self.update_score(line[11])
+        if score:
+            self.update_score(line[11])
     
     def print(self,
             pos=True, chrm=True,
@@ -238,7 +239,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def parse_line(line, erg=False, md=False, cigar=False, mason2=False):
+def parse_line(line, erg=False, md=False, cigar=False, mason2=False, score=True):
     if line[0] == '@':
         return 'header', False
     line = line.split()
@@ -246,7 +247,7 @@ def parse_line(line, erg=False, md=False, cigar=False, mason2=False):
         name = line[0][:line[0].find('/')]
     else:
         name = line[0]
-    info = SamInfo(line, erg, md, cigar)
+    info = SamInfo(line, erg, md, cigar, score)
     return name, info
 
 def compare_sam_info(info, ginfo, threshold, offset = [0], ignore_chrm=False):
