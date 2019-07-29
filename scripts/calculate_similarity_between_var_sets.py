@@ -1,15 +1,27 @@
 import argparse
+import pandas as pd
 from build_erg import VarInfo
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-a', '--varset_a_fn',
-        help='var set a'
+        '-a', '--fn_a',
+        help='Var set a'
     )
     parser.add_argument(
-        '-b', '--varset_b_fn',
-        help='var set b'
+        '-b', '--fn_b',
+        help='Var set b'
+    )
+    parser.add_argument(
+        '-l', '--list-varset',
+        help='List of paths to target .var files. \
+            If this is set, dont look at -a and -b [None]'
+    )
+    parser.add_argument(
+        '-op', '--output-prefix',
+        help='Output prefix for TSVs in list mode. \
+            The outputs will be <op>_inter.tsv, \
+            <op>_union.tsv and <op_>_jacard.tsv [None]'
     )
     args = parser.parse_args()
     return args
@@ -26,19 +38,62 @@ def create_set_from_file(fn):
 def calc_similarity(set_a, set_b):
     intersection = set_a.intersection(set_b)
     union = set_a.union(set_b)
-    print ('intersection       = {0}'.format(len(intersection)))
-    print ('union              = {0}'.format(len(union)))
-    print ('Jaccard similarity = {0:.4f}'.format(len(intersection) / len(union)))
+    return len(intersection), len(union), len(intersection) / len(union)
+
+def duo_mode(fn_a, fn_b):
+    set_a = create_set_from_file(fn_a)
+    print ('Size of set "{0:20s}" = {1}'.format(fn_a, len(set_a)))
+    set_b = create_set_from_file(fn_b)
+    print ('Size of set "{0:20s}" = {1}'.format(fn_b, len(set_b)))
+    
+    len_i, len_u, jacard = calc_similarity(set_a, set_b)
+
+    print ('Intersection       = {0}'.format(len_i))
+    print ('Union              = {0}'.format(len_u))
+    print ('Jaccard similarity = {0:.4f}'.format(jacard))
+    print ()
+
+def list_mode(
+    fn_list,
+    output_prefix
+):
+    f_list = open(fn_list, 'r')
+    
+    list_set = []
+    list_fn = []
+    for line in f_list:
+        fn = line.rstrip()
+        list_set.append(create_set_from_file(fn))
+        list_fn.append(fn)
+        print ('Size of set "{0:20s}" = {1}'.format(fn, len(list_set[-1])))
+    list_fn_base =[]
+    for i in list_fn:
+        base = i.split('/')[-1]
+        base = base[: base.rfind('.var')]
+        list_fn_base.append(base)
+
+    df_inter = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
+    df_union = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
+    df_jacard = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
+    for i in range(df_inter.shape[0]):
+        for j in range(df_inter.shape[1]):
+            if i <= j:
+                df_inter.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[0]
+                df_union.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[1]
+                df_jacard.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[2]
+
+    df_inter.to_csv(output_prefix + '_inter.tsv', sep='\t')
+    df_union.to_csv(output_prefix + '_union.tsv', sep='\t')
+    df_jacard.to_csv(output_prefix + '_jacard.tsv', sep='\t')
 
 if __name__ == '__main__':
     args = parse_args()
-    varset_a_fn = args.varset_a_fn
-    varset_b_fn = args.varset_b_fn
+    fn_a = args.fn_a
+    fn_b = args.fn_b
+    fn_list = args.list_varset
+    output_prefix = args.output_prefix
 
-    set_a = create_set_from_file(varset_a_fn)
-    print ('size of set "{0:20s}" = {1}'.format(varset_a_fn, len(set_a)))
-    set_b = create_set_from_file(varset_b_fn)
-    print ('size of set "{0:20s}" = {1}'.format(varset_b_fn, len(set_b)))
-
-    calc_similarity(set_a, set_b)
-    print ()
+    if args.list_varset:
+        list_mode(fn_list, output_prefix)
+    else:
+        duo_mode(fn_a, fn_b)
