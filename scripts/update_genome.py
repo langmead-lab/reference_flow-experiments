@@ -291,6 +291,9 @@ if __name__ == '__main__':
         '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]."
     )
     parser.add_argument(
+        '-rs', '--rand-seed', help="random seed for controlled randomness [None]."
+    )
+    parser.add_argument(
         '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]."
     )
 
@@ -301,6 +304,9 @@ if __name__ == '__main__':
         print ('Note: no individual specified, all variants in chrom %s are included' % args.chrom)
     if args.stochastic == 1:
         print ('Note: stochastic update is enabled')
+        if args.rand_seed:
+            random.seed(args.rand_seed)
+            print ('Set random seed: {}'.format(args.rand_seed))
 
     label, genome = read_chrom(args.ref, args.chrom)
     update_genome(
