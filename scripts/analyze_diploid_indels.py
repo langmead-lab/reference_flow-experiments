@@ -56,8 +56,9 @@ def parse_args():
         help='(int) the step size for main/alt offset indexes [1000]'
     )
     parser.add_argument(
-        '--write_wrt_correctness', type=int,
-        default=None,
+        '--write_wrt_correctness',
+        action='store_true',
+        #default=None,
         help='(int) If set, writes two files recording correct/incorrect alignments respectively. The output files use target sam prefix [None].'
     )
     parser.add_argument(
@@ -539,7 +540,7 @@ def analyze_diploid_indels(
 
     for line in sam_f:
         #name, info = parse_line(line, erg=True)
-        name, info = parse_line(line, erg=True, mason2=True)
+        name, info = parse_line(line, erg=True, mason2=True, score=COMPARE_SEQ)
         #: headers
         if name == 'header':
             continue
