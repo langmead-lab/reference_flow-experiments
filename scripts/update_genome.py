@@ -34,7 +34,7 @@ def get_allele_freq(info, num_haps):
                 a = a[3:].split(',')
                 inta = [int(i) for i in a]
                 count = max(inta)
-    return count / num_haps
+    return float(count) / num_haps
 
 def update_genome(
     indiv,
@@ -118,16 +118,16 @@ def update_genome(
         if is_stochastic:
             freq = get_allele_freq(row[7], num_haps)
             #: only updates the random number when exceeding current block
-            if loc > current_block_pos + block_size:
-                #print ('--update block--')
-                #print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+            if loc >= current_block_pos + block_size:
+                # print ('--update block--')
+                # print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
                 rr = random.random()
                 current_block_pos = int(loc / block_size) * block_size
-                #print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+                # print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
 
             if rr > freq:
                 continue
-            #print ('selected, rr = {}'.format(rr), row[:2], freq)
+            # print ('selected, rr = {}'.format(rr), row[:2], freq)
 
         #: supports tri-allelic
         if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
