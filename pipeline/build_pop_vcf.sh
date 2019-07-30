@@ -53,12 +53,14 @@ do
         ~/bin/bcftools view -h ${CHROM}_${CAT}_${s}.vcf.gz | tail -1 > vcf_${CAT}_${s}_samples.txt
     fi
 
+    THRSD=0
     if [ -f "${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz" ]; then
         echo "Use existing ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz"
     else
-        if [ "$FRAC" == "0" ]; then
-            THRSD=0
-        else
+        # if [ "$FRAC" == "0" ]; then
+        #     THRSD=0
+        # else
+        if [ "$FRAC" -ne "0" ]; then
             THRSD=$(( ($(cat vcf_${CAT}_${s}_samples.txt | wc -w) - 9) * 2 / $FRAC ))
         fi
         FILTER="AC > $THRSD"
@@ -67,16 +69,18 @@ do
         ~/bin/bcftools index ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz
     fi
     
+    echo "Threshold = $THRSD"
+
     #: non-stochastic update
     if [ $3 == "0" ]; then
         # ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-            python $REL/scripts/update_genome.py \
+            python3.7 $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
                 --include-indels 1
     elif [ $3 == "1" ]; then
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-            python $REL/scripts/update_genome.py \
+            python3.7 $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${4} \
                 --include-indels 1 --stochastic -rs 0 --block-size $4
     fi
