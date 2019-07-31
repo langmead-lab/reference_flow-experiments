@@ -10,9 +10,16 @@ if [ "$#" -ne 1 ]
 then
     echo "ERROR: incorrect number of arguments"
     usage
+    exit
 fi
 
 filename=$(basename -- "$1")
 filename="${filename%.*}"
-awk '{ if ($5 < 10 || $1 ~ /^@/) { print } }' $1 > $filename-mapql10.sam
-awk '{ if ($5 >= 10 || $1 ~ /^@/) { print } }' $1 > $filename-mapqgeq10.sam
+
+#: changes above three lines manually for different MAPQ threshold
+THRSD="10"
+awk '{ if ($5 < 10 || $1 ~ /^@/) { print } }' $1 > $filename-mapql${THRSD}.sam
+awk '{ if ($5 >= 10 || $1 ~ /^@/) { print } }' $1 > $filename-mapqgeq${THRSD}.sam
+
+module load samtools
+samtools fastq $filename-mapql${THRSD}.sam > $filename-mapql${THRSD}.fq
