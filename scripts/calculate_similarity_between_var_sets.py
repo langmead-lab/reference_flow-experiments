@@ -21,7 +21,7 @@ def parse_args():
         '-op', '--output-prefix',
         help='Output prefix for TSVs in list mode. \
             The outputs will be <op>_inter.tsv, \
-            <op>_union.tsv and <op_>_jacard.tsv [None]'
+            <op>_union.tsv and <op_>_jaccard.tsv [None]'
     )
     args = parser.parse_args()
     return args
@@ -46,11 +46,11 @@ def duo_mode(fn_a, fn_b):
     set_b = create_set_from_file(fn_b)
     print ('Size of set "{0:20s}" = {1}'.format(fn_b, len(set_b)))
     
-    len_i, len_u, jacard = calc_similarity(set_a, set_b)
+    len_i, len_u, jaccard = calc_similarity(set_a, set_b)
 
     print ('Intersection       = {0}'.format(len_i))
     print ('Union              = {0}'.format(len_u))
-    print ('Jaccard similarity = {0:.4f}'.format(jacard))
+    print ('Jaccard similarity = {0:.4f}'.format(jaccard))
     print ()
 
 def list_mode(
@@ -70,21 +70,25 @@ def list_mode(
     for i in list_fn:
         base = i.split('/')[-1]
         base = base[: base.rfind('.var')]
+        for s in ['EUR', 'AMR', 'AFR', 'EAS', 'SAS']:
+            if base.find(s) > 0:
+                base = base[base.find(s): base.find(s)+3]
+                break
         list_fn_base.append(base)
 
     df_inter = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
     df_union = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
-    df_jacard = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
+    df_jaccard = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
     for i in range(df_inter.shape[0]):
         for j in range(df_inter.shape[1]):
             if i <= j:
                 df_inter.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[0]
                 df_union.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[1]
-                df_jacard.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[2]
+                df_jaccard.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[2]
 
     df_inter.to_csv(output_prefix + '_inter.tsv', sep='\t')
     df_union.to_csv(output_prefix + '_union.tsv', sep='\t')
-    df_jacard.to_csv(output_prefix + '_jacard.tsv', sep='\t')
+    df_jaccard.to_csv(output_prefix + '_jaccard.tsv', sep='\t')
 
 if __name__ == '__main__':
     args = parse_args()
