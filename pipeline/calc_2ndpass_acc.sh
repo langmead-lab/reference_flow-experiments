@@ -30,8 +30,8 @@ WC=`wc -l merging.ids | cut -d ' ' -f1`
 ARR=(`tail -$(($WC+1)) tmp_merge.log | head -$(($WC))`)
 for i in $(seq 0 4)
 do
-    TMP=`python -O $REL/scripts/analyze_diploid_indels.py -c 21 -g $GOLD -p 0 -vr $VAR/NA12878.var -vs $POP/*${array[$i]}*.var -n ${ARR[$i]} | grep 'sensitivity_all'`
-    # TMP=`python -O $REL/scripts/analyze_diploid_indels.py -c 21 -g $GOLD -p 0 -vr $VAR/NA12878.var -vs $POP/21_superpop_"${array[$i]}"_thrsd0_stochastic.var -n ${ARR[$i]} | grep 'sensitivity_all'`
+    TMP=`python3.7 -O $REL/scripts/analyze_diploid_indels.py -c 21 -g $GOLD -p 0 -vr $VAR/NA12878.var -vs $POP/*${array[$i]}*.var -n ${ARR[$i]} | grep 'sensitivity_all'`
+    # TMP=`python3.7 -O $REL/scripts/analyze_diploid_indels.py -c 21 -g $GOLD -p 0 -vr $VAR/NA12878.var -vs $POP/21_superpop_"${array[$i]}"_thrsd0_stochastic.var -n ${ARR[$i]} | grep 'sensitivity_all'`
     update
 done
 

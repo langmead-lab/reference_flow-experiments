@@ -100,7 +100,7 @@ then
 fi
 
 #: merge alignments
-python $SCRIPTS/merge_sam.py -ns merging.paths -ids merging.ids -rs 0 >> tmp_merge.log
+python3.7 $SCRIPTS/merge_sam.py -ns merging.paths -ids merging.ids -rs 0 >> tmp_merge.log
 WC=`wc -l merging.ids | cut -d ' ' -f1`
 ARR=(`tail -$(($WC+1)) tmp_merge.log | head -$(($WC))`)
 for s in "${ARR[@]}"
