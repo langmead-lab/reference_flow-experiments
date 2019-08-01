@@ -26,7 +26,8 @@ else
 
     FILENAMEB=`echo $2 | rev | cut -d '/' -f1 | rev`
     PREFIXB=`echo ${FILENAMEB} | cut -d. -f1`
-    $MASON -ir $2 -n $3 -o ${OUTFIXB}_1.fq -or ${OUTFIXB}_2.fq -oa ${OUTFIXB}.sam --read-name-prefix "${OUTFIXB}_simulated."
+    OUTFIXB=$4${PREFIXB}
+	$MASON -ir $2 -n $3 -o ${OUTFIXB}_1.fq -or ${OUTFIXB}_2.fq -oa ${OUTFIXB}.sam --read-name-prefix "${OUTFIXB}_simulated."
 
     SAMPLEA=`cut -d_ -f1 <<< ${PREFIXA}`
     SAMPLEB=`cut -d_ -f1 <<< ${PREFIXB}`
