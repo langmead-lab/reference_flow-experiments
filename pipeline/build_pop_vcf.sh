@@ -77,11 +77,11 @@ do
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
             python3.7 $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
-                --include-indels 1
+                --include-indels
     elif [ $3 == "1" ]; then
         bgzip -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
             python3.7 $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${4} \
-                --include-indels 1 --stochastic -rs 0 --block-size $4
+                --include-indels --stochastic -rs 0 --block-size $4
     fi
 done

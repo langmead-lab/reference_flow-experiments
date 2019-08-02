@@ -16,7 +16,7 @@ set -x
 #: build var indexes
 python ${SCRIPT}/update_genome.py \
     --ref $GENOME --vcf ${CHROM}_remove_mnps_other.vcf \
-    --chrom $CHROM --out-prefix $SAMPLE --name $SAMPLE --include-indels 1
+    --chrom $CHROM --out-prefix $SAMPLE --name $SAMPLE --include-indels
 
 #: simulate reads
 mkdir reads_mason2
@@ -33,7 +33,7 @@ cd ..
 bgzip -cd ${CHROM}_maj.vcf.gz | python ${SCRIPT}/update_genome.py \
     --ref $GENOME \
     --chrom $CHROM --out-prefix ${CHROM}_h37maj \
-    --include-indels 1 --var-only 1
+    --include-indels --var-only 1
 
 #: run test
 sh $SCRIPT/test_prepare_genomes.sh $SAMPLE $CHROM

@@ -1,4 +1,4 @@
-python ../scripts/update_genome.py -r genome.fa -v variants.vcf -c 21 -op test_NA12878 -i 1 -s NA12878
+python ../scripts/update_genome.py -r genome.fa -v variants.vcf -c 21 -op test_NA12878 -i -s NA12878
 
 if cmp -s "gold_hapA.fa" "test_NA12878_hapA.fa"; then
     echo "hapA.fa -- PASS"

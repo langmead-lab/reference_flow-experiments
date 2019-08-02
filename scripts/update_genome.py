@@ -304,8 +304,11 @@ if __name__ == '__main__':
         '-s', '--name', type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]"
     )
     parser.add_argument(
-        '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]"
+        '-i', '--include-indels', action='store_true', help="Set to extract both SNPs and INDELs"
     )
+    # parser.add_argument(
+    #     '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]"
+    # )
     # parser.add_argument(
     #     '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]"
     # )
