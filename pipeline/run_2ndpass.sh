@@ -8,7 +8,7 @@ usage(){
     echo "  -b  size of block for stochastic genomes [1]"
     echo "  -c  name of chromosome [21]"
     echo "  -C  category {superpop} [superpop]"
-    echo "  -s  path of scripts ['$'REL/scripts]"
+    echo "  -S  path of scripts ['$'REL/scripts]"
     echo "  -t  population frequency threshold [0]"
 }
 
@@ -19,7 +19,7 @@ FRAC="0"
 BLOCK_SIZE="1"
 SCRIPTS="$REL/scripts"
 
-while getopts b:c:C:s:t:i:f:p:h: option
+while getopts b:c:C:S:t:i:f:p:h: option
 do
     case "${option}"
     in
@@ -29,20 +29,20 @@ do
         echo "Set stochastic block size -> $BLOCK_SIZE"
         ;;
     c) 
-        echo "Set chromosome name -> $CHROM"
         CHROM=${OPTARG}
+        echo "Set chromosome name -> $CHROM"
         ;;
     C) 
-        echo "Set population category -> $CAT"
         CAT=${OPTARG}
+        echo "Set population category -> $CAT"
         ;;
     t) 
-        echo "Set frequency cutoff level -> $FRAC"
         FRAC=${OPTARG}
+        echo "Set frequency cutoff level -> $FRAC"
         ;;
-    s) 
-        echo "Set script directory -> $SCRIPTS"
+    S) 
         SCRIPTS=${OPTARG}
+        echo "Set script directory -> $SCRIPTS"
         ;;
 
     #: requirements
