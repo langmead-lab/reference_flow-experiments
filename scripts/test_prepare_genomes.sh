@@ -1,6 +1,10 @@
+### This script is to test if the results of prepare_genomes.sh match that using bcftools.
+### Currently only support chr21 for NA12878
 PREP_PATH="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/test_prep"
-INDIV=$1
-CHROM=$2
+INDIV="NA12878"
+CHROM="21"
+# INDIV=$1
+# CHROM=$2
 
 if [ "0" -eq "$(diff ${INDIV}_hapA.fa ${PREP_PATH}/bcftools_1.9_206-${INDIV}_1.fa | wc -l)" ];
 then
