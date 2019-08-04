@@ -1,8 +1,8 @@
 usage(){
-    echo "Usage: $(basename $0) [-cCth] -i index_dir -f fastq"
+    echo "Usage: $(basename $0) [-cCth] -i fastq -I index_dir"
     echo "------ Requirements -----"
-    echo "  -i  directory of indexes"
-    echo "  -f  input FASTQ file"
+    echo "  -i  input FASTQ file"
+    echo "  -I  directory of indexes"
     echo "  -p  prefix for output SAM file"
     echo "------ Options -----"
     echo "  -b  size of block for stochastic genomes [1]"
@@ -19,7 +19,7 @@ FRAC="0"
 BLOCK_SIZE="1"
 SCRIPTS="$REL/scripts"
 
-while getopts b:c:C:S:t:i:f:p:h: option
+while getopts b:c:C:S:t:i:I:p:h: option
 do
     case "${option}"
     in
@@ -36,18 +36,18 @@ do
         CAT=${OPTARG}
         echo "Set population category -> $CAT"
         ;;
-    t) 
-        FRAC=${OPTARG}
-        echo "Set frequency cutoff level -> $FRAC"
-        ;;
     S) 
         SCRIPTS=${OPTARG}
         echo "Set script directory -> $SCRIPTS"
         ;;
+    t)
+        FRAC=${OPTARG}
+        echo "Set frequency cutoff level -> $FRAC"
+        ;;
 
     #: requirements
-    i) INDEX_DIR=${OPTARG};;
-    f) FASTQ=${OPTARG};;
+    I) INDEX_DIR=${OPTARG};;
+    i) FASTQ=${OPTARG};;
     p) OUT_PREFIX=${OPTARG};;
 
     h) usage;;
@@ -69,6 +69,9 @@ else
     echo "ERROR: invalid input: $CAT"
     usage
 fi
+
+#: exit when any command fails
+set -e
 
 if [[ -f merging.paths ]]
 then
