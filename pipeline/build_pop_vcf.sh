@@ -1,8 +1,8 @@
 usage(){
-    echo "Usage: $(basename $0) [-brtpS] -f fasta -c chrome -v vcf -C cat"
+    echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -s indiv -v vcf"
     echo "------ Requirements -----"
     echo "  -c  name of chromosome"
-    echo "  -C  category {superpop/pop} [superpop]"
+    echo "  -C  category {superpop/pop}"
     echo "  -f  reference FASTA file"
     echo "  -s  target individual in 1000 Genomes Project"
     echo "  -v  1000 Genomes Project VCF file for target chromosome"
@@ -11,23 +11,19 @@ usage(){
     echo "  -r  stochastic population genomes, set to enable [False]"
     echo "  -t  population frequency cutoff level [1]"
     echo "  -p  number of threads [8]"
-    echo "  -P  directory for 1KG population individuals"
-    echo "  -S  path of scripts ['$'REL/scripts]"
+    echo "  -P  directory for 1KG population individuals []"
+    echo "  -S  path of scripts []"
     exit
 }
 
-#VCF="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf"
-#CHROM="21"
 DIR_SAMPLE="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/samples_in_each_pop_superpop"
-SCRIPTS="$REL/scripts"
+SCRIPTS="/scratch/groups/blangme2/naechyun/relaxing/scripts"
 THREADS=8
-#CAT=$1
 FRAC=0
 BLOCK_SIZE=1
 STOCHASTIC=0
-#GENOME="/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa"
 
-while getopts c:C:f:s:v:b:r:t:p:S:h: option
+while getopts c:C:f:s:v:b:r:t:p:P:S:h: option
 do
     case "${option}"
     in
@@ -71,21 +67,35 @@ do
         usage
     esac
 done
-# usage(){
-#     echo "Usage $0 <mode> <frac> <stochastic> <block_size>"
-#     echo "    mode: operating mode [\"pop/superpop\"]"
-#     echo "    frac: frac := #haps/min_frequency, e.g. 2: major allele, 4: first quantile and above [INT]"
-#     echo "    stochastic: 1 to enable stochastic genome update; 0 to disable [INT]"
-#     echo "    block_size: size of stochastic update blocks; set anything for deterministic updates [INT]"
-#     exit
-# }
-# 
-# if [ "$#" -ne 4 ]
-# then
-#     echo "ERROR: incorrect number of arguments"
-#     usage
-# fi
 
+#: check if required fields are given
+if [ -z ${CHROM+x} ]
+then
+    echo "error: required input chrom (-c) is not set"
+    usage
+fi
+if [ -z ${CAT+x} ]
+then
+    echo "error: required input cat (-C) is not set"
+    usage
+fi
+if [ -z ${GENOME+x} ]
+then
+    echo "error: required input genome (-f) is not set"
+    usage
+fi
+if [ -z ${SAMPLE+x} ]
+then
+    echo "Error: required input SAMPLE (-s) is not set"
+    usage
+fi
+if [ -z ${VCF+x} ]
+then
+    echo "Error: required input VCF (-v) is not set"
+    usage
+fi
+
+#: set population
 if [ $CAT == "pop" ]
 then
     array=( "ACB" "ASW" "BEB" "CDX" "CEU" "CHB" "CHS" "CLM" "ESN" "FIN" "GBR" "GIH" "GWD" "IBS" "ITU" "JPT" "KHV" "LWK" "MSL" "MXL" "PEL" "PJL" "PUR" "STU" "TSI" "YRI" )
@@ -99,6 +109,7 @@ else
     usage
 fi
 
+#: marcc
 module load gcc/5.5.0
 module load vcftools
 

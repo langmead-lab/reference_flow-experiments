@@ -54,7 +54,7 @@ done
 
 if [ -z ${GENOME+x} ]
 then
-    echo "Error: required input GENOME (-g) is not set"
+    echo "Error: required input GENOME (-f) is not set"
     usage
 fi
 if [ -z ${SAMPLE+x} ]
