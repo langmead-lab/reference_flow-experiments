@@ -456,7 +456,8 @@ def count_overlapping_vars(
     '''
     num_var = 0   
     for i in range(g_info.pos, g_info.pos + constants.READ_LEN):
-        if g_info.chrm == constants.MAIN_CHROM:
+        if g_info.chrm == constants.MAIN_CHROM or g_info.chrm == constants.CHROM:
+        # if g_info.chrm == constants.MAIN_CHROM:
             if main_index.get(i) != None:
                 num_var += 1
         elif g_info.chrm == constants.ALT_CHROM:
