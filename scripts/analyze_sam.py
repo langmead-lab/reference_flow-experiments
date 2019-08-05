@@ -183,7 +183,7 @@ class SamInfo:
         if self.flag & 16: return True
         return False
 
-    def is_first_seq(self):
+    def is_first_seg(self):
         if self.flag & 64: return True
         return False
 
@@ -244,7 +244,8 @@ def parse_line(line, erg=False, md=False, cigar=False, mason2=False, score=True)
         return 'header', False
     line = line.split()
     if mason2:
-        name = line[0][:line[0].find('/')]
+        # name = line[0].split('/')[-2]
+        name = line[0][:line[0].rfind('/')]
     else:
         name = line[0]
     info = SamInfo(line, erg, md, cigar, score)
@@ -301,13 +302,12 @@ def dump_golden_dic(filename, seg):
             if name is 'header':
                 continue
             if seg == 1:
-                if name in g_dic and info.is_first_seq():
+                if name in g_dic and info.is_first_seg():
                     print ("Error: duplicated reads in golden!")
-                    print (name)
                     info.print()
                     g_dic[name].print()
                     return
-                if info.is_first_seq():
+                if info.is_first_seg():
                     g_dic[name] = info
         print ("Size of database built:", len(g_dic))
     
