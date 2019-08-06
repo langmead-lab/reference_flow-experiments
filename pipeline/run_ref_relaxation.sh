@@ -9,6 +9,8 @@ INDEX=/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21
 #module load bowtie2
 #module load python/3.7-anaconda
 
+# NOT INCLUDED IN THIS SCRIPT: GENERATING THE hapA.fa / hapB.fa / .var files using update_genome.py
+# the fast way to do that is through the mass_buildhap_from_vcf.sh file
 
 # If want dual fastqs cat them or write a separate script. This is the 'fast' version.
 # Mostly taken from /net/langmead-bigmem-ib.bluecrab.cluster/storage/bsolomo9/1000G_R100_03-14-2019
@@ -28,7 +30,7 @@ if [ -f $OUTSAM ]; then
 else
 	echo "First pass alignment of $FNAME"
 	bowtie2 -x ${INDEX}/21_h37maj -S $OUTSAM -U $FASTQ
-	echo "Alignment written to ${OUTPREFIX}-h37maj.sam"
+	echo "Alignment written to ${OUTSAM}"
 fi
 
 #Get second pass reads
@@ -51,7 +53,7 @@ cd $OUTDIR
 BSIZE=1
 s=1
 FRAC=0
-PASS2_OUTSAM="${OUTSAM%.*}_pass2-${s}s${FRAC}_b${BSIZE}.sam"
+PASS2_OUTSAM="${OUTSAM%.*}_pass2-t${THRESH}-${s}s${FRAC}_b${BSIZE}.sam"
 
 #PASS2_OUTSAM=${OUTSAM%.*}-2pass_BSIZE${BSIZE}.sam
 LOG_FILE=${PASS2_OUTSAM%.*}.log
@@ -64,17 +66,17 @@ else
 	echo "Running relaxation alignment..."
 	rm merging.*
 	rm tmp_merge.log
-	$TIME -v $RELAX/pipeline/global_run_2ndpass.sh -b ${BSIZE} -I $BLOCK_INDEX/stochastic_pop_genomes/block_${BSIZE}/indexes -i $FILTER_FQ -p "${OUTSAM%.*}_pass2" -S $RELAX/scripts/ 2> $LOG_FILE 
+	$TIME -v $RELAX/pipeline/global_run_2ndpass.sh -b ${BSIZE} -I $BLOCK_INDEX/stochastic_pop_genomes/block_${BSIZE}/indexes -i $FILTER_FQ -p "${OUTSAM%.*}_pass2-t${THRESH}" -S $RELAX/scripts/ 2> $LOG_FILE 
 fi
 # Calculate accuracy
 GOLD_SAM=${FASTQ%_*}.sam
 VAR_FILE=${FASTQ%_*}.var
 VAR_GENOMES=$BLOCK_INDEX/stochastic_pop_genomes/block_${BSIZE}
+ACC_OUT=${LOG_FILE%.*}_accuracy.txt
 
 echo $GOLD_SAM
 echo $VAR_FILE
 
 #VAR_GENOMES=$(dirname $PASS2_OUTSAM)
 echo "Calculating final accuracy"
-set -x
-$RELAX/pipeline/calc_2ndpass_acc.sh -c 21 -g $GOLD_SAM -V $VAR_FILE -P $VAR_GENOMES -S $RELAX/scripts/
+$RELAX/pipeline/calc_2ndpass_acc.sh -c 21 -g $GOLD_SAM -V $VAR_FILE -P $VAR_GENOMES -S $RELAX/scripts/ > $ACC_OUT 

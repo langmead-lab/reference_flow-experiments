@@ -4,6 +4,7 @@ SCRATCH=/home-1/bsolomo9\@jhu.edu/scratch/bsolomo9/genome_relaxation/
 RELAX=/home-1/bsolomo9\@jhu.edu/genome_relaxation/
 DATE=$(date +"%m-%d-%Y")
 
+# THIS SHOULD PROBABLY BE IN PIPELINE INSTEAD OF SCRIPTS BUT WHATEVER
 
 # Triple user input instead of hard-coded 
 VCF_FILE="$1" #$STORAGE/naechyun/1000Genomes/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf
@@ -23,7 +24,7 @@ python getRand.py $SCRATCH/phase3_names.txt ${RANDSIZE} > $RANDSET
 
 while read -r NAME
 do
-	python $RELAX/scripts/update_genome.py --ref $STORAGE/indexes/hs37d5.fa --vcf $VCF_FILE --chrom $CHROM_NUM --out-prefix ${RANDSTORAGE}/$NAME --name $NAME
+	python $RELAX/scripts/update_genome.py --include-indels --ref $STORAGE/indexes/hs37d5.fa --vcf $VCF_FILE --chrom $CHROM_NUM --out-prefix ${RANDSTORAGE}/$NAME --name $NAME
 done < $RANDSET
 
 #/scratch/groups/blangme2/naechyun/software/mason-0.1.2-Linux-x86_64/bin/mason \
