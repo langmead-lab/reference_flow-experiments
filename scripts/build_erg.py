@@ -360,10 +360,14 @@ def parse_args():
         help='var file'
     )
     parser.add_argument(
-        '--print-mg', type=int,
-        default=0,
-        help='set 1 to print main genome [0]'
+        '--print-mg', action='store_true',
+        help='set to print main genome [False]'
     )
+    # parser.add_argument(
+    #     '--print-mg', type=int,
+    #     default=0,
+    #     help='set 1 to print main genome [0]'
+    # )
     parser.add_argument(
         '-f', '--flanking-len', type=int,
         default=100,
