@@ -1,10 +1,11 @@
 usage(){
-    echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -s indiv -v vcf"
+    echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -v vcf"
+    # echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -s indiv -v vcf"
     echo "------ Requirements -----"
     echo "  -c  name of chromosome"
     echo "  -C  category {superpop/pop}"
     echo "  -f  reference FASTA file"
-    echo "  -s  target individual in 1000 Genomes Project"
+    # echo "  -s  target individual in 1000 Genomes Project"
     echo "  -v  1000 Genomes Project VCF file for target chromosome"
     echo "------ Options -----"
     echo "  -b  size of block for stochastic genomes [1]"
@@ -57,7 +58,7 @@ do
     c) CHROM=${OPTARG};;
     C) CAT=${OPTARG};;
     f) GENOME=${OPTARG};;
-    s) SAMPLE=${OPTARG};;
+    #s) SAMPLE=${OPTARG};;
     v) VCF=${OPTARG};;
 
     #: help
@@ -84,11 +85,11 @@ then
     echo "error: required input genome (-f) is not set"
     usage
 fi
-if [ -z ${SAMPLE+x} ]
-then
-    echo "Error: required input SAMPLE (-s) is not set"
-    usage
-fi
+# if [ -z ${SAMPLE+x} ]
+# then
+#     echo "Error: required input SAMPLE (-s) is not set"
+#     usage
+# fi
 if [ -z ${VCF+x} ]
 then
     echo "Error: required input VCF (-v) is not set"
