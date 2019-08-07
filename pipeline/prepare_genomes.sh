@@ -1,5 +1,5 @@
 usage(){
-    echo "Usage: $(basename $0) [-cnpS] -f fasta -s id -v vcf"
+    echo "Usage: $(basename $0) [-cnpS] -c chrom -f fasta -s indiv -v vcf"
     echo "------ Requirements -----"
     echo "  -c  name of chromosome"
     echo "  -f  reference FASTA file"
