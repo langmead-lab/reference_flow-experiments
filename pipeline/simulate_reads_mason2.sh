@@ -6,6 +6,9 @@ display_usage() {
     echo "    genome_hapB: fasta file for the second haplotype"
     echo "    num_sim_read: number of reads to simulate for each haplotype"
 }
+
+MASON=/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator
+
 if [ "$#" -ne "3" ]; then
     display_usage
     exit
@@ -13,11 +16,11 @@ else
     set -x
     FILENAMEA=`echo $1 | rev | cut -d '/' -f1 | rev`
     PREFIXA=`echo ${FILENAMEA} | cut -d. -f1`
-    mason_simulator -ir $1 -n $3 -o ${PREFIXA}_1.fq -or ${PREFIXA}_2.fq -oa ${PREFIXA}.sam --read-name-prefix "${PREFIXA}_simulated."
+    $MASON -ir $1 -n $3 -o ${PREFIXA}_1.fq -or ${PREFIXA}_2.fq -oa ${PREFIXA}.sam --read-name-prefix "${PREFIXA}_simulated."
 
     FILENAMEB=`echo $2 | rev | cut -d '/' -f1 | rev`
     PREFIXB=`echo ${FILENAMEB} | cut -d. -f1`
-    mason_simulator -ir $2 -n $3 -o ${PREFIXB}_1.fq -or ${PREFIXB}_2.fq -oa ${PREFIXB}.sam --read-name-prefix "${PREFIXB}_simulated."
+    $MASON -ir $2 -n $3 -o ${PREFIXB}_1.fq -or ${PREFIXB}_2.fq -oa ${PREFIXB}.sam --read-name-prefix "${PREFIXB}_simulated."
 
     SAMPLEA=`cut -d_ -f1 <<< ${PREFIXA}`
     SAMPLEB=`cut -d_ -f1 <<< ${PREFIXB}`

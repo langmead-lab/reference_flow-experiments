@@ -12,6 +12,8 @@ INDEX=/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21
 # NOT INCLUDED IN THIS SCRIPT: GENERATING THE hapA.fa / hapB.fa / .var files using update_genome.py
 # the fast way to do that is through the mass_buildhap_from_vcf.sh file
 
+#ALSO FORGOT THE MASON SIM
+
 # If want dual fastqs cat them or write a separate script. This is the 'fast' version.
 # Mostly taken from /net/langmead-bigmem-ib.bluecrab.cluster/storage/bsolomo9/1000G_R100_03-14-2019
 FASTQ="$1"
@@ -24,12 +26,13 @@ FNAME=$(basename $FASTQ)
 OUTPREFIX="${OUTDIR}/${FNAME%.*}"
 
 OUTSAM=${OUTPREFIX}-h37maj.sam
+PASS1_LOG=${OUTPREFIX}-h37maj.log
 # Run the first pass alignment
 if [ -f $OUTSAM ]; then
 	echo "$OUTSAM already exists"
 else
 	echo "First pass alignment of $FNAME"
-	bowtie2 -x ${INDEX}/21_h37maj -S $OUTSAM -U $FASTQ
+	$TIME -v bowtie2 -x ${INDEX}/21_h37maj -S $OUTSAM -U $FASTQ 2> $PASS1_LOG 
 	echo "Alignment written to ${OUTSAM}"
 fi
 
