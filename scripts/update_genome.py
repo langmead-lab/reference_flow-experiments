@@ -36,6 +36,50 @@ def get_allele_freq(info, num_haps):
                 count = max(inta)
     return float(count) / num_haps
 
+def update_allele(
+    orig,
+    alts,
+    allele,
+    indels,
+    head,
+    loc,
+    f_var,
+    hap,
+    hap_str,
+    offset,
+    offset_other,
+    chrom
+):
+    if len(orig) != len(alts[allele-1]):
+        type = 'INDEL'
+    else:
+        type = 'SNP'
+    flag_skip = False
+    if indels:
+        #: ignores conflicts or overlapped variants
+        #: but accepts overlapped INS
+        if loc == head-1 and (len(orig) < len(alts[allele-1])):
+            print ('Warning: overlapped INS at {0} for hap{1}'.format(loc, hap_str))
+            new_offset = add_alt(hap, loc-1, orig, alts[allele-1], offset, True)
+        elif loc >= head:
+            new_offset = add_alt(hap, loc-1, orig, alts[allele-1], offset, False)
+        else:
+            flag_skip = True
+            print ('Warning: conflict at {0} for hap{1}'.format(loc, hap_str))
+    else:
+        new_offset = 0
+        hap[loc+offset-1] = alts[allele-1]
+
+    if not flag_skip:
+        f_var.write(
+            '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
+            (hap_str, chrom, type, str(loc), str(loc+offset), orig, alts[allele-1], str(new_offset), str(offset_other) )
+        )
+        offset = new_offset
+        head = loc + len(orig)
+    
+    return head, hap, offset
+
 def update_genome(
     indiv,
     seq,
@@ -46,8 +90,13 @@ def update_genome(
     indels,
     var_only,
     is_stochastic,
-    block_size
+    block_size,
+    is_ld
 ):
+    #: assertions
+    if is_ld:
+        assert indiv == None
+
     '''
     ##fileformat=VCFv4.1
     '''
@@ -116,94 +165,82 @@ def update_genome(
         loc = int(row[1])
 
         if is_stochastic:
-            freq = get_allele_freq(row[7], num_haps)
-            #: only updates the random number when exceeding current block
-            if loc >= current_block_pos + block_size:
-                # print ('--update block--')
-                # print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
-                rr = random.random()
-                current_block_pos = int(loc / block_size) * block_size
-                # print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+            if is_ld == None:
+                freq = get_allele_freq(row[7], num_haps)
+                #: only updates the random number when exceeding current block
+                if loc >= current_block_pos + block_size:
+                    # print ('--update block--')
+                    # print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+                    rr = random.random()
+                    current_block_pos = int(loc / block_size) * block_size
+                    # print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
 
-            if rr > freq:
-                continue
-            # print ('selected, rr = {}'.format(rr), row[:2], freq)
+                if rr > freq:
+                    continue
+                # print ('selected, rr = {}'.format(rr), row[:2], freq)
+            else:
+                if loc >= current_block_pos + block_size:
+                    ld_indiv = random.choice(labels[9:])
+                    ld_hap = random.choice([0,1])
+                    current_block_pos = int(loc / block_size) * block_size
+                    for i in range(9, len(labels)):
+                        if labels[i] == ld_indiv:
+                            col = i
+                    if not col:
+                        print('Error! Couldn\'t find individual %s in VCF' % indiv)
+                        exit()    
+                    print ('%d: %s\n' % (current_block_pos, indiv))
 
         #: supports tri-allelic
         if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
-            # if row[0] != chrom:
-            #     continue
-
             orig = row[3]
             alts = row[4].split(',')
 
-            if indiv != None:
+            if is_ld:
+                if ld_hap == 0:
+                    alleleA = int(row[col][0])
+                elif ld_hap == 1:
+                    alleleA = int(row[col][2])
+                alleleB = 0
+            elif indiv != None:
                 alleleA = int(row[col][0])
                 alleleB = int(row[col][2])
             else:
+                #: always uses allele "1"
                 alleleA = 1
                 alleleB = 0
-                #: ignore multiallelic loci
-                # if len(alts) > 1:
-                #     continue
                 
             if alleleA > 0:
-                if len(orig) != len(alts[alleleA-1]):
-                    type = 'INDEL'
-                else:
-                    type = 'SNP'
-                flag_skip = False
-                if indels:
-                    #: ignores conflicts or overlapped variants
-                    #: but accepts overlapped INS
-                    if loc == headA-1 and (len(orig) < len(alts[alleleA-1])):
-                        print ('Warning: overlapped INS at {} for hapA'.format(loc))
-                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, True)
-                    elif loc >= headA:
-                        new_offsetA = add_alt(hapA, loc-1, orig, alts[alleleA-1], offsetA, False)
-                    else:
-                        flag_skip = True
-                        print ('Warning: conflict at {} for hapA'.format(loc))
-                else:
-                    new_offsetA = 0
-                    hapA[loc+offsetA-1] = alts[alleleA-1]
-                
-                if not flag_skip:
-                    f_var.write(
-                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                        ('A', chrom, type, str(loc), str(loc+offsetA), orig, alts[alleleA-1], str(new_offsetA), str(offsetB) )
-                    )
-                    offsetA = new_offsetA
-                    headA = loc + len(orig)
+                headA, hapA, offsetA = update_allele(
+                    orig=orig,
+                    alts=alts,
+                    allele=alleleA,
+                    indels=indels,
+                    head=headA,
+                    loc=loc,
+                    f_var=f_var,
+                    hap=hapA,
+                    hap_str='A',
+                    offset=offsetA,
+                    offset_other=offsetB,
+                    chrom=chrom
+                )
             
             if alleleB > 0 and indiv != None:
-                if len(orig) != len(alts[alleleB-1]):
-                    type = 'INDEL'
-                else:
-                    type = 'SNP'
-                flag_skip = False
-                if indels:
-                    #: ignores conflicts or overlapped variants
-                    #: but accepts overlapped INS
-                    if loc == headB-1 and (len(orig) < len(alts[alleleB-1])):
-                        print ('Warning: overlapped INS at {} for hapB'.format(loc))
-                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, True)
-                    elif loc >= headB:
-                        new_offsetB = add_alt(hapB, loc-1, orig, alts[alleleB-1], offsetB, False)
-                    else:
-                        flag_skip = True
-                        print ('Warning: conflict at {} for hapB'.format(loc))
-                else:
-                    new_offsetB = 0
-                    hapB[loc+offsetB-1] = alts[alleleB-1]
-                
-                if not flag_skip:
-                    f_var.write(
-                        '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % 
-                        ('B', chrom, type, str(loc), str(loc+offsetB), orig, alts[alleleB-1], str(new_offsetB), str(offsetA) )
-                    )
-                    offsetB = new_offsetB
-                    headB = loc + len(orig)
+                headB, hapB, offsetB = update_allele(
+                    orig=orig,
+                    alts=alts,
+                    allele=alleleB,
+                    indels=indels,
+                    head=headB,
+                    loc=loc,
+                    f_var=f_var,
+                    hap=hapB,
+                    hap_str='B',
+                    offset=offsetB,
+                    offset_other=offsetA,
+                    chrom=chrom
+                )
 
             if (alleleA > 0) or \
                 (alleleB > 0 and indiv != None):
@@ -213,7 +250,6 @@ def update_genome(
     f_vcf.close()
     f_var.close()
     
-    # if var_only == 0:
     if not var_only:
         for i in range(0, len(hapA), 60):
             fA.write(''.join(hapA[i:i+60])  + '\n')
@@ -304,28 +340,22 @@ if __name__ == '__main__':
         '-s', '--name', type=str, help="Name of individual in VCF to process; leave blank to allow all variants [None]"
     )
     parser.add_argument(
-        '-i', '--include-indels', action='store_true', help="Set to extract both SNPs and INDELs"
+        '-i', '--include-indels', action='store_true', help="Set to extract both SNPs and INDELs [Off]"
     )
-    # parser.add_argument(
-    #     '-i', '--include-indels', type=int, default=0, help="Set 1 to extract both SNPs and INDELs [0]"
-    # )
-    # parser.add_argument(
-    #     '-S', '--stochastic', type=int, default=0, help="Set 1 to enable stochastic flipping [0]"
-    # )
     parser.add_argument(
-        '-S', '--stochastic', action='store_true', help="Set to enable stochastic flipping"
+        '-S', '--stochastic', action='store_true', help="Set to enable stochastic flipping [Off]"
     )
     parser.add_argument(
         '-rs', '--rand-seed', help="random seed for controlled randomness [None]"
     )
-    # parser.add_argument(
-    #     '--var-only', type=int, default=0, help="Set 1 to report .var file only (no .fa) [0]"
-    # )
     parser.add_argument(
-        '--var-only', action='store_true', help="Set to report .var file only (no .fa output)"
+        '--var-only', action='store_true', help="Set to report .var file only (no .fa output) [Off]"
     )
     parser.add_argument(
         '-b', '--block-size', type=int, default=1, help="Size of block for stochastic update [1]"
+    )
+    parser.add_argument(
+        '-l', '--ld', action='store_true', help="Set to enable pseudo-LD blocking [Off]"
     )
 
 
@@ -351,5 +381,6 @@ if __name__ == '__main__':
         indels = args.include_indels,
         var_only = args.var_only,
         is_stochastic = args.stochastic,
-        block_size = args.block_size
+        block_size = args.block_size,
+        is_ld = args.ld
     )
