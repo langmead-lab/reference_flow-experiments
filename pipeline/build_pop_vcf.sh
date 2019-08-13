@@ -1,14 +1,14 @@
 usage(){
-    echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -v vcf"
-    # echo "Usage: $(basename $0) [-brtpS] -c chrom -C cat -f fasta -s indiv -v vcf"
+    #echo "Usage: $(basename $0) [-blrtpS] -c chrom -C cat -f fasta -v vcf"
+    echo "Usage: $(basename $0) [-lr] [-b INT] [-t INT] [-p INT] [-S path] -c chrom -C cat -f fasta -v vcf"
     echo "------ Requirements -----"
     echo "  -c  name of chromosome"
     echo "  -C  category {superpop/pop}"
     echo "  -f  reference FASTA file"
-    # echo "  -s  target individual in 1000 Genomes Project"
     echo "  -v  1000 Genomes Project VCF file for target chromosome"
     echo "------ Options -----"
     echo "  -b  size of block for stochastic genomes [1]"
+    echo "  -l  blocking with pseudo-LD, set to enable [False]"
     echo "  -r  stochastic population genomes, set to enable [False]"
     echo "  -t  population frequency cutoff level [1]"
     echo "  -p  number of threads [8]"
@@ -23,8 +23,9 @@ THREADS=8
 FRAC=0
 BLOCK_SIZE=1
 STOCHASTIC=0
+LD=0
 
-while getopts c:C:f:s:v:b:r:t:p:P:S:h: option
+while getopts c:C:f:s:v:b:t:p:P:S:rlh option
 do
     case "${option}"
     in
@@ -33,32 +34,35 @@ do
         BLOCK_SIZE=${OPTARG}
         echo "Set stochastic block size -> $BLOCK_SIZE"
         ;;
+    l)
+        LD=1
+        echo "Use pseudo-LD blocking"
+        ;;
     r)
-        echo "Use stochastic populations genomes"
         STOCHASTIC=1
+        echo "Use stochastic populations genomes"
         ;;
     t)
         FRAC=${OPTARG}
         echo "Set frequency cutoff level -> $FRAC"
         ;;
     p) 
-        echo "Set number of threads -> $THREADS"
         THREADS=${OPTARG}
+        echo "Set number of threads -> $THREADS"
         ;;
     S) 
-        echo "Set script directory -> $SCRIPTS"
         SCRIPTS=${OPTARG}
+        echo "Set script directory -> $SCRIPTS"
         ;;
     P) 
-        echo "Set 1KG sample directory -> $DIR_SAMPLE"
         DIR_SAMPLE=${OPTARG}
+        echo "Set 1KG sample directory -> $DIR_SAMPLE"
         ;;
 
     #: requirements
     c) CHROM=${OPTARG};;
     C) CAT=${OPTARG};;
     f) GENOME=${OPTARG};;
-    #s) SAMPLE=${OPTARG};;
     v) VCF=${OPTARG};;
 
     #: help
@@ -68,6 +72,7 @@ do
         usage
     esac
 done
+shift "$(($OPTIND -1))"
 
 #: check if required fields are given
 if [ -z ${CHROM+x} ]
@@ -85,11 +90,6 @@ then
     echo "error: required input genome (-f) is not set"
     usage
 fi
-# if [ -z ${SAMPLE+x} ]
-# then
-#     echo "Error: required input SAMPLE (-s) is not set"
-#     usage
-# fi
 if [ -z ${VCF+x} ]
 then
     echo "Error: required input VCF (-v) is not set"
@@ -137,9 +137,6 @@ do
     if [ -f "${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz" ]; then
         echo "Use existing ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz"
     else
-        # if [ "$FRAC" == "0" ]; then
-        #     THRSD=0
-        # else
         if [ "$FRAC" -ne "0" ]; then
             THRSD=$(( ($(cat vcf_${CAT}_${s}_samples.txt | wc -w) - 9) * 2 / $FRAC ))
         fi
@@ -153,15 +150,21 @@ do
 
     #: non-stochastic update
     if [ $STOCHASTIC == "0" ]; then
-        # ~/bin/bcftools consensus -f $GENOME ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz > ${CHROM}_${CAT}_${s}_thrsd${FRAC}.fa
         bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-            python3.7 $REL/scripts/update_genome.py \
-                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
-                --include-indels
+        python3.7 $REL/scripts/update_genome.py \
+            --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
+            --include-indels
     elif [ $STOCHASTIC == "1" ]; then
-        bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
+        if [ $LD == "0" ]; then
+            bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
             python3.7 $REL/scripts/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${BLOCK_SIZE} \
                 --include-indels --stochastic -rs 0 --block-size $BLOCK_SIZE
+        else
+            bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
+            python3.7 $REL/scripts/update_genome.py \
+                --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${BLOCK_SIZE} \
+                --include-indels --stochastic -rs 0 --block-size $BLOCK_SIZE --ld
+        fi
     fi
 done
