@@ -867,7 +867,8 @@ if __name__ == '__main__':
         write_wrt_mapq(sam_fn, int(mapq_threshold))
         exit()
     
-    USE_PREV_IF_POSSIBLE = False
+    #USE_PREV_IF_POSSIBLE = False
+    USE_PREV_IF_POSSIBLE = True
     PLOT_HIST = False
     if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl') and write_wrt_correctness == None:
         print ('Read stats from {0}-stats.pkl'.format(sam_fn))
