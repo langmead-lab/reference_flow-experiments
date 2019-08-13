@@ -27,16 +27,16 @@ do
     in
     #: options
     C) 
-        echo "Set category -> $CAT"
         CAT=${OPTARG}
+        echo "Set category -> $CAT"
         ;;
     p) 
-        echo "Set number of threads -> $THREADS"
         THREADS=${OPTARG}
+        echo "Set number of threads -> $THREADS"
         ;;
     S) 
-        echo "Set script directory -> $SCRIPTS"
         SCRIPTS=${OPTARG}
+        echo "Set script directory -> $SCRIPTS"
         ;;
 
     #: requirements
