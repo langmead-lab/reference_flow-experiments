@@ -165,7 +165,7 @@ def update_genome(
         loc = int(row[1])
 
         if is_stochastic:
-            if is_ld == None:
+            if is_ld == False:
                 freq = get_allele_freq(row[7], num_haps)
                 #: only updates the random number when exceeding current block
                 if loc >= current_block_pos + block_size:
@@ -189,7 +189,7 @@ def update_genome(
                     if not col:
                         print('Error! Couldn\'t find individual %s in VCF' % indiv)
                         exit()    
-                    print ('%d: %s\n' % (current_block_pos, indiv))
+                    # print ('{0}: {1}-{2}'.format(current_block_pos, ld_indiv, ld_hap))
 
         #: supports tri-allelic
         if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
