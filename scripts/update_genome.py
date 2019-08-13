@@ -91,7 +91,8 @@ def update_genome(
     var_only,
     is_stochastic,
     block_size,
-    is_ld
+    is_ld,
+    exclude_list
 ):
     #: assertions
     if is_ld:
@@ -137,6 +138,7 @@ def update_genome(
 
     current_block_pos = 0
     rr = 0 # initial number for random.random()
+    exclude_list = exclude_list.split(',')
 
     for line in f:
         #: Skip header lines
@@ -180,16 +182,20 @@ def update_genome(
                 # print ('selected, rr = {}'.format(rr), row[:2], freq)
             else:
                 if loc >= current_block_pos + block_size:
-                    ld_indiv = random.choice(labels[9:])
-                    ld_hap = random.choice([0,1])
-                    current_block_pos = int(loc / block_size) * block_size
-                    for i in range(9, len(labels)):
-                        if labels[i] == ld_indiv:
-                            col = i
-                    if not col:
-                        print('Error! Couldn\'t find individual %s in VCF' % indiv)
-                        exit()    
-                    # print ('{0}: {1}-{2}'.format(current_block_pos, ld_indiv, ld_hap))
+                    while 1:
+                        ld_indiv = random.choice(labels[9:])
+                        ld_hap = random.choice([0,1])
+                        if ld_indiv in exclude_list:
+                            print ('exclude {0}: {1}-{2}'.format(current_block_pos, ld_indiv, ld_hap))
+                            continue
+                        current_block_pos = int(loc / block_size) * block_size
+                        for i in range(9, len(labels)):
+                            if labels[i] == ld_indiv:
+                                col = i
+                        if not col:
+                            print('Error! Couldn\'t find individual %s in VCF' % indiv)
+                            exit()    
+                        break
 
         #: supports tri-allelic
         if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
@@ -357,6 +363,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '-l', '--ld', action='store_true', help="Set to enable pseudo-LD blocking [Off]"
     )
+    parser.add_argument(
+        '-ex', '--exclude-name', type=str, help="Name of individuals in VCF to exclude; separate by comma [None]"
+    )
 
 
     args = parser.parse_args(sys.argv[1:])
@@ -382,5 +391,6 @@ if __name__ == '__main__':
         var_only = args.var_only,
         is_stochastic = args.stochastic,
         block_size = args.block_size,
-        is_ld = args.ld
+        is_ld = args.ld,
+        exclude_list = args.exclude_name
     )
