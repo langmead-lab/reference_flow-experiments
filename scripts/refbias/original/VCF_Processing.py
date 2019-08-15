@@ -1,8 +1,6 @@
 import argparse
-#import time #('time: ', 19.679501056671143)
 
-def main(fn_vcf, fn_output):
-    #t = time.time()
+def main(fn_vcf, fn_output, sample):
     file = open(fn_vcf, 'r')
     f = open(fn_output, 'a+')
 
@@ -12,12 +10,13 @@ def main(fn_vcf, fn_output):
     for line in file:
         if should and line.startswith("##"):
             should = should
-            #f.write(line)
+            f.write(line)
         else:
             if line.startswith("#"):
+                f.write(line)
                 categories = line.split()
                 for i in range(len(categories)):
-                    if categories[i] == 'NA12878':
+                    if categories[i] == sample:
                         index = i
                 toAdd = [categories[i] for i in range(8)]
                 toAdd.append(categories[index])
@@ -53,10 +52,13 @@ def main(fn_vcf, fn_output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--vcf', help='vcf file for chromosomes')
+    parser.add_argument('-s', '--sample', help='targeted sample')
     parser.add_argument('-o', '--out', help='output vcf file with HET sites')
     args = parser.parse_args()
     fn_vcf = args.vcf
     fn_output = args.out
-    print('vcf', fn_vcf)
-    print('output', fn_output)
-    main(fn_vcf, fn_output)
+    sample = args.sample
+    print ('vcf', fn_vcf)
+    print ('sample', sample)
+    print ('output', fn_output)
+    main(fn_vcf, fn_output, sample)

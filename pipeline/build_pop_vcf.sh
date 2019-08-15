@@ -1,6 +1,6 @@
 usage(){
     #echo "Usage: $(basename $0) [-blrtpS] -c chrom -C cat -f fasta -v vcf"
-    echo "Usage: $(basename $0) [-lr] [-b INT] [-t INT] [-p INT] [-S path] -c chrom -C cat -f fasta -v vcf"
+    echo "Usage: $(basename $0) [-lr] [-b INT] [-t INT] [-p INT] [-S path] [-x STR] -c chrom -C cat -f fasta -v vcf"
     echo "------ Requirements -----"
     echo "  -c  name of chromosome"
     echo "  -C  category {superpop/pop}"
@@ -14,6 +14,7 @@ usage(){
     echo "  -p  number of threads [8]"
     echo "  -P  directory for 1KG population individuals []"
     echo "  -S  path of scripts []"
+    echo "  -x  indivs to exclude, separate by comma [None]"
     exit
 }
 
@@ -24,8 +25,9 @@ FRAC=0
 BLOCK_SIZE=1
 STOCHASTIC=0
 LD=0
+EXCLUDE_ID=""
 
-while getopts c:C:f:s:v:b:t:p:P:S:rlh option
+while getopts c:C:f:s:v:b:t:p:P:S:x:rlh option
 do
     case "${option}"
     in
@@ -57,6 +59,10 @@ do
     P) 
         DIR_SAMPLE=${OPTARG}
         echo "Set 1KG sample directory -> $DIR_SAMPLE"
+        ;;
+    x) 
+        EXCLUDE_ID=${OPTARG}
+        echo "Set indivs to exclude -> $EXCLUDE_ID"
         ;;
 
     #: requirements
@@ -151,20 +157,20 @@ do
     #: non-stochastic update
     if [ $STOCHASTIC == "0" ]; then
         bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-        python3.7 $REL/scripts/update_genome.py \
+        python3.7 $SCRIPTS/update_genome.py \
             --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC} \
             --include-indels
     elif [ $STOCHASTIC == "1" ]; then
         if [ $LD == "0" ]; then
             bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-            python3.7 $REL/scripts/update_genome.py \
+            python3.7 $SCRIPTS/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${BLOCK_SIZE} \
                 --include-indels --stochastic -rs 0 --block-size $BLOCK_SIZE
         else
             bgzip -@ $THREADS -cd ${CHROM}_${CAT}_${s}_thrsd${FRAC}.vcf.gz |\
-            python3.7 $REL/scripts/update_genome.py \
+            python3.7 $SCRIPTS/update_genome.py \
                 --ref $GENOME --chrom $CHROM --out-prefix ${CHROM}_${CAT}_${s}_thrsd${FRAC}_stochastic_b${BLOCK_SIZE} \
-                --include-indels --stochastic -rs 0 --block-size $BLOCK_SIZE --ld
+                --include-indels --stochastic -rs 0 --block-size $BLOCK_SIZE --ld --exclude-name $EXCLUDE_ID
         fi
     fi
 done

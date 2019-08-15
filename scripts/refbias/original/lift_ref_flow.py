@@ -3,32 +3,42 @@ import argparse
 import os.path
 from os import path
 
-def main(fn_vcf, list_fn_sam, fn_fasta, list_fn_name, fn_out):
-    import liftover_sam
+def main(fn_vcf, fn_sam, fn_fas, fn_output):
+    import liftover_sam#cigar_whole_genome_sam
+    #import Indel_VCF_Processing
     ref_bi_list = []
     counter = 1
 
-    # name_list = ['MAJ-no-indel', 'AFR-no-indel', 'AMR-no-indel', 'EAS-no-indel', 'EUR-no-indel', 'SAS-no-indel']
-    # name_list = ['perA-no-indel', 'perB-no-indel']
-    for i in range(len(list_fn_sam)):
-        print("i:", i)
-        vcf = fn_vcf
-        sam = list_fn_sam[i]
-        fasta = fn_fasta
+    #het_vcf = []
+    #for element in fn_vcf:   
+    #    vcf_out = str(counter) + '_lifted_het.vcf'
+    #    if not path.exists(vcf_out): 
+    #        Indel_VCF_Processing.main(element, '21_out.vcf', vcf_out)
+    #    het_vcf.append(vcf_out)
+    #    counter += 1
+    #counter = 1
+    
+    #name_list = ['MAJ-no-indel', 'AFR-no-indel', 'AMR-no-indel', 'EAS-no-indel', 'EUR-no-indel', 'SAS-no-indel']
+    name_list = ['perA-no-indel', 'perB-no-indel']
+    het_vcf = fn_vcf
+    for i in range(len(het_vcf)):
+        print("i: ", i)
+        vcf = het_vcf[i]
+        sam = fn_sam[i]
+        fasta = fn_fas[i]
         
         print("vcf: ", vcf)
         print("sam: ", sam)
         print("fasta: ", fasta)
         
-        # output = name_list[i] + '_refbias.txt'
-        output = list_fn_sam[i] + '_refbias.txt'
+        output = name_list[i] + '_refbias.txt'
         liftover_sam.main(vcf, sam, fasta, output)#cigar_whole_genome_sam.main(vcf, sam, fasta, output)
         ref_bi_list.append(output)
         counter += 1
     print("ref_bi_list: ", ref_bi_list)
-    merge(ref_bi_list, fn_out)
+    merge(ref_bi_list, fn_output)
     
-def merge(ref_bi_list, fn_out):
+def merge(ref_bi_list, fn_output):
     #question, how should i handle the HET sites when merging (b/c they are different depending on offsets
     het_site = []
     ref_count = []
@@ -76,7 +86,7 @@ def merge(ref_bi_list, fn_out):
 
             count += 1
 
-    f_out = open(fn_out, 'w')
+    f_out = open(fn_output, 'w')
     f_out.write("#CHR\tHET SITE\tREFERENCE BIAS\tREF COUNT\tALT COUNT\tGAP COUNT\tOTHER COUNT\t# READS")
     f_out.write("\n")
     for i in range(len(ref_count)): 
@@ -102,37 +112,27 @@ def merge(ref_bi_list, fn_out):
         f_out.write(str(num_reads[i]))
         f_out.write("\n")
 
-def get_paths_from_list(fn_list):
-    l = []
-    with open(fn_list, 'r') as f:
-        for line in f:
-            l.append(line.rstrip())
-    return l
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--vcf', help='vcf file')
-    parser.add_argument('-s', '--sam', help='list of sam file(s)')
-    parser.add_argument('-n', '--name', help='list of partial output name (s)')
-    parser.add_argument('-f', '--fasta', help='reference fasta file')
+    parser.add_argument('-v', '--vcf', action='store', dest='vcf_list',
+                        type=str, nargs='*', default=['item1', 'item2', 'item3'], help = 'list of vcf file names')
+    parser.add_argument('-s', '--sam', action='store', dest='sam_list',
+                        type=str, nargs='*', default=['item1', 'item2', 'item3'], help='list of sam file names')
+    parser.add_argument('-f', '--fas', action='store', dest='fas_list',
+                        type=str, nargs='*', default=['item1', 'item2', 'item3'], help='list of sam file names')
     parser.add_argument('-o', '--out', help='output joined reference bias files')
 
     args = parser.parse_args()
 
-    fn_vcf = args.vcf
-    list_fn_sam = get_paths_from_list(args.sam)
-    list_fn_name = get_paths_from_list(args.name)
-    fn_fasta = args.fasta
-    fn_out = args.out
+    v_input = args.vcf_list
+    s_input = args.sam_list
+    f_input = args.fas_list
+    out = args.out
 
-    print("vcf file: {}".format(fn_vcf))
-    print("List of sam files: {}".format(list_fn_sam))
-    print("fasta file: {}".format(fn_fasta))
-    print("output: ", fn_out)
-    main(
-        fn_vcf=fn_vcf,
-        list_fn_sam=list_fn_sam,
-        fn_fasta=fn_fasta,
-        list_fn_name=list_fn_name,
-        fn_out=fn_out
-    )
+    print("List of vcf files: {}".format(v_input))
+    print("List of sam files: {}".format(s_input))
+    print("List of fasta files: {}".format(f_input))
+    print("output: ", out)
+    main(v_input, s_input, f_input, out)
