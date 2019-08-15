@@ -1,0 +1,97 @@
+---
+title: "Reference Bias"
+author: "Nae-Chyun"
+date: "8/13/2019"
+output: html_document
+---
+
+```{r include}
+library(ggplot2)
+```
+
+```{r load_data}
+df_ref <- read.delim("deep-snp_only-chr21-ref.txt", header = TRUE, sep = "\t")
+df_maj <- read.delim("deep-snp_only-chr21-h37maj.txt", header = TRUE, sep = "\t")
+df_rf <- read.delim("deep-snp_only-chr21-RF_5s0.txt", header = TRUE, sep = "\t")
+df_per <- read.delim("deep-snp_only-chr21-per.txt", header = TRUE, sep = "\t")
+```
+
+```{r filter_het_with_no_reads}
+filter_df <- function (df){
+  df <- df[df$X..READS > 15,]
+  
+  df$REFBIAS = df$REF.COUNT / df$X..READS
+  # df$REFBIAS = as.numeric(as.character(df$REFERENCE.BIAS))
+  # sum(df$REFBIAS > 0.8)
+  # sum(df$REFBIAS < 0.2)
+  return (df)
+}
+df_ref <- filter_df(df_ref)
+df_maj <- filter_df(df_maj)
+df_rf <- filter_df(df_rf)
+df_per <- filter_df(df_per)
+```
+
+# Plots countour-only histograms #
+```{r contour_only}
+hist_step <- 0.04
+num_bins <- 1 / hist_step
+hist_bins <- rep(seq(0 + hist_step / 2, 1 - hist_step / 2, by=hist_step), 4)
+hist_ref <- hist(df_ref$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_maj <- hist(df_maj$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_rf <- hist(df_rf$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_per <- hist(df_per$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+
+df <- data.frame(xx = c(hist_ref, hist_maj, hist_rf, hist_per), yy = rep(c('grch37', 'major', 'ref-flow (5 x s0)', 'personalized'), each=num_bins))
+
+p <- ggplot() + scale_y_continuous(trans = 'log10') + theme_bw() + 
+  xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
+  geom_step(mapping=aes(x=hist_bins, y=df$xx, colour=df$yy, linetype=df$yy))
+p 
+```
+
+``` {r some_stats}
+calc_improvement_compared_to_per <- function(off_value){
+  bias_ref <- sum(df_ref$REFBIAS > 0.5 + off_value) + sum(df_ref$REFBIAS < 0.5 - off_value)
+  bias_rf <- sum(df_rf$REFBIAS > 0.5 + off_value) + sum(df_rf$REFBIAS < 0.5 - off_value)
+  bias_per <- sum(df_per$REFBIAS > 0.5 + off_value) + sum(df_per$REFBIAS < 0.5 - off_value)
+  return ((bias_ref - bias_rf) / (bias_ref - bias_per))
+}
+calc_improvement_compared_to_per(0.3)
+calc_improvement_compared_to_per(0.2)
+```
+
+# Analyze ALT tail in alignment using personalized genomes #
+
+```{r load_data}
+df_sim <- read.delim("per-alt_tail/NA12878-bias_in_per.sam", header = F, sep = "\t")
+df_bias_perA <- read.delim("per-alt_tail/NA12878-bias_in_per-A.sam", header = F, sep = "\t")
+df_bias_perB <- read.delim("per-alt_tail/NA12878-bias_in_per-B.sam", header = F, sep = "\t")
+
+check_hapAB <- function(v){
+  hap_tf <- grepl("hapA", v[1:length(v)])
+  hap <- ifelse(hap_tf, "(hapA)", "(hapB)")
+  return (hap)
+}
+
+df_sim$HAP <- check_hapAB(df_sim$V1)
+df_bias_perA$HAP <- check_hapAB(df_bias_perA$V1)
+df_bias_perB$HAP <- check_hapAB(df_bias_perB$V1)
+
+source_and_method <- paste(rep(c('Simulation', 'Aln to hapA', 'Aln to hapB'), c(nrow(df_sim), nrow(df_bias_perA), nrow(df_bias_perB))), c(df_sim$HAP, df_bias_perA$HAP, df_bias_perB$HAP))
+level <- unique(source_and_method)
+
+# method <- rep(c('sim', 'aln2A', 'aln2B'), c(nrow(df_sim), nrow(df_bias_perA), nrow(df_bias_perB)))
+df_bias <- data.frame(bias = c(df_sim$V4, df_bias_perA$V4, df_bias_perB$V4), group = source_and_method)
+```
+
+```{r plot_histogram}
+p <- ggplot(df_bias, aes(x=bias, fill=group)) + 
+  geom_histogram() + theme_bw() + 
+  xlab("Position") + labs(fill='')
+p
+```
+
+*HapA reads can be misaligned because of multi-mapping.*
+Many "Aln to hapB (hapA)" reads are aligned incorrectly because such alignments on hapB are higher in MAPQ (same AS).
+
