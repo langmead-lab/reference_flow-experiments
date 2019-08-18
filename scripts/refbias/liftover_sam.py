@@ -24,7 +24,8 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
     vcf_file_name = fn_output+'.chr_vcf.pickle'
     sam_file_name = fn_output+'.chr_sam.pickle'
 
-    f = open(fn_output, 'a+')
+    #f = open(fn_output, 'a+')
+    f = open(fn_output, 'w')
 
     count_het = 0
     if not path.exists(vcf_file_name):
