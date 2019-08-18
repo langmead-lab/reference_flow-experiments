@@ -1,0 +1,67 @@
+import os
+CHROM = '21'
+GENOME = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa'
+VCF = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
+#DIR_RF = ''
+BCFTOOLS = '/home-1/cnaechy1@jhu.edu/bin/bcftools'
+DIR = '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline'
+PREFIX_VCF_F = os.path.join(DIR, CHROM + '_filtered')
+PREFIX_MAJOR = os.path.join(DIR, CHROM + '_h37maj')
+
+THREADS=16
+
+rule all:
+    input:
+        PREFIX_MAJOR + '.fa'
+
+rule filter_vcf:
+    input:
+        vcf = VCF
+    output:
+        vcf = PREFIX_VCF_F + '.vcf.gz'
+    params:
+        bcftools = BCFTOOLS
+    shell:
+        '{params.bcftools} view -V mnps,other {input.vcf} > {output.vcf}'
+
+rule build_major:
+    input:
+        genome = GENOME,
+        vcf = PREFIX_VCF_F + '.vcf.gz'
+    output:
+        vcf_major = PREFIX_VCF_F + '_major.vcf',
+        vcf_major_gz = PREFIX_VCF_F + '_major.vcf.gz',
+        vcf_major_gz_csi = PREFIX_VCF_F + '_major.vcf.gz.csi',
+        out_genome = PREFIX_MAJOR + '.fa',
+        out_var = PREFIX_MAJOR + '.var',
+        out_vcf = PREFIX_MAJOR + '.vcf'
+    threads: THREADS
+    params:
+        chrom = CHROM,
+        major_out_prefix = PREFIX_MAJOR,
+        bcftools = BCFTOOLS
+    shell:
+        '{params.bcftools} view -O v --threads {threads} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
+        'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
+        'bgzip -@ {threads} > {output.vcf_major_gz};'
+        #"~/bin/bcftools index {output.vcf_major_gz};"
+        '{params.bcftools} index {output.vcf_major_gz};'
+        'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
+        'python /net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts/update_genome.py '
+        '    --ref {input.genome} --vcf {output.vcf_major} '
+        '    --chrom {params.chrom} --out-prefix {params.major_out_prefix} '
+        '    --include-indels'
+
+# rule merge_two_pass:
+#     input:
+# 
+# rule align_second_pass:
+#     input:
+# 
+# rule first_pass:
+#     input:
+#     params:
+#         index = INDEX
+#     output:
+#     shell:
+#         "bowtie2 --threads THREADS -x {params.index} -U "````
