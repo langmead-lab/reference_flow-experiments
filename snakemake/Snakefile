@@ -23,11 +23,18 @@ PREFIX_MAJOR_IDX = os.path.join(DIR, 'major/indexes/' + CHROM + '_h37maj')
 DIR_PER_IDX = os.path.join(DIR, '{INDIV}/indexes/')
 PREFIX_PER = os.path.join(DIR, '{INDIV}/per')
 
+POP_THRSD = 0
+POP_STOCHASTIC = 1
+POP_BLOCK_SIZE = 5000
+POP_USE_LD = 1
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
+POP_DIRNAME = 'thrds{0}_S{1}_block{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
+DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
 THREADS=16
+RAND_SEED = 0
 
 rule all:
     input:
@@ -43,10 +50,13 @@ rule all:
             os.path.join(
                 DIR_POP_GENOME,
                 CHROM + '_superpop_{GROUP}.vcf.gz'),
-            GROUP = GROUP
-        )
-    shell:
-        'rm {input.major} {input.per} {input.sim}'
+            GROUP = GROUP),
+        popg = expand(
+            os.path.join(DIR, 'pop_genome_{GROUP}.ing'),
+            GROUP = GROUP)
+    #shell:
+    #    'rm {input.major} {input.per} {input.sim};'
+    #    'rm {input.popg}'
 
 rule filter_vcf:
     input:
@@ -54,7 +64,7 @@ rule filter_vcf:
     output:
         vcf = PREFIX_VCF_F + '.vcf.gz'
     shell:
-        '{BCFTOOLS} view -V mnps,other {input.vcf} > {output.vcf}'
+        '{BCFTOOLS} view --threads THREADS -V mnps,other {input.vcf} > {output.vcf}'
 
 '''
 Rules for building major-allele genome
@@ -74,7 +84,7 @@ rule build_major:
         '{BCFTOOLS} view -O v --threads THREADS -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
         'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
         'bgzip -@ THREADS > {output.vcf_major_gz};'
-        '{BCFTOOLS} index {output.vcf_major_gz};'
+        '{BCFTOOLS} index --threads THREADS {output.vcf_major_gz};'
         'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
         'python {DIR_SCRIPTS}/update_genome.py '
         '    --ref {input.genome} --vcf {output.vcf_major} '
@@ -93,7 +103,7 @@ rule check_major:
     input:
         expand(PREFIX_MAJOR_IDX + '.{idx_item}.bt2', idx_item = IDX_ITEMS)
     output:
-        touch(os.path.join(DIR, 'major.done'))
+        touch(temp(os.path.join(DIR, 'major.done')))
 
 '''
 Rules for building personalized genome
@@ -140,7 +150,7 @@ rule check_per:
             indiv=INDIV
         )
     output:
-        touch(os.path.join(DIR, 'personalization.done'))
+        touch(temp(os.path.join(DIR, 'personalization.done')))
 
 '''
 Rules for simulate reads from personalized genomes
@@ -210,7 +220,7 @@ rule check_simulation:
             type = ['fq', 'sam']
         )
     output:
-        touch(os.path.join(DIR, 'simulation.done'))
+        touch(temp(os.path.join(DIR, 'simulation.done')))
 
 '''
 Rules for building population genomes
@@ -235,16 +245,98 @@ rule build_pop_vcf:
         vcf_gz = os.path.join(DIR_POP_GENOME,
             CHROM + '_superpop_{GROUP}.vcf.gz')
     shell:
-        '{BCFTOOLS} view -S {input.indiv_group} '
-        '--force-samples {input.vcf} -V mnps,other | '
-        'vcftools --vcf - --min-alleles 2 --max-alleles 2 '
-        '--recode-INFO-all --recode --stdout | '
-        'bgzip -@ {THREADS} > {output.vcf_gz}'
+        '{BCFTOOLS} view --threads THREADS -S {input.indiv_group} '
+        '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
+        'bgzip -@ THREADS > {output.vcf_gz}'
 
-rule build_pop_genome:
+       # '{BCFTOOLS} view --threads THREADS -S {input.indiv_group} '
+       # '--force-samples {input.vcf} -V mnps,other | '
+       # 'vcftools --vcf - --min-alleles 2 --max-alleles 2 '
+       # '--recode-INFO-all --recode --stdout | '
+       # 'bgzip -@ THREADS > {output.vcf_gz}'
+
+rule get_pop_sample:
     input:
         vcf_gz = os.path.join(DIR_POP_GENOME,
             CHROM + '_superpop_{GROUP}.vcf.gz')
+    output:
+        vcf_header = os.path.join(DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}.samples')
+    shell:
+        '{BCFTOOLS} view -h {input.vcf_gz} | tail -1 '
+        '> {output.vcf_header}'
+
+rule filter_pop_vcf:
+    input:
+        vcf_gz = os.path.join(DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}.vcf.gz'),
+        vcf_header = os.path.join(DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}.samples')
+    output:
+        vcf = os.path.join(
+            DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
+        )
+    run:
+        fn = list({input.vcf_header})[0]
+        with open(fn, 'r') as f:
+            for line in f:
+                n = len(line.split()) - 9
+                thrsd = int(n * 2 * float(POP_THRSD))
+                filt = 'AC > {}'.format(thrsd)
+                break
+        shell('{BCFTOOLS} view --threads THREADS -i "{filt}" \
+            -v snps,indels {input.vcf_gz} > {output.vcf};')
+
+rule build_pop_genome:
+    input:
+        vcf = os.path.join(
+            DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
+        )
+    output:
+        vcf = os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.vcf'
+        )
+    params:
+        prefix = os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD)
+        )
+    run:
+        if POP_STOCHASTIC == 1 and POP_USE_LD == 1:
+            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE} --ld')
+        elif POP_STOCHASTIC == 1:
+            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE}')
+        else:
+            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels')
+
+rule check_pop_genome:
+    input:
+        expand(os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.vcf'
+        ), GROUP = GROUP)
+    output:
+        touch(temp(os.path.join(DIR, 'pop_genome_{GROUP}.ing')))
 
 # rule merge_two_pass:
 #     input:
