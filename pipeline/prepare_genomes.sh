@@ -87,7 +87,7 @@ python ${SCRIPTS}/update_genome.py \
 #: simulate reads
 mkdir -p reads_mason2
 cd reads_mason2
-sh ${SCRIPTS}/simulate_reads_mason2.sh ../${SAMPLE}_hapA.fa ../${SAMPLE}_hapB.fa $NUM_SIM_READS
+sh ${SCRIPTS}/../pipeline/simulate_reads_mason2.sh ../${SAMPLE}_hapA.fa ../${SAMPLE}_hapB.fa $NUM_SIM_READS
 cd ..
 
 #: build major allele reference
