@@ -1,3 +1,6 @@
+'''
+Reads a VCF (all variants should be HETs) and seperates it by chromosome
+'''
 import argparse
 
 def main(fn_vcf):
