@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 import numpy as np
 import seaborn as sns
+from utils import read_ped
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -75,6 +76,7 @@ def read_indivs(sample_fn):
             list_indivs.append(line.rstrip())
     return list_indivs
 
+'''
 def read_ped(ped_fn):
     '''
     Reads the ped file and returns a dict where keys are indivs and 
@@ -90,6 +92,7 @@ def read_ped(ped_fn):
         popd[key] = value
 
     return popd
+'''
 
 if __name__ == '__main__':
     args = parse_args()

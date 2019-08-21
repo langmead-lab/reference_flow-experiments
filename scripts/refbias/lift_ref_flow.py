@@ -22,7 +22,8 @@ def main(fn_vcf, list_fn_sam, fn_fasta, list_fn_name, fn_out):
         
         # output = name_list[i] + '_refbias.txt'
         output = list_fn_sam[i] + '_refbias.txt'
-        liftover_sam.main(vcf, sam, fasta, output)#cigar_whole_genome_sam.main(vcf, sam, fasta, output)
+        liftover_sam.main(vcf, sam, fasta, output)
+        #cigar_whole_genome_sam.main(vcf, sam, fasta, output)
         ref_bi_list.append(output)
         counter += 1
     print("ref_bi_list: ", ref_bi_list)

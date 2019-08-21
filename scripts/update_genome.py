@@ -364,7 +364,7 @@ if __name__ == '__main__':
         '-l', '--ld', action='store_true', help="Set to enable pseudo-LD blocking [Off]"
     )
     parser.add_argument(
-        '-ex', '--exclude-name', type=str, help="Name of individuals in VCF to exclude; separate by comma [None]"
+        '-ex', '--exclude-name', type=str, default='', help="Name of individuals in VCF to exclude; separate by comma ['']"
     )
 
 

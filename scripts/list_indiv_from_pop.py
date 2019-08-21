@@ -6,7 +6,8 @@ superpopulation.
 
 import argparse
 import pandas as pd
-from plot_from_exps import read_ped
+# from plot_from_exps import read_ped
+from utils import read_ped
 
 def parse_args():
     parser = argparse.ArgumentParser()
