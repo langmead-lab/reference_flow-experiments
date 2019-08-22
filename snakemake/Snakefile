@@ -1,11 +1,12 @@
 import os
 
 CHROM = '21'
-INDIV = ['NA12878']
+INDIV = ['NA12878', 'HG01200']
 GROUP = ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
 NUM_SIM_READS = 1000000
 
-DIR = '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline'
+# DIR = '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline2'
+DIR = '/scratch/groups/blangme2/naechyun/relaxing/sn_pipeline'
 GENOME = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa'
 VCF = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
 FAMILY = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
@@ -29,7 +30,12 @@ POP_BLOCK_SIZE = 5000
 POP_USE_LD = 1
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_block{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
+POP_GENOME_SUFFIX = \
+    CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
+    '_ld' + str(POP_USE_LD)
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
+DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
@@ -64,7 +70,7 @@ rule filter_vcf:
     output:
         vcf = PREFIX_VCF_F + '.vcf.gz'
     shell:
-        '{BCFTOOLS} view --threads THREADS -V mnps,other {input.vcf} > {output.vcf}'
+        '{BCFTOOLS} view --threads {THREADS} -V mnps,other {input.vcf} > {output.vcf}'
 
 '''
 Rules for building major-allele genome
@@ -81,10 +87,10 @@ rule build_major:
         out_var = PREFIX_MAJOR + '.var',
         out_vcf = PREFIX_MAJOR + '.vcf'
     shell:
-        '{BCFTOOLS} view -O v --threads THREADS -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
+        '{BCFTOOLS} view -O v --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
         'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
-        'bgzip -@ THREADS > {output.vcf_major_gz};'
-        '{BCFTOOLS} index --threads THREADS {output.vcf_major_gz};'
+        'bgzip -@ {THREADS} > {output.vcf_major_gz};'
+        '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
         'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
         'python {DIR_SCRIPTS}/update_genome.py '
         '    --ref {input.genome} --vcf {output.vcf_major} '
@@ -95,9 +101,12 @@ rule build_major_index:
     input:
         major = PREFIX_MAJOR + '.fa'
     output:
-        PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2'
+        expand(
+            PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2',
+            IDX_ITEMS = IDX_ITEMS
+        )
     shell:
-        'bowtie2-build --threads THREADS {input.major} {PREFIX_MAJOR_IDX}'
+        'bowtie2-build --threads {THREADS} {input.major} {PREFIX_MAJOR_IDX}'
 
 rule check_major:
     input:
@@ -119,7 +128,7 @@ rule build_per:
         out_prefix = PREFIX_PER,
     shell:
         'python {DIR_SCRIPTS}/update_genome.py '
-        '    --ref {input.genome} --vcf {input.vcf} --name {INDIV}'
+        '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
         '    --chrom {CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
 
@@ -128,27 +137,45 @@ rule build_per_index:
         perA = PREFIX_PER + '_hapA.fa',
         perB = PREFIX_PER + '_hapB.fa'
     output:
-        DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2',
-        DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2'
+        # expand(
+        #     DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2',
+        #     IDX_ITEMS = IDX_ITEMS
+        # ),
+        # expand(
+        #     DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2',
+        #     IDX_ITEMS = IDX_ITEMS
+        # )
+        DIR_PER_IDX + 'per_hapA.1.bt2',
+        DIR_PER_IDX + 'per_hapB.1.bt2'
     params:
         prefix_idxA = DIR_PER_IDX + 'per_hapA',
         prefix_idxB = DIR_PER_IDX + 'per_hapB'
     shell:
-        'bowtie2-build --threads THREADS {input.perA} {params.prefix_idxA};'
-        'bowtie2-build --threads THREADS {input.perB} {params.prefix_idxB}'
+        'bowtie2-build --threads {THREADS} {input.perA} {params.prefix_idxA};'
+        'bowtie2-build --threads {THREADS} {input.perB} {params.prefix_idxB}'
 
 rule check_per:
     input:
         expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
+            os.path.join(DIR, '{indiv}/indexes/per_hapA.1.bt2'),
             idx_item = IDX_ITEMS,
             indiv = INDIV
         ),
         expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapB.{idx_item}.bt2'),
+            os.path.join(DIR, '{indiv}/indexes/per_hapB.1.bt2'),
             idx_item = IDX_ITEMS,
             indiv=INDIV
         )
+        # expand(
+        #     os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
+        #     idx_item = IDX_ITEMS,
+        #     indiv = INDIV
+        # ),
+        # expand(
+        #     os.path.join(DIR, '{indiv}/indexes/per_hapB.{idx_item}.bt2'),
+        #     idx_item = IDX_ITEMS,
+        #     indiv=INDIV
+        # )
     output:
         touch(temp(os.path.join(DIR, 'personalization.done')))
 
@@ -172,10 +199,10 @@ rule simulate_reads:
     shell:
         #: marcc specific
         'module load gcc/5.5.0;'
-        '{MASON2} --num-threads THREADS -ir {input.hapA} -n {params.num} '
+        '{MASON2} --num-threads {THREADS} -ir {input.hapA} -n {params.num} '
         '-o {params.prefix}_hapA_1.fq -or {params.prefix}_hapA_2.fq '
         '-oa {params.prefix}_hapA.sam --read-name-prefix "{params.prefix}_hapA_simulated.";'
-        '{MASON2} --num-threads THREADS -ir {input.hapB} -n {params.num} '
+        '{MASON2} --num-threads {THREADS} -ir {input.hapB} -n {params.num} '
         '-o {params.prefix}_hapB_1.fq -or {params.prefix}_hapB_2.fq '
         '-oa {params.prefix}_hapB.sam --read-name-prefix "{params.prefix}_hapB_simulated.";'
 
@@ -208,8 +235,8 @@ rule merge_simulated_sam:
         'grep ^@ {input.samB} | tail -n +2 >> {output.sam};'
         'grep -v ^@ {input.samA} >> {output.sam};'
         'grep -v ^@ {input.samB} >> {output.sam};'
-        'samtools view -@ THREADS -h -f 64 {output.sam} -o {output.sam1};'
-        'samtools view -@ THREADS -h -f 128 {output.sam} -o {output.sam2}'
+        'samtools view -@ {THREADS} -h -f 64 {output.sam} -o {output.sam1};'
+        'samtools view -@ {THREADS} -h -f 128 {output.sam} -o {output.sam2}'
 
 rule check_simulation:
     input:
@@ -227,7 +254,10 @@ Rules for building population genomes
 '''
 rule prepare_pop_indiv:
     output:
-        os.path.join(DIR, '1KG_indivs/sample_superpop_{GROUP}.txt')
+        expand(
+            os.path.join(DIR, '1KG_indivs/sample_superpop_{GROUP}.txt'),
+            GROUP = GROUP
+        )
     params:
         prefix = os.path.join(DIR, '1KG_indivs/sample')
     shell:
@@ -245,9 +275,9 @@ rule build_pop_vcf:
         vcf_gz = os.path.join(DIR_POP_GENOME,
             CHROM + '_superpop_{GROUP}.vcf.gz')
     shell:
-        '{BCFTOOLS} view --threads THREADS -S {input.indiv_group} '
+        '{BCFTOOLS} view --threads {THREADS} -S {input.indiv_group} '
         '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
-        'bgzip -@ THREADS > {output.vcf_gz}'
+        'bgzip -@ {THREADS} > {output.vcf_gz}'
 
        # '{BCFTOOLS} view --threads THREADS -S {input.indiv_group} '
        # '--force-samples {input.vcf} -V mnps,other | '
@@ -285,7 +315,7 @@ rule filter_pop_vcf:
                 thrsd = int(n * 2 * float(POP_THRSD))
                 filt = 'AC > {}'.format(thrsd)
                 break
-        shell('{BCFTOOLS} view --threads THREADS -i "{filt}" \
+        shell('{BCFTOOLS} view --threads {THREADS} -i "{filt}" \
             -v snps,indels {input.vcf_gz} > {output.vcf};')
 
 rule build_pop_genome:
@@ -295,11 +325,11 @@ rule build_pop_genome:
             CHROM + '_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
         )
     output:
-        vcf = os.path.join(
+        os.path.join(
             DIR_POP_GENOME_BLOCK,
             CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
             '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-            '_ld' + str(POP_USE_LD) + '.vcf'
+            '_ld' + str(POP_USE_LD) + '.fa'
         )
     params:
         prefix = os.path.join(
@@ -327,14 +357,59 @@ rule build_pop_genome:
                 --out-prefix {params.prefix} \
                 --include-indels')
 
+rule build_pop_genome_index:
+    input:
+        genome = DIR_POP_GENOME_BLOCK + POP_GENOME_SUFFIX + '.fa'
+        # genome = os.path.join(
+        #     DIR_POP_GENOME_BLOCK,
+        #     CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+        #     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+        #     '_ld' + str(POP_USE_LD) + '.fa'
+        # )
+    output:
+        DIR_POP_GENOME_BLOCK_IDX + 
+        POP_GENOME_SUFFIX + '.1.bt2'
+        # DIR_POP_GENOME_BLOCK_IDX + 
+        # POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+            # CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            # '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            # '_ld' + str(POP_USE_LD) + '.{IDX_ITEMS}.bt2'
+        #DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2',
+        #DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2'
+    params:
+            prefix = DIR_POP_GENOME_BLOCK_IDX +
+            POP_GENOME_SUFFIX
+            # CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            # '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            # '_ld' + str(POP_USE_LD)
+        #prefix_idxA = DIR_PER_IDX + 'per_hapA',
+        #prefix_idxB = DIR_PER_IDX + 'per_hapB'
+    shell:
+        'bowtie2-build --threads {THREADS} {input.genome} {params.prefix};'
+        #'bowtie2-build --threads THREADS {input.perB} {params.prefix_idxB}'
+
+
 rule check_pop_genome:
     input:
-        expand(os.path.join(
-            DIR_POP_GENOME_BLOCK,
-            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-            '_ld' + str(POP_USE_LD) + '.vcf'
-        ), GROUP = GROUP)
+        expand(
+            DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+            GROUP = GROUP
+        )
+        # expand(
+        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+        # #expand(os.path.join(
+        # #    DIR_POP_GENOME_BLOCK_IDX,
+        # #    CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+        # #    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+        # #    '_ld' + str(POP_USE_LD) + '.{IDX_ITEMS}.bt2'),
+        #     GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
+        # )
+        # expand(os.path.join(
+        #     DIR_POP_GENOME_BLOCK,
+        #     CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+        #     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+        #     '_ld' + str(POP_USE_LD) + '.vcf'
+        # ), GROUP = GROUP)
     output:
         touch(temp(os.path.join(DIR, 'pop_genome_{GROUP}.ing')))
 
