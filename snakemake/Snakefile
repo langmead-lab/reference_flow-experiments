@@ -1,7 +1,7 @@
 import os
 
 CHROM = '21'
-INDIV = ['NA12878', 'HG01200']
+INDIV = ['NA12878', 'HG01200', 'NA20314']
 GROUP = ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
 NUM_SIM_READS = 1000000
 ALN_MAPQ_THRSD = '10'
@@ -15,7 +15,8 @@ SPOP = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg
 
 BCFTOOLS = '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 MASON2 = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
-DIR_SCRIPTS = '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
+# DIR_SCRIPTS = '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
+DIR_SCRIPTS = '/scratch/groups/blangme2/naechyun/relaxing/scripts'
 
 PREFIX_VCF_F = os.path.join(DIR, CHROM + '_filtered')
 PREFIX_MAJOR_F = os.path.join(DIR, 'major/' + CHROM + '_filtered_major')
@@ -60,13 +61,15 @@ rule all:
             GROUP = GROUP),
         #: first pass alignment
         fistpass = os.path.join(DIR, 'firstpass.done'),
-        secondpass = os.path.join(DIR, 'secondpass.done')
+        secondpass = os.path.join(DIR, 'secondpass.done'),
+        firstpass_acc = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV=INDIV),
+        rf_acc = expand(os.path.join(DIR, '{INDIV}_refflow.acc'), INDIV = INDIV, GROUP = GROUP)
 
 rule filter_vcf:
     input:
         vcf = VCF
     output:
-        vcf = PREFIX_VCF_F + '.vcf.gz'
+        vcf = PREFIX_VCF_F + '.vcf'
     shell:
         '{BCFTOOLS} view --threads {THREADS} -V mnps,other {input.vcf} > {output.vcf}'
 
@@ -76,7 +79,7 @@ Rules for building major-allele genome
 rule build_major:
     input:
         genome = GENOME,
-        vcf = PREFIX_VCF_F + '.vcf.gz'
+        vcf = PREFIX_VCF_F + '.vcf'
     output:
         vcf_major = PREFIX_MAJOR_F + '.vcf',
         vcf_major_gz = PREFIX_MAJOR_F + '.vcf.gz',
@@ -85,9 +88,6 @@ rule build_major:
         out_var = PREFIX_MAJOR + '.var',
         out_vcf = PREFIX_MAJOR + '.vcf'
     shell:
-        # '{BCFTOOLS} view -O v --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
-        # 'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
-        # 'bgzip -@ {THREADS} > {output.vcf_major_gz};'
         '{BCFTOOLS} view -O z --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels -m2 -M2 > '
         '{output.vcf_major_gz};'
         '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
@@ -126,16 +126,16 @@ Rules for building personalized genome
 rule build_per:
     input:
         genome = GENOME,
-        vcf = PREFIX_VCF_F + '.vcf.gz'
+        vcf = PREFIX_VCF_F + '.vcf'
     output:
         hapA = PREFIX_PER + '_hapA.fa',
-        hapB = PREFIX_PER + '_hapB.fa'
+        hapB = PREFIX_PER + '_hapB.fa',
+        var = PREFIX_PER + '.var'
     params:
         out_prefix = PREFIX_PER
     shell:
         'python {DIR_SCRIPTS}/update_genome.py '
-        '    --ref {input.genome} --vcf {input.vcf} --name {INDIV}'
-        #'    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
+        '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
         '    --chrom {CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
 
@@ -275,7 +275,7 @@ rule prepare_pop_indiv:
 
 rule build_pop_vcf:
     input:
-        vcf = PREFIX_VCF_F + '.vcf.gz',
+        vcf = PREFIX_VCF_F + '.vcf',
         indiv_group = os.path.join(
             DIR,
             '1KG_indivs/sample_superpop_{GROUP}.txt'
@@ -287,12 +287,6 @@ rule build_pop_vcf:
         '{BCFTOOLS} view --threads {THREADS} -S {input.indiv_group} '
         '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
         'bgzip -@ {THREADS} > {output.vcf_gz}'
-
-       # '{BCFTOOLS} view --threads THREADS -S {input.indiv_group} '
-       # '--force-samples {input.vcf} -V mnps,other | '
-       # 'vcftools --vcf - --min-alleles 2 --max-alleles 2 '
-       # '--recode-INFO-all --recode --stdout | '
-       # 'bgzip -@ THREADS > {output.vcf_gz}'
 
 rule get_pop_sample:
     input:
@@ -339,6 +333,12 @@ rule build_pop_genome:
             CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
             '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
             '_ld' + str(POP_USE_LD) + '.fa'
+        ),
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.var'
         )
     params:
         prefix = os.path.join(
@@ -391,7 +391,7 @@ rule check_pop_genome:
     output:
         touch(temp(os.path.join(DIR, 'check_popgenome_{GROUP}.done')))
 
-rule firstpass:
+rule align_firstpass:
     input:
         reads1 = PREFIX_PER + '_1.fq',
         idx = expand(PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS)
@@ -421,30 +421,11 @@ rule separate_fistpass_results:
         {output.lowq};'
         'samtools fastq {output.lowq} > {output.lowq_reads}'
 
-rule secondpass:
-    input:
-        reads = os.path.join(DIR_FIRST_PASS, CHROM +
-            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
-        idx1 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
-        idx2 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
-        idx3 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
-        idx4 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
-        idx5 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
-        idx6 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
-        # idx = expand(
-        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
-        #     #IDX_ITEMS = IDX_ITEMS
-        #     INDIV = INDIV, IDX_ITEMS = IDX_ITEMS, GROUP = GROUP
-        # )
-    params:
-        index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
-    output:
-        sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam')
-    shell:
-        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam}'
-        
 rule check_firstpass:
     input:
+        sam = expand(
+            os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam'),
+            INDIV = INDIV),
         highq = expand(
             os.path.join(DIR_FIRST_PASS, CHROM + 
             '-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
@@ -456,17 +437,139 @@ rule check_firstpass:
     output:
         touch(temp(os.path.join(DIR, 'firstpass.done')))
 
-rule check_secondpass:
+rule align_secondpass:
+    input:
+        reads = os.path.join(DIR_FIRST_PASS, CHROM +
+            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
+        idx1 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+        idx2 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
+        idx3 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
+        idx4 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
+        idx5 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
+        idx6 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
+    params:
+        index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
+    output:
+        sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam')
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
+
+rule merge_secondpass:
     input:
         sam = expand(
             os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam'),
+            INDIV = INDIV, GROUP = GROUP)
+    output:
+        path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
+        id = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.ids'),
+        merge_path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths')
+    run:
+        indiv = wildcards.INDIV
+        dir_2p = os.path.join(DIR, 'experiments/' + indiv + '/' + POP_DIRNAME)
+        for g in GROUP:
+            fn = os.path.join(dir_2p, CHROM + '-h37maj-' + g + '.sam')
+            shell('ls {fn} >> {output.path};')
+            shell('echo {g} >> {output.id}')
+        shell('python {DIR_SCRIPTS}/merge_sam.py \
+            -ns {output.path} -ids {output.id} \
+            -rs 0 -l {output.merge_path}')
+        
+rule check_secondpass:
+    input:
+        sam = expand(
+            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
+            INDIV = INDIV, GROUP = GROUP
+        ),
+        merge = expand(
+            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths'),
             INDIV = INDIV, GROUP = GROUP
         )
     output:
         touch(temp(os.path.join(DIR, 'secondpass.done')))
-# rule merge_two_pass:
-#     input:
-# 
-# rule align_second_pass:
-#     input:
-# 
+
+rule calc_firstpass_accuracy:
+    input:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam'),
+        var_genome = PREFIX_MAJOR + '.var',
+        gold = PREFIX_PER + '_1.sam',
+        var_reads = PREFIX_PER + '.var',
+    output:
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.acc_log')
+    shell:
+        'python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+        -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
+        -vs {input.var_genome} -n {input.sam} > {output.acc_log}'
+
+rule check_firstpass_acc:
+    input:
+        expand(
+            os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.acc_log'),
+            INDIV = INDIV)
+    output:
+        touch(temp(os.path.join(DIR, '{INDIV}_fistpass.acc')))
+
+rule calc_refflow_accuracy:
+    input:
+        gold = PREFIX_PER + '_1.sam',
+        var_reads = PREFIX_PER + '.var',
+        first_sam = os.path.join(DIR_FIRST_PASS, CHROM + 
+            '-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
+        first_var_genome = PREFIX_MAJOR + '.var',
+        second_sam_path = os.path.join(DIR_SECOND_PASS, 
+            CHROM + '-h37maj-secondpass-merged.paths'),
+        second_group = os.path.join(DIR_SECOND_PASS, 
+            CHROM + '-h37maj-secondpass.ids'),
+        second_var_genome = expand(
+            os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.var'),
+            INDIV = INDIV, GROUP = GROUP
+        )
+    output:
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
+    run:
+        if os.path.exists(output.acc_log):
+            shell('rm {output.acc_log};')
+        shell(
+            'python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+            -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
+            -vs {input.first_var_genome} -n {input.first_sam} >> \
+            {output.acc_log};')
+        list_group = []
+        with open(input.second_group) as f:
+            for line in f:
+                list_group.append(line.rstrip())
+        list_fn = []
+        with open(input.second_sam_path) as f:
+            for line in f:
+                list_fn.append(line.rstrip())
+        for i, fn in enumerate(list_fn):
+            second_var_genome = os.path.join(
+                DIR_POP_GENOME_BLOCK,
+                CHROM + '_superpop_' + list_group[i] + '_thrds' + str(POP_THRSD) +
+                '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+                '_ld' + str(POP_USE_LD) + '.var')
+            shell('python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+            -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
+            -vs {second_var_genome} -n {fn} >> \
+            {output.acc_log};')
+
+rule sum_refflow_accuracy:
+    input:
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
+    output:
+        check = touch(temp(os.path.join(DIR, '{INDIV}_refflow.acc')))
+    run:
+        with open(input.acc_log, 'r') as f:
+            list_tp = []
+            list_all = []
+            for line in f:
+                if line.count('sensitivity_all') > 0:
+                    line = line.split()
+                    list_tp.append(int(line[3][1:]))
+                    list_all.append(int(line[5][:-1]))
+        print (sum(list_tp))
+        print (sum(list_all))
+        print (sum(list_tp) / sum(list_all))
