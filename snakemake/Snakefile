@@ -101,10 +101,16 @@ rule build_major_index:
     input:
         major = PREFIX_MAJOR + '.fa'
     output:
-        expand(
-            PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2',
-            IDX_ITEMS = IDX_ITEMS
-        )
+        PREFIX_MAJOR_IDX + '.1.bt2',
+        PREFIX_MAJOR_IDX + '.2.bt2',
+        PREFIX_MAJOR_IDX + '.3.bt2',
+        PREFIX_MAJOR_IDX + '.4.bt2',
+        PREFIX_MAJOR_IDX + '.rev.1.bt2',
+        PREFIX_MAJOR_IDX + '.rev.2.bt2'
+        # expand(
+        #     PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2',
+        #     IDX_ITEMS = IDX_ITEMS
+        # )
     shell:
         'bowtie2-build --threads {THREADS} {input.major} {PREFIX_MAJOR_IDX}'
 
@@ -125,10 +131,11 @@ rule build_per:
         hapA = PREFIX_PER + '_hapA.fa',
         hapB = PREFIX_PER + '_hapB.fa'
     params:
-        out_prefix = PREFIX_PER,
+        out_prefix = PREFIX_PER
     shell:
         'python {DIR_SCRIPTS}/update_genome.py '
-        '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
+        '    --ref {input.genome} --vcf {input.vcf} --name {INDIV}'
+        #'    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
         '    --chrom {CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
 
@@ -137,16 +144,18 @@ rule build_per_index:
         perA = PREFIX_PER + '_hapA.fa',
         perB = PREFIX_PER + '_hapB.fa'
     output:
-        # expand(
-        #     DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2',
-        #     IDX_ITEMS = IDX_ITEMS
-        # ),
-        # expand(
-        #     DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2',
-        #     IDX_ITEMS = IDX_ITEMS
-        # )
         DIR_PER_IDX + 'per_hapA.1.bt2',
-        DIR_PER_IDX + 'per_hapB.1.bt2'
+        DIR_PER_IDX + 'per_hapA.2.bt2',
+        DIR_PER_IDX + 'per_hapA.3.bt2',
+        DIR_PER_IDX + 'per_hapA.4.bt2',
+        DIR_PER_IDX + 'per_hapA.rev.1.bt2',
+        DIR_PER_IDX + 'per_hapA.rev.2.bt2',
+        DIR_PER_IDX + 'per_hapB.1.bt2',
+        DIR_PER_IDX + 'per_hapB.2.bt2',
+        DIR_PER_IDX + 'per_hapB.3.bt2',
+        DIR_PER_IDX + 'per_hapB.4.bt2',
+        DIR_PER_IDX + 'per_hapB.rev.1.bt2',
+        DIR_PER_IDX + 'per_hapB.rev.2.bt2'
     params:
         prefix_idxA = DIR_PER_IDX + 'per_hapA',
         prefix_idxB = DIR_PER_IDX + 'per_hapB'
@@ -156,26 +165,26 @@ rule build_per_index:
 
 rule check_per:
     input:
-        expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapA.1.bt2'),
-            idx_item = IDX_ITEMS,
-            indiv = INDIV
-        ),
-        expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapB.1.bt2'),
-            idx_item = IDX_ITEMS,
-            indiv=INDIV
-        )
         # expand(
-        #     os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
+        #     os.path.join(DIR, '{indiv}/indexes/per_hapA.1.bt2'),
         #     idx_item = IDX_ITEMS,
         #     indiv = INDIV
         # ),
         # expand(
-        #     os.path.join(DIR, '{indiv}/indexes/per_hapB.{idx_item}.bt2'),
+        #     os.path.join(DIR, '{indiv}/indexes/per_hapB.1.bt2'),
         #     idx_item = IDX_ITEMS,
         #     indiv=INDIV
         # )
+        expand(
+            os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
+            idx_item = IDX_ITEMS,
+            indiv = INDIV
+        ),
+        expand(
+            os.path.join(DIR, '{indiv}/indexes/per_hapB.{idx_item}.bt2'),
+            idx_item = IDX_ITEMS,
+            indiv=INDIV
+        )
     output:
         touch(temp(os.path.join(DIR, 'personalization.done')))
 
@@ -360,30 +369,16 @@ rule build_pop_genome:
 rule build_pop_genome_index:
     input:
         genome = DIR_POP_GENOME_BLOCK + POP_GENOME_SUFFIX + '.fa'
-        # genome = os.path.join(
-        #     DIR_POP_GENOME_BLOCK,
-        #     CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-        #     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-        #     '_ld' + str(POP_USE_LD) + '.fa'
-        # )
     output:
-        DIR_POP_GENOME_BLOCK_IDX + 
-        POP_GENOME_SUFFIX + '.1.bt2'
-        # DIR_POP_GENOME_BLOCK_IDX + 
-        # POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
-            # CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-            # '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-            # '_ld' + str(POP_USE_LD) + '.{IDX_ITEMS}.bt2'
-        #DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2',
-        #DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2'
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
     params:
-            prefix = DIR_POP_GENOME_BLOCK_IDX +
-            POP_GENOME_SUFFIX
-            # CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-            # '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-            # '_ld' + str(POP_USE_LD)
-        #prefix_idxA = DIR_PER_IDX + 'per_hapA',
-        #prefix_idxB = DIR_PER_IDX + 'per_hapB'
+        prefix = DIR_POP_GENOME_BLOCK_IDX +
+        POP_GENOME_SUFFIX
     shell:
         'bowtie2-build --threads {THREADS} {input.genome} {params.prefix};'
         #'bowtie2-build --threads THREADS {input.perB} {params.prefix_idxB}'
@@ -391,19 +386,19 @@ rule build_pop_genome_index:
 
 rule check_pop_genome:
     input:
-        expand(
-            DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
-            GROUP = GROUP
-        )
         # expand(
-        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+        #     GROUP = GROUP
+        # )
+        expand(
+            DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
         # #expand(os.path.join(
         # #    DIR_POP_GENOME_BLOCK_IDX,
         # #    CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
         # #    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
         # #    '_ld' + str(POP_USE_LD) + '.{IDX_ITEMS}.bt2'),
-        #     GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
-        # )
+            GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
+        )
         # expand(os.path.join(
         #     DIR_POP_GENOME_BLOCK,
         #     CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
