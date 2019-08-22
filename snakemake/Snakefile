@@ -4,6 +4,7 @@ CHROM = '21'
 INDIV = ['NA12878', 'HG01200']
 GROUP = ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
 NUM_SIM_READS = 1000000
+ALN_MAPQ_THRSD = '10'
 
 # DIR = '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline2'
 DIR = '/scratch/groups/blangme2/naechyun/relaxing/sn_pipeline'
@@ -37,6 +38,9 @@ POP_GENOME_SUFFIX = \
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
 DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
+DIR_FIRST_PASS = os.path.join(DIR, 'experiments/{INDIV}/')
+DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
+
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
 THREADS=16
@@ -52,17 +56,11 @@ rule all:
         sim = os.path.join(DIR, 'simulation.done'),
         #: indivs in populations
         spop = expand(os.path.join(DIR, '1KG_indivs/sample_superpop_{g}.txt'), g=GROUP),
-        spop_vcf_gz = expand(
-            os.path.join(
-                DIR_POP_GENOME,
-                CHROM + '_superpop_{GROUP}.vcf.gz'),
+        popg = expand(os.path.join(DIR, 'check_popgenome_{GROUP}.done'),
             GROUP = GROUP),
-        popg = expand(
-            os.path.join(DIR, 'pop_genome_{GROUP}.ing'),
-            GROUP = GROUP)
-    #shell:
-    #    'rm {input.major} {input.per} {input.sim};'
-    #    'rm {input.popg}'
+        #: first pass alignment
+        fistpass = os.path.join(DIR, 'firstpass.done'),
+        secondpass = os.path.join(DIR, 'secondpass.done')
 
 rule filter_vcf:
     input:
@@ -87,9 +85,11 @@ rule build_major:
         out_var = PREFIX_MAJOR + '.var',
         out_vcf = PREFIX_MAJOR + '.vcf'
     shell:
-        '{BCFTOOLS} view -O v --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
-        'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
-        'bgzip -@ {THREADS} > {output.vcf_major_gz};'
+        # '{BCFTOOLS} view -O v --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels | '
+        # 'vcftools --vcf - --min-alleles 2 --max-alleles 2 --recode-INFO-all --recode --stdout | '
+        # 'bgzip -@ {THREADS} > {output.vcf_major_gz};'
+        '{BCFTOOLS} view -O z --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels -m2 -M2 > '
+        '{output.vcf_major_gz};'
         '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
         'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
         'python {DIR_SCRIPTS}/update_genome.py '
@@ -381,43 +381,92 @@ rule build_pop_genome_index:
         POP_GENOME_SUFFIX
     shell:
         'bowtie2-build --threads {THREADS} {input.genome} {params.prefix};'
-        #'bowtie2-build --threads THREADS {input.perB} {params.prefix_idxB}'
-
 
 rule check_pop_genome:
     input:
-        # expand(
-        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
-        #     GROUP = GROUP
-        # )
         expand(
             DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
-        # #expand(os.path.join(
-        # #    DIR_POP_GENOME_BLOCK_IDX,
-        # #    CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-        # #    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-        # #    '_ld' + str(POP_USE_LD) + '.{IDX_ITEMS}.bt2'),
             GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
         )
-        # expand(os.path.join(
-        #     DIR_POP_GENOME_BLOCK,
-        #     CHROM + '_superpop_{GROUP}_thrds' + str(POP_THRSD) +
-        #     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
-        #     '_ld' + str(POP_USE_LD) + '.vcf'
-        # ), GROUP = GROUP)
     output:
-        touch(temp(os.path.join(DIR, 'pop_genome_{GROUP}.ing')))
+        touch(temp(os.path.join(DIR, 'check_popgenome_{GROUP}.done')))
 
+rule firstpass:
+    input:
+        reads1 = PREFIX_PER + '_1.fq',
+        idx = expand(PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS)
+    params:
+        index = PREFIX_MAJOR_IDX
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam')
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+
+rule separate_fistpass_results:
+    input:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam')
+    output:
+        highq = os.path.join(DIR_FIRST_PASS, CHROM + 
+            '-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
+        lowq = os.path.join(DIR_FIRST_PASS, CHROM + 
+            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.sam'),
+        lowq_reads = os.path.join(DIR_FIRST_PASS, CHROM +
+            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq')
+    shell:
+        'awk -v var="{ALN_MAPQ_THRSD}" \
+        \'{{ if ($5 >= var || $1 ~ /^@/) {{ print }} }}\' {input.sam} > \
+        {output.highq};'
+        'awk -v var={ALN_MAPQ_THRSD} \
+        \'{{ if ($5 < var || $1 ~ /^@/) {{ print }} }}\' {input.sam} > \
+        {output.lowq};'
+        'samtools fastq {output.lowq} > {output.lowq_reads}'
+
+rule secondpass:
+    input:
+        reads = os.path.join(DIR_FIRST_PASS, CHROM +
+            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
+        idx1 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+        idx2 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
+        idx3 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
+        idx4 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
+        idx5 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
+        idx6 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
+        # idx = expand(
+        #     DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+        #     #IDX_ITEMS = IDX_ITEMS
+        #     INDIV = INDIV, IDX_ITEMS = IDX_ITEMS, GROUP = GROUP
+        # )
+    params:
+        index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
+    output:
+        sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam')
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam}'
+        
+rule check_firstpass:
+    input:
+        highq = expand(
+            os.path.join(DIR_FIRST_PASS, CHROM + 
+            '-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
+            INDIV = INDIV),
+        lowq_reads = expand(
+            os.path.join(DIR_FIRST_PASS, CHROM +
+            '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
+            INDIV = INDIV)
+    output:
+        touch(temp(os.path.join(DIR, 'firstpass.done')))
+
+rule check_secondpass:
+    input:
+        sam = expand(
+            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam'),
+            INDIV = INDIV, GROUP = GROUP
+        )
+    output:
+        touch(temp(os.path.join(DIR, 'secondpass.done')))
 # rule merge_two_pass:
 #     input:
 # 
 # rule align_second_pass:
 #     input:
 # 
-# rule first_pass:
-#     input:
-#     params:
-#         index = INDEX
-#     output:
-#     shell:
-#         "bowtie2 --threads THREADS -x {params.index} -U "````
