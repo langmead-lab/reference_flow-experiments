@@ -1,7 +1,9 @@
+#/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7
 import os
+import pandas as pd
 
 CHROM = '21'
-INDIV = ['NA12878', 'HG01200', 'NA20314']
+INDIV = ['NA12878', 'HG01200', 'NA20314', 'NA21109']
 GROUP = ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
 NUM_SIM_READS = 1000000
 ALN_MAPQ_THRSD = '10'
@@ -15,6 +17,7 @@ SPOP = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg
 
 BCFTOOLS = '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 MASON2 = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
+PYTHON = '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
 # DIR_SCRIPTS = '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
 DIR_SCRIPTS = '/scratch/groups/blangme2/naechyun/relaxing/scripts'
 
@@ -28,7 +31,7 @@ PREFIX_PER = os.path.join(DIR, '{INDIV}/per')
 
 POP_THRSD = 0
 POP_STOCHASTIC = 1
-POP_BLOCK_SIZE = 5000
+POP_BLOCK_SIZE = 3000
 POP_USE_LD = 1
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_block{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
@@ -42,10 +45,25 @@ DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 DIR_FIRST_PASS = os.path.join(DIR, 'experiments/{INDIV}/')
 DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
 
+DIR_RESULTS = os.path.join(DIR, 'results/')
+
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
 THREADS=16
 RAND_SEED = 0
+
+def organize_accuracy(fn_input, fn_output):
+    with open(fn_input, 'r') as f:
+        list_tp = []
+        list_all = []
+        for line in f:
+            if line.count('sensitivity_all') > 0:
+                line = line.split()
+                list_tp.append(int(line[3][1:]))
+                list_all.append(int(line[5][:-1]))
+    f_out = open(fn_output, 'w')
+    f_out.write('{0}\n{1}\n{2}\n'.format(sum(list_tp), sum(list_all), sum(list_tp) / sum(list_all)))
+    return
 
 rule all:
     input:
@@ -62,8 +80,13 @@ rule all:
         #: first pass alignment
         fistpass = os.path.join(DIR, 'firstpass.done'),
         secondpass = os.path.join(DIR, 'secondpass.done'),
-        firstpass_acc = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV=INDIV),
-        rf_acc = expand(os.path.join(DIR, '{INDIV}_refflow.acc'), INDIV = INDIV, GROUP = GROUP)
+        #firstpass_acc = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV=INDIV),
+        #rf_acc = expand(os.path.join(DIR, '{INDIV}_refflow.acc'), INDIV = INDIV, GROUP = GROUP),
+        acc = os.path.join(DIR, 'accuracy.done'),
+        tsv = os.path.join(DIR_RESULTS, 'all.tsv')
+        # maj_acc_log = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV = INDIV),
+        # per_acc_log = expand(os.path.join(DIR_RESULTS,
+        #     '{INDIV}-' + CHROM + '-per.acc'), INDIV = INDIV)
 
 rule filter_vcf:
     input:
@@ -92,7 +115,7 @@ rule build_major:
         '{output.vcf_major_gz};'
         '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
         'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
-        'python {DIR_SCRIPTS}/update_genome.py '
+        '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
         '    --ref {input.genome} --vcf {output.vcf_major} '
         '    --chrom {CHROM} --out-prefix {PREFIX_MAJOR} '
         '    --include-indels'
@@ -134,7 +157,7 @@ rule build_per:
     params:
         out_prefix = PREFIX_PER
     shell:
-        'python {DIR_SCRIPTS}/update_genome.py '
+        '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
         '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
         '    --chrom {CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
@@ -165,16 +188,6 @@ rule build_per_index:
 
 rule check_per:
     input:
-        # expand(
-        #     os.path.join(DIR, '{indiv}/indexes/per_hapA.1.bt2'),
-        #     idx_item = IDX_ITEMS,
-        #     indiv = INDIV
-        # ),
-        # expand(
-        #     os.path.join(DIR, '{indiv}/indexes/per_hapB.1.bt2'),
-        #     idx_item = IDX_ITEMS,
-        #     indiv=INDIV
-        # )
         expand(
             os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
             idx_item = IDX_ITEMS,
@@ -270,7 +283,7 @@ rule prepare_pop_indiv:
     params:
         prefix = os.path.join(DIR, '1KG_indivs/sample')
     shell:
-        'python {DIR_SCRIPTS}/list_indiv_from_pop.py '
+        '{PYTHON} {DIR_SCRIPTS}/list_indiv_from_pop.py '
         '-p {FAMILY} -sp {SPOP} -op {params.prefix}'
 
 rule build_pop_vcf:
@@ -349,19 +362,19 @@ rule build_pop_genome:
         )
     run:
         if POP_STOCHASTIC == 1 and POP_USE_LD == 1:
-            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
                 --out-prefix {params.prefix} \
                 --include-indels --stochastic -rs {RAND_SEED} \
                 --block-size {POP_BLOCK_SIZE} --ld')
         elif POP_STOCHASTIC == 1:
-            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
                 --out-prefix {params.prefix} \
                 --include-indels --stochastic -rs {RAND_SEED} \
                 --block-size {POP_BLOCK_SIZE}')
         else:
-            shell('python3.7 {DIR_SCRIPTS}/update_genome.py \
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
                 --out-prefix {params.prefix} \
                 --include-indels')
@@ -391,7 +404,7 @@ rule check_pop_genome:
     output:
         touch(temp(os.path.join(DIR, 'check_popgenome_{GROUP}.done')))
 
-rule align_firstpass:
+rule refflow_align_firstpass:
     input:
         reads1 = PREFIX_PER + '_1.fq',
         idx = expand(PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS)
@@ -402,7 +415,7 @@ rule align_firstpass:
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
 
-rule separate_fistpass_results:
+rule refflow_separate_fistpass_results:
     input:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam')
     output:
@@ -437,7 +450,7 @@ rule check_firstpass:
     output:
         touch(temp(os.path.join(DIR, 'firstpass.done')))
 
-rule align_secondpass:
+rule refflow_align_secondpass:
     input:
         reads = os.path.join(DIR_FIRST_PASS, CHROM +
             '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
@@ -454,7 +467,7 @@ rule align_secondpass:
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
 
-rule merge_secondpass:
+rule refflow_merge_secondpass:
     input:
         sam = expand(
             os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam'),
@@ -470,7 +483,7 @@ rule merge_secondpass:
             fn = os.path.join(dir_2p, CHROM + '-h37maj-' + g + '.sam')
             shell('ls {fn} >> {output.path};')
             shell('echo {g} >> {output.id}')
-        shell('python {DIR_SCRIPTS}/merge_sam.py \
+        shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
             -ns {output.path} -ids {output.id} \
             -rs 0 -l {output.merge_path}')
         
@@ -487,26 +500,76 @@ rule check_secondpass:
     output:
         touch(temp(os.path.join(DIR, 'secondpass.done')))
 
-rule calc_firstpass_accuracy:
+rule personalize_align:
+    input:
+        reads1 = PREFIX_PER + '_1.fq',
+        idxA = expand(DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV),
+        idxB = expand(DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
+    params:
+        indexA = DIR_PER_IDX + 'per_hapA',
+        indexB = DIR_PER_IDX + 'per_hapB'
+    output:
+        samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
+        samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam'
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.indexA} -U {input.reads1} -S {output.samA};'
+        'bowtie2 --threads {THREADS} -x {params.indexB} -U {input.reads1} -S {output.samB}'
+
+rule personalize_merge_and_calc_accuracy:
+    input:
+        samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
+        samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam',
+        gold = PREFIX_PER + '_1.sam',
+        var_reads = PREFIX_PER + '.var',
+    output:
+        merge_path = os.path.join(DIR_FIRST_PASS, CHROM + '-per-merged.paths'),
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log')
+    run:
+        shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
+            -n1 {input.samA} -id1 hapA \
+            -n2 {input.samB} -id2 hapB \
+            -rs 0 -l {output.merge_path};')
+        with open(output.merge_path, 'r') as f:
+            for line in f:
+                fn = line.rstrip()
+                shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+                -c {CHROM} -g {input.gold} -p 2 -vr {input.var_reads} \
+                -vs {input.var_reads} -n {fn} >> {output.acc_log}')
+        organize_accuracy(output.acc_log, output.acc)
+
+# rule sum_personalize_accuracy:
+#     input:
+#         acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log')
+#     output:
+#         acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc')
+#     run:
+#         organize_accuracy(input.acc_log, output.acc)
+
+rule major_calc_accuracy:
     input:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam'),
         var_genome = PREFIX_MAJOR + '.var',
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
     output:
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.acc_log')
-    shell:
-        'python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.acc_log'),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-h37maj.acc')
+    run:
+        shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
         -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
-        -vs {input.var_genome} -n {input.sam} > {output.acc_log}'
+        -vs {input.var_genome} -n {input.sam} > {output.acc_log};')
+        organize_accuracy(output.acc_log, output.acc)
 
-rule check_firstpass_acc:
+rule check_major_and_per_accuracy:
     input:
         expand(
-            os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.acc_log'),
+            os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-h37maj.acc'),
+            INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc'),
             INDIV = INDIV)
     output:
-        touch(temp(os.path.join(DIR, '{INDIV}_fistpass.acc')))
+        touch(temp(os.path.join(DIR, '{INDIV}_onepass_acc.done')))
 
 rule calc_refflow_accuracy:
     input:
@@ -533,7 +596,7 @@ rule calc_refflow_accuracy:
         if os.path.exists(output.acc_log):
             shell('rm {output.acc_log};')
         shell(
-            'python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+            '{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
             -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
             -vs {input.first_var_genome} -n {input.first_sam} >> \
             {output.acc_log};')
@@ -551,7 +614,7 @@ rule calc_refflow_accuracy:
                 CHROM + '_superpop_' + list_group[i] + '_thrds' + str(POP_THRSD) +
                 '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
                 '_ld' + str(POP_USE_LD) + '.var')
-            shell('python -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+            shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
             -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
             -vs {second_var_genome} -n {fn} >> \
             {output.acc_log};')
@@ -560,16 +623,39 @@ rule sum_refflow_accuracy:
     input:
         acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
     output:
-        check = touch(temp(os.path.join(DIR, '{INDIV}_refflow.acc')))
+        acc = os.path.join(DIR_RESULTS,
+            '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc')
     run:
-        with open(input.acc_log, 'r') as f:
-            list_tp = []
-            list_all = []
-            for line in f:
-                if line.count('sensitivity_all') > 0:
-                    line = line.split()
-                    list_tp.append(int(line[3][1:]))
-                    list_all.append(int(line[5][:-1]))
-        print (sum(list_tp))
-        print (sum(list_all))
-        print (sum(list_tp) / sum(list_all))
+        organize_accuracy(input.acc_log, output.acc)
+
+rule write_as_tsv:
+    input:
+        acc_log = expand(os.path.join(DIR_RESULTS,
+            '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc'),
+            INDIV = INDIV),
+        check_onepass_acc = expand(os.path.join(DIR, '{INDIV}_onepass_acc.done'), INDIV = INDIV)
+    output:
+        tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
+        check = touch(temp(os.path.join(DIR, 'accuracy.done')))
+    run:
+        df = pd.DataFrame()
+        list_fn = os.listdir(DIR_RESULTS)
+        list_fn = [os.path.join(DIR_RESULTS, fn) for fn in list_fn]
+        list_exp = []
+        list_tp = []
+        list_all = []
+        list_sensitivity = []
+        for fn in list_fn:
+            if fn.endswith('.acc'):
+                with open(fn, 'r') as f:
+                    for i, line in enumerate(f):
+                        if i == 0:
+                            list_tp.append(int(line))
+                        elif i == 1:
+                            list_all.append(int(line))
+                fn = fn[: fn.rfind('.acc')]
+                list_exp.append(os.path.basename(fn))
+        df['Experiments'] = list_exp
+        df['True Positive'] = list_tp
+        df['Num Reads'] = list_all
+        df.to_csv(output.tsv, sep='\t', index=None)
