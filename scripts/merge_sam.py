@@ -12,6 +12,7 @@ it is assigned based on user-provided tie-breaking rule:
 import argparse
 import sys
 import random
+import os
 from analyze_sam import SamInfo, parse_line
 
 def compare_score_and_mapq(list_info):
@@ -52,6 +53,9 @@ def merge_sam_list(args):
     random.seed(args.rand_seed)
     if args.rand_seed:
         print ('Set random seed: {}'.format(args.rand_seed))
+    fn_log = args.log
+    if fn_log != None:
+        f_log = open(fn_log, 'w')
 
     with open(fn_sam, 'r') as f:
         list_fn_sam = [] #: list of SAM names
@@ -73,7 +77,11 @@ def merge_sam_list(args):
     for i in range(num_sam):
         fn_sam = list_fn_sam[i]
         sam_prefix = fn_sam[: fn_sam.find('.sam')]
-        fn_out = sam_prefix.split('/')[-1] + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
+        #fn_out = sam_prefix.split('/')[-1] + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
+        fn_out = sam_prefix + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
+        # fn_out = os.getcwd() + '/' + fn_out
+        if fn_log != None:
+            f_log.write(fn_out + '\n')
         print (fn_out)
         list_f_out.append(open(fn_out, 'w'))
     print ('------')
@@ -226,6 +234,10 @@ def parse_args():
     parser.add_argument(
         '-rs', '--rand-seed',
         help='random seed for controlled randomness [None]'
+    )
+    parser.add_argument(
+        '-l', '--log',
+        help='log file recording paths of merged files'
     )
     args = parser.parse_args()
     return args
