@@ -5,7 +5,7 @@ identical in two personalized refs
 '''
 import argparse, math, sys, os
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
 from build_erg import read_var, read_genome
 import constants
