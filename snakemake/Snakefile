@@ -2,37 +2,39 @@
 import os
 import pandas as pd
 
-CHROM = '21'
-INDIV = ['NA12878', 'HG01200', 'NA20314', 'NA21109']
-GROUP = ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
-NUM_SIM_READS = 1000000
-ALN_MAPQ_THRSD = '10'
+configfile: "config.yaml"
 
-# DIR = '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline2'
-DIR = '/scratch/groups/blangme2/naechyun/relaxing/sn_pipeline'
-GENOME = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa'
-VCF = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
-FAMILY = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
-SPOP = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
-
-BCFTOOLS = '/home-1/cnaechy1@jhu.edu/bin/bcftools'
-MASON2 = '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
-PYTHON = '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
-# DIR_SCRIPTS = '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
-DIR_SCRIPTS = '/scratch/groups/blangme2/naechyun/relaxing/scripts'
+''' Load from config '''
+CHROM = config['CHROM']
+INDIV = config['INDIV']
+GROUP = config['GROUP']
+NUM_SIM_READS = config['NUM_SIM_READS']
+ALN_MAPQ_THRSD = config['ALN_MAPQ_THRSD']
+POP_THRSD = config['POP_THRSD']
+POP_STOCHASTIC = config['POP_STOCHASTIC']
+POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
+POP_USE_LD = config['POP_USE_LD']
+DIR = config['DIR']
+GENOME = config['GENOME']
+VCF = config['VCF']
+FAMILY = config['FAMILY']
+SPOP = config['SPOP']
+BCFTOOLS = config['BCFTOOLS']
+MASON2 = config['MASON2']
+PYTHON = config['PYTHON']
+DIR_SCRIPTS = config['DIR_SCRIPTS']
+THREADS = config['THREADS']
+RAND_SEED = config['RAND_SEED']
+''''''
 
 PREFIX_VCF_F = os.path.join(DIR, CHROM + '_filtered')
 PREFIX_MAJOR_F = os.path.join(DIR, 'major/' + CHROM + '_filtered_major')
 PREFIX_MAJOR = os.path.join(DIR, 'major/' + CHROM + '_h37maj')
 PREFIX_MAJOR_IDX = os.path.join(DIR, 'major/indexes/' + CHROM + '_h37maj')
 
-DIR_PER_IDX = os.path.join(DIR, '{INDIV}/indexes/')
-PREFIX_PER = os.path.join(DIR, '{INDIV}/per')
+DIR_PER_IDX = os.path.join(DIR, 'simulation/{INDIV}/indexes/')
+PREFIX_PER = os.path.join(DIR, 'simulation/{INDIV}/' + CHROM + '-per')
 
-POP_THRSD = 0
-POP_STOCHASTIC = 1
-POP_BLOCK_SIZE = 3000
-POP_USE_LD = 1
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_block{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
 POP_GENOME_SUFFIX = \
@@ -48,9 +50,6 @@ DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
 DIR_RESULTS = os.path.join(DIR, 'results/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
-
-THREADS=16
-RAND_SEED = 0
 
 def organize_accuracy(fn_input, fn_output):
     with open(fn_input, 'r') as f:
@@ -79,14 +78,11 @@ rule all:
             GROUP = GROUP),
         #: first pass alignment
         fistpass = os.path.join(DIR, 'firstpass.done'),
+        #: second pass alignment
         secondpass = os.path.join(DIR, 'secondpass.done'),
-        #firstpass_acc = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV=INDIV),
-        #rf_acc = expand(os.path.join(DIR, '{INDIV}_refflow.acc'), INDIV = INDIV, GROUP = GROUP),
+        #: accuracy
         acc = os.path.join(DIR, 'accuracy.done'),
         tsv = os.path.join(DIR_RESULTS, 'all.tsv')
-        # maj_acc_log = expand(os.path.join(DIR, '{INDIV}_fistpass.acc'), INDIV = INDIV),
-        # per_acc_log = expand(os.path.join(DIR_RESULTS,
-        #     '{INDIV}-' + CHROM + '-per.acc'), INDIV = INDIV)
 
 rule filter_vcf:
     input:
@@ -130,10 +126,6 @@ rule build_major_index:
         PREFIX_MAJOR_IDX + '.4.bt2',
         PREFIX_MAJOR_IDX + '.rev.1.bt2',
         PREFIX_MAJOR_IDX + '.rev.2.bt2'
-        # expand(
-        #     PREFIX_MAJOR_IDX + '.{IDX_ITEMS}.bt2',
-        #     IDX_ITEMS = IDX_ITEMS
-        # )
     shell:
         'bowtie2-build --threads {THREADS} {input.major} {PREFIX_MAJOR_IDX}'
 
@@ -167,21 +159,21 @@ rule build_per_index:
         perA = PREFIX_PER + '_hapA.fa',
         perB = PREFIX_PER + '_hapB.fa'
     output:
-        DIR_PER_IDX + 'per_hapA.1.bt2',
-        DIR_PER_IDX + 'per_hapA.2.bt2',
-        DIR_PER_IDX + 'per_hapA.3.bt2',
-        DIR_PER_IDX + 'per_hapA.4.bt2',
-        DIR_PER_IDX + 'per_hapA.rev.1.bt2',
-        DIR_PER_IDX + 'per_hapA.rev.2.bt2',
-        DIR_PER_IDX + 'per_hapB.1.bt2',
-        DIR_PER_IDX + 'per_hapB.2.bt2',
-        DIR_PER_IDX + 'per_hapB.3.bt2',
-        DIR_PER_IDX + 'per_hapB.4.bt2',
-        DIR_PER_IDX + 'per_hapB.rev.1.bt2',
-        DIR_PER_IDX + 'per_hapB.rev.2.bt2'
+        DIR_PER_IDX + CHROM + '-per_hapA.1.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapA.2.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapA.3.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapA.4.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapA.rev.1.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapA.rev.2.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.1.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.2.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.3.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.4.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.rev.1.bt2',
+        DIR_PER_IDX + CHROM + '-per_hapB.rev.2.bt2'
     params:
-        prefix_idxA = DIR_PER_IDX + 'per_hapA',
-        prefix_idxB = DIR_PER_IDX + 'per_hapB'
+        prefix_idxA = DIR_PER_IDX + CHROM + '-per_hapA',
+        prefix_idxB = DIR_PER_IDX + CHROM + '-per_hapB'
     shell:
         'bowtie2-build --threads {THREADS} {input.perA} {params.prefix_idxA};'
         'bowtie2-build --threads {THREADS} {input.perB} {params.prefix_idxB}'
@@ -189,14 +181,14 @@ rule build_per_index:
 rule check_per:
     input:
         expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapA.{idx_item}.bt2'),
+            DIR_PER_IDX + CHROM + '-per_hapA.{idx_item}.bt2',
             idx_item = IDX_ITEMS,
-            indiv = INDIV
+            INDIV = INDIV
         ),
         expand(
-            os.path.join(DIR, '{indiv}/indexes/per_hapB.{idx_item}.bt2'),
+            DIR_PER_IDX + CHROM + '-per_hapB.{idx_item}.bt2',
             idx_item = IDX_ITEMS,
-            indiv=INDIV
+            INDIV = INDIV
         )
     output:
         touch(temp(os.path.join(DIR, 'personalization.done')))
@@ -263,9 +255,9 @@ rule merge_simulated_sam:
 rule check_simulation:
     input:
         expand(
-            os.path.join(DIR, '{indiv}/per_{hap}.{type}'),
-            indiv = INDIV,
-            hap = ['1', '2'],
+            PREFIX_PER + '_{seg}.{type}',
+            INDIV = INDIV,
+            seg = ['1', '2'],
             type = ['fq', 'sam']
         )
     output:
@@ -503,11 +495,11 @@ rule check_secondpass:
 rule personalize_align:
     input:
         reads1 = PREFIX_PER + '_1.fq',
-        idxA = expand(DIR_PER_IDX + 'per_hapA.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV),
-        idxB = expand(DIR_PER_IDX + 'per_hapB.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
+        idxA = expand(DIR_PER_IDX + CHROM + '-per_hapA.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV),
+        idxB = expand(DIR_PER_IDX + CHROM + '-per_hapB.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
-        indexA = DIR_PER_IDX + 'per_hapA',
-        indexB = DIR_PER_IDX + 'per_hapB'
+        indexA = DIR_PER_IDX + CHROM + '-per_hapA',
+        indexB = DIR_PER_IDX + CHROM + '-per_hapB'
     output:
         samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
         samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam'
@@ -523,7 +515,8 @@ rule personalize_merge_and_calc_accuracy:
         var_reads = PREFIX_PER + '.var',
     output:
         merge_path = os.path.join(DIR_FIRST_PASS, CHROM + '-per-merged.paths'),
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log')
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log'),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc')
     run:
         shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
             -n1 {input.samA} -id1 hapA \
@@ -536,14 +529,6 @@ rule personalize_merge_and_calc_accuracy:
                 -c {CHROM} -g {input.gold} -p 2 -vr {input.var_reads} \
                 -vs {input.var_reads} -n {fn} >> {output.acc_log}')
         organize_accuracy(output.acc_log, output.acc)
-
-# rule sum_personalize_accuracy:
-#     input:
-#         acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log')
-#     output:
-#         acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc')
-#     run:
-#         organize_accuracy(input.acc_log, output.acc)
 
 rule major_calc_accuracy:
     input:

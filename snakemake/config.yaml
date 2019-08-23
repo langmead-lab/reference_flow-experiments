@@ -1,0 +1,27 @@
+CHROM : '21'
+# CHROM : '9'
+INDIV : ['NA12878']
+GROUP : ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
+NUM_SIM_READS : 1000000
+ALN_MAPQ_THRSD : '10'
+
+POP_THRSD : 0
+POP_STOCHASTIC : 1
+POP_BLOCK_SIZE : 3000
+POP_USE_LD : 1
+
+# DIR : '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline2'
+DIR : '/scratch/groups/blangme2/naechyun/relaxing/sn_pipeline2'
+GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa'
+VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
+FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
+SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
+
+BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
+MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
+PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
+# DIR_SCRIPTS : '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
+DIR_SCRIPTS : '/scratch/groups/blangme2/naechyun/relaxing/scripts'
+
+THREADS : 16
+RAND_SEED : 0
