@@ -127,6 +127,7 @@ def merge_sam(args):
     random.seed(args.rand_seed)
     if args.rand_seed:
         print ('Set random seed: {}'.format(args.rand_seed))
+    fn_log = args.log
 
     sam1_f = open(sam1_fn, 'r')
     sam2_f = open(sam2_fn, 'r')
@@ -134,10 +135,17 @@ def merge_sam(args):
     #: prepare output files
     sam1_prefix = sam1_fn[: sam1_fn.find('.sam')]
     sam2_prefix = sam2_fn[: sam2_fn.find('.sam')]
-    sam1_out_fn = sam1_prefix.split('/')[-1] + '-merged_' + id2 + '.sam'
-    sam2_out_fn = sam2_prefix.split('/')[-1] + '-merged_' + id1 + '.sam'
+    # sam1_out_fn = sam1_prefix.split('/')[-1] + '-merged_' + id2 + '.sam'
+    # sam2_out_fn = sam2_prefix.split('/')[-1] + '-merged_' + id1 + '.sam'
+    sam1_out_fn = sam1_prefix + '-merged_' + id2 + '.sam'
+    sam2_out_fn = sam2_prefix + '-merged_' + id1 + '.sam'
     sam1_out_f = open(sam1_out_fn, 'w')
     sam2_out_f = open(sam2_out_fn, 'w')
+
+    if fn_log != None:
+        with open(fn_log, 'w') as f:
+            f.write(os.path.abspath(sam1_out_fn) + '\n')
+            f.write(os.path.abspath(sam2_out_fn))
 
     sam2_dic = {}
     num_replacement = 0
