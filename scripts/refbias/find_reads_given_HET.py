@@ -1,8 +1,9 @@
 import re
 import os.path
 import argparse
-from utils import get_paths_from_list
 import pandas as pd
+from utils import get_paths_from_list
+from count_variants import count_var
 
 def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range):
     df_het = pd.read_csv(fn_het, sep='\t')
@@ -23,28 +24,16 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range):
     df_pass['HET SITE'] = list_het
     list_bias = df_pass['REFERENCE BIAS']
 
-    f_vcf = open(fn_vcf, 'r')
+    # f_vcf = open(fn_vcf, 'r')
     dict_het_gt = {}
-    for line in f_vcf:
-        if line.startswith('#'):
-            continue
-        line = line.split()
-        if int(line[1])-1 in list_het:
-            dict_het_gt[int(line[1])-1] = line[-1]
+    with open(fn_vcf, 'r') as f_vcf:
+        for line in f_vcf:
+            if line.startswith('#'):
+                continue
+            line = line.split()
+            if int(line[1]) in list_het:
+                dict_het_gt[int(line[1])] = line[-1]
     assert len(list_het) == len(dict_het_gt.keys())
-    # count_line = 0
-    # f_het = open(fn_het, 'r')
-    # list_het = []
-    # for line in f_het:
-    #     if count_line >= 2:
-    #         line = line.rstrip()
-    #         line = [int(i) for i in line.strip('[]').split(',')]
-    #         #: check if all the positions for a het site are the same
-    #         if len(line) > 1:
-    #             for e in line:
-    #                 assert e == line[0]
-    #         list_het.append(int(line[0]))
-    #     count_line += 1
 
     #: skips this part if all the output files exist
     all_out_exist = True
@@ -52,7 +41,7 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range):
         if not os.path.exists(fn):
             all_out_exist = False
     if all_out_exist:
-        merge(fn_out, fn_merge, df_pass, dict_het_gt)
+        merge(fn_out, fn_merge, fn_vcf, df_pass, dict_het_gt)
         return
 
     for i in range(len(fn_sam)):
@@ -69,7 +58,8 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range):
         for line in sam_file:
             if not line.startswith('@'):
                 spl = line.split()
-                start_pos = int(spl[3])-1
+                start_pos = int(spl[3])
+                # start_pos = int(spl[3])-1
                 tag =int(spl[1])
                 if (tag & 4):
                     continue
@@ -136,9 +126,9 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range):
                 #print("starting: ", starting)
         f_out.close()
 
-    merge(fn_out, fn_merge, df_pass, dict_het_gt)
+    merge(fn_out, fn_merge, fn_vcf, df_pass, dict_het_gt)
 
-def merge(fn_output, fn_merge, df, dict_het_gt):
+def merge(fn_output, fn_merge, fn_vcf, df, dict_het_gt):
     het_list = {}
     lines = []
     recent_site = -1
@@ -156,11 +146,13 @@ def merge(fn_output, fn_merge, df, dict_het_gt):
     f_out = open(fn_merge, 'w')
     list_read_bias = []
     list_ref_read_bias = []
+    list_avg_mapq = []
     for item in list(het_list.keys()):
         toWrite = 'HET SITE ' + str(item) + "\n"
         f_out.write(toWrite)
         count_hapA = 0
         count_hapB = 0
+        sum_mapq = 0
         for element in het_list[item]:
             f_out.write(element)
             assert element.count('hapA') + element.count('hapB') == 1
@@ -168,14 +160,26 @@ def merge(fn_output, fn_merge, df, dict_het_gt):
                 count_hapA += 1
             else:
                 count_hapB += 1
+            sum_mapq += int(element.rstrip().split('\t')[3])
+
         ref_read_bias = calc_read_bias(het_list[item], dict_het_gt[item])
         list_ref_read_bias.append(ref_read_bias)
         read_bias = count_hapA / (count_hapA + count_hapB)
         list_read_bias.append(read_bias)
+        list_avg_mapq.append(sum_mapq / len(het_list[item]))
     f_out.close()
+
     print(list(het_list.keys()))
+
+    list_var, list_numA, list_numB = \
+        count_var(fn_vcf, '', target_het = list(df['HET SITE']))
+    assert list(df['HET SITE']) == list_var
+    list_num_var = [max(list_numA[i], list_numB[i]) for i in range(len(list_numA))]
+    df['NUM VAR'] = list_num_var
+
     df['READ BIAS'] = list_read_bias
     df['REF READ BIAS'] = list_ref_read_bias
+    df['AVG MAPQ'] = list_avg_mapq
     df.to_csv(fn_merge + '.tsv', sep='\t')
 
 def calc_read_bias(list_reads, gt):
@@ -218,7 +222,8 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--merge', help = 'merged output file name')
     parser.add_argument(
         '-r', '--range', default='0-1',
-        help='ref bias range, values are separated by commas [0-1]')
+        help='ref bias range, values are separated by commas, \
+            e.g. 0-0.2,0.8-1 removes HETs with bias from 0.2 to 0.8 [0-1]')
     #parser.add_argument('-v', '--val', help='ref bias range specified by user')
     
     args = parser.parse_args()
