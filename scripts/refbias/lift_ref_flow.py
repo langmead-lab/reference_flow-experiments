@@ -1,7 +1,6 @@
 from sys import exit
 import argparse
-import os.path
-from os import path
+#from os import path
 
 def main(fn_vcf, list_fn_sam, fn_fasta, list_fn_name, fn_out):
     import liftover_sam
@@ -84,6 +83,7 @@ def merge(ref_bi_list, fn_out):
         f_out.write(str(chr))
         f_out.write("\t")
         f_out.write(str(het_site[i]))
+        #f_out.write(str(het_site[i] + 1)) #: 1-based
         f_out.write("\t")
         add = ref_count[i] + alt_count[i] + gap_count[i] + other_count[i]
         if add == 0:

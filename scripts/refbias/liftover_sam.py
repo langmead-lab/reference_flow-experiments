@@ -249,17 +249,17 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                         else:
                             other_count += 1
                             total_other_count += 1
-                            if (pos in range(9560476-2000, 9560476+2000)):# or (pos in range(11083563-1000, 11083563+1000)):
-                                print ('vcf at', pos)
-                                print (sam_reads[i])
-                                print (align)
-                                print (chr_sam[chr][2][i])
-                                print (chr_sam[chr][3][i])
-                                print ('##########'+options[count_pos][0]+'###########')
-                                print (reference[pos-10 : pos+12])
-                                tmp_reads = '..........'+sam_reads[i]+'..........'
-                                print (tmp_reads[pos-align : pos-align+22])
-                                print ('##########'+allele+'###########')
+                            # if (pos in range(9560476-2000, 9560476+2000)):# or (pos in range(11083563-1000, 11083563+1000)):
+                            #     print ('vcf at', pos)
+                            #     print (sam_reads[i])
+                            #     print (align)
+                            #     print (chr_sam[chr][2][i])
+                            #     print (chr_sam[chr][3][i])
+                            #     print ('##########'+options[count_pos][0]+'###########')
+                            #     print (reference[pos-10 : pos+12])
+                            #     tmp_reads = '..........'+sam_reads[i]+'..........'
+                            #     print (tmp_reads[pos-align : pos-align+22])
+                            #     print ('##########'+allele+'###########')
                     except:
                         print("in here. pos is: ", pos, "   and align is: ", align)
                         #print("vcf[pos]: ", vcf[pos])
@@ -271,7 +271,8 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
             have_started = False
             f.write(str(chr))
             f.write("\t")
-            f.write(str(pos))
+            f.write(str(pos + 1)) #: outputs in 1-based format
+            # f.write(str(pos))
             f.write("\t")
             if ref_count == 0 and alt_count == 0:
                 f.write("N/A")
