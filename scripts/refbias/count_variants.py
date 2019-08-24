@@ -1,130 +1,83 @@
 import argparse
+import pandas as pd
 from utils import get_het_from_list_format
 
-def main(fn_vcf, fn_het, fn_out):
-    f_vcf = open(fn_vcf, 'r')
-
-    het_list = []
-    ref_alt_list = []
-    hap_var_list = []
-
-    for line in f_vcf:
-        if not line.startswith("#"):
+def count_single_hap(fn_vcf, hap, threshold):
+    '''
+    hap [INT]:
+        0 for hapA
+        1 for hapB
+    '''
+    list_var = []
+    list_size = []
+    with open(fn_vcf, 'r') as f:
+        for line in f:
+            if line[0] == '#':
+                continue
             spl = line.split()
-            # het_list.append(get_het_from_list_format(spl[1]))
-            het_list.append(int(spl[1]))
-            alleleA = []
-            alleleB = []
-            if ',' in spl[3]:
-                alleleA = spl[3].split(',')
+            ref = spl[3]
+            assert ref.count(',') == 0
+            alt = spl[4]
+            assert alt.count(',') == 0
+            gt = [int(i) for i in spl[-1].split('|')]
+            assert gt[0] + gt[1] == 1
+
+            list_var.append(int(spl[1]))
+            if gt[0] and (hap == 0):
+                list_size.append(abs(len(ref) - len(alt)) + 1)
+            elif gt[1] and (hap == 1):
+                list_size.append(abs(len(ref) - len(alt)) + 1)
             else:
-                alleleA.append(spl[3])
-            if ',' in spl[4]:
-                alleleB = spl[4].split(',')
+                list_size.append(0)
+    list_num_var = []
+    for i, het in enumerate(list_var):
+        var = 0
+        for j in range(i - 1, -1, -1):
+            if abs(list_var[j] - het) > threshold:
+                break
             else:
-                alleleB.append(spl[4])
-            alleles = (alleleA, alleleB)
-            ref_alt_list.append(alleles)
-            choices = spl[-1].split("|")
-            hap_var_list.append((choices[0], choices[1]))
-
-    #print(ref_alt_list)
-
-    f_het = open(fn_het, 'r')
-    f_out = open(fn_out, 'w')
-    het_sites = []
-    
-    hapA_var_list = []
-    hapB_var_list = []
-
-    starting = 0
-    change_starting = True
-    count_line = 0
-    for line in f_het:
-        hapA = 0
-        hapB = 0
-        if count_line > 0:
-            # het_site = int(line.split()[0])+1
-            het_site = get_het_from_list_format(line.split('\t')[1]) + 1
-            het_sites.append(het_site)
-            ran = range(het_site-100, het_site+101)
-            for i in range(starting, len(het_list)):
-                choiceA = int(hap_var_list[i][0])
-                choiceB = int(hap_var_list[i][1])
-                if het_list[i] in ran and het_list[i] != het_site:
-                    if change_starting:
-                        starting = i
-                        change_starting = False
-
-                    if choiceA >= 1:
-                        ref = ref_alt_list[i][0][0]
-                        alt = ref_alt_list[i][1][choiceA-1]
-
-                        if len(ref) == len(alt):
-                            hapA += 1
-                        else:
-                            hapA += abs(len(ref) - len(alt))
-
-                    if choiceB >= 1:
-                        ref = ref_alt_list[i][0][0]
-                        alt = ref_alt_list[i][1][choiceB-1]
-                        if len(ref) == len(alt):
-                            hapB += 1
-                        else:
-                            hapB += abs(len(ref) - len(alt))
-                elif het_list[i] > het_site:
-                    break
-            hapA_var_list.append(hapA)
-            hapB_var_list.append(hapB)
-            change_starting = True
-
-        count_line += 1
-
-    f_out.write("HET SITE\tHapA\tHapB\t# Variants\n")
-    for i in range(len(het_sites)):
-        f_out.write(str(het_sites[i]))
-        f_out.write("\t")
-        ref_hap = find_ref_hap(het_sites[i], fn_vcf)
-        if ref_hap == 'hapA':
-            f_out.write("Yes\t\t")
-            if hapA_var_list[i] > 10:
-                f_out.write(str(10))
+                var += list_size[j]
+        for j in range(i, len(list_var)):
+            if abs(list_var[j] - het) > threshold:
+                break
             else:
-                f_out.write(str(hapA_var_list[i]+1))
-        else:
-            f_out.write("\tYes\t")
-            if hapB_var_list[i] > 10:
-                f_out.write(str(10))
-            else:
-                f_out.write(str(hapB_var_list[i]+1))
-        f_out.write("\n")
+                var += list_size[j]
+        list_num_var.append(var)
 
-def find_ref_hap(het_site, fn_vcf):
-    file_in = open(fn_vcf, 'r')
-    for line in file_in:
-        if line.startswith("#"):
-            continue
-        else:
-            spl = line.split()
-            # if int(spl[1]) == het_site + 1: # because 0-base to 1-base
-            if int(spl[1]) == het_site:#+1 because 0-base to 1-base
-                hap = spl[8].split("|")
-                if hap[0] == '0':
-                    return 'hapA'
-                else:
-                    return 'hapB'
-    print("error, het site not found")
+    return list_var, list_num_var
+
+def count_var(fn_vcf, fn_out, target_het=None):
+    list_varA, list_num_var_A = count_single_hap(fn_vcf, hap=0, threshold=100)
+    list_varB, list_num_var_B = count_single_hap(fn_vcf, hap=1, threshold=100)
+    assert list_varA == list_varB
+
+    if target_het == None:
+        return list_varA, list_num_var_A, list_num_var_B
+    else:
+        list_filtered_var = []
+        list_filtered_num_var_A = []
+        list_filtered_num_var_B = []
+        for i, v in enumerate(list_varA):
+            if v in target_het:
+                list_filtered_var.append(v)
+                list_filtered_num_var_A.append(list_num_var_A[i])
+                list_filtered_num_var_B.append(list_num_var_B[i])
+        return list_filtered_var, list_filtered_num_var_A, list_filtered_num_var_B
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--vcf', help='vcf file for chromosomes')
-    parser.add_argument('-s', '--sit', help='file with HET sites')
     parser.add_argument('-o', '--out', help = 'output file')
     args = parser.parse_args()
     fn_vcf = args.vcf
-    fn_sit = args.sit
     fn_output = args.out
     print('vcf', fn_vcf)
-    print('sit', fn_sit)
     print('output', fn_output)
-    main(fn_vcf, fn_sit, fn_output)
+
+    list_var, list_numA, list_numB = count_var(fn_vcf, fn_output)
+    if fn_out != None:
+        df = pd.DataFrame(index = list_var)
+        df['Num Var A'] = list_numA
+        df['Num Var B'] = list_numB
+        df.to_csv(fn_out, sep = '\t')
+
