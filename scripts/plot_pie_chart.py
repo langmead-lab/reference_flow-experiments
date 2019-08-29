@@ -17,9 +17,11 @@ sizes = [total, num_chrs*200000-total]
 # colors = ['#ff9999','#66b3ff','#99ff99','#ffcc99']
 
 plt.rcParams.update({'font.size': 22})
+# plt.rcParams.update({'font.size': 0})
 
 fig1, ax1 = plt.subplots()
 patches, texts, autotexts = ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+# patches, texts, autotexts = ax1.pie(sizes, autopct='%1.1f%%', startangle=90)
 # patches, texts, autotexts = ax1.pie(sizes, colors = colors, labels=labels, autopct='%1.1f%%', startangle=90)
 # for text in texts:
 #     text.set_color('grey')
