@@ -96,8 +96,10 @@ def compare_sam(args):
     per_ic_f = open(per_ic_fn, 'r')
     
     var_list = read_var(var_fn, remove_conflict=True, remove_homo_alt=False, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
-    ref_index, _ = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    main_index, alt_index = build_index(var_list)
+    # main_index, alt_index = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
+    ref_index, _ = build_index(var_list)
+    # ref_index, _ = build_index(var_list, MAIN_STRAND=MAIN_STRAND, ALT_STRAND=ALT_STRAND)
 
     # Reads aligned to personalized genomes
     dict_per_c = {}
