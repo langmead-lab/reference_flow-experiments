@@ -86,9 +86,14 @@ def list_mode(
                 df_union.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[1]
                 df_jaccard.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[2]
 
-    df_inter.to_csv(output_prefix + '_inter.tsv', sep='\t')
-    df_union.to_csv(output_prefix + '_union.tsv', sep='\t')
-    df_jaccard.to_csv(output_prefix + '_jaccard.tsv', sep='\t')
+    if output_prefix == None:
+        print (df_inter)
+        print (df_union)
+        print (df_jaccard)
+    else:
+        df_inter.to_csv(output_prefix + '_inter.tsv', sep='\t')
+        df_union.to_csv(output_prefix + '_union.tsv', sep='\t')
+        df_jaccard.to_csv(output_prefix + '_jaccard.tsv', sep='\t')
 
 if __name__ == '__main__':
     args = parse_args()
