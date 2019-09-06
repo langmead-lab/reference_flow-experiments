@@ -1,0 +1,336 @@
+#/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7
+import os
+import pandas as pd
+
+configfile: "config.yaml"
+
+''' Load from config '''
+CHROM = config['CHROM']
+INDIV = config['INDIV']
+READS1 = config['READS1']
+GROUP = config['GROUP']
+# NUM_SIM_READS = config['NUM_SIM_READS']
+ALN_MAPQ_THRSD = config['ALN_MAPQ_THRSD']
+POP_THRSD = config['POP_THRSD']
+POP_STOCHASTIC = config['POP_STOCHASTIC']
+POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
+POP_USE_LD = config['POP_USE_LD']
+DIR = config['DIR']
+GENOME = config['GENOME']
+# VCF = config['VCF']
+DIR_VCF = config['DIR_VCF']
+
+FAMILY = config['FAMILY']
+SPOP = config['SPOP']
+BCFTOOLS = config['BCFTOOLS']
+SAMTOOLS = config['SAMTOOLS']
+MASON2 = config['MASON2']
+PYTHON = config['PYTHON']
+DIR_SCRIPTS = config['DIR_SCRIPTS']
+THREADS = config['THREADS']
+RAND_SEED = config['RAND_SEED']
+''''''
+
+PREFIX_VCF_F = os.path.join(DIR, '{CHROM}_filtered')
+PREFIX_MAJOR_F = os.path.join(DIR, 'major/{CHROM}_filtered_major')
+PREFIX_MAJOR = os.path.join(DIR, 'major/{CHROM}_h37maj')
+
+DIR_FIRST_PASS = os.path.join(DIR, 'experiments/' + INDIV + '/')
+
+DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
+POP_DIRNAME = 'thrds{0}_S{1}_block{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
+POP_GENOME_SUFFIX = \
+    '{CHROM}_superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
+    '_ld' + str(POP_USE_LD)
+WG_POP_GENOME_SUFFIX = \
+    'wg_superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
+    '_ld' + str(POP_USE_LD)
+DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
+DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
+
+IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
+
+rule all:
+    input:
+        filtered_vcf = expand(PREFIX_VCF_F + '.vcf', CHROM = CHROM),
+        major_idx = expand(
+            os.path.join(DIR,
+            'major/indexes/wg_h37maj.{idx}.bt2'), idx = IDX_ITEMS),
+        major_sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam'),
+        grch37_sam = os.path.join(DIR_FIRST_PASS, 'wg-GRCh37.sam'),
+        check_popg = expand(os.path.join(DIR, 'check_popgenome_{GROUP}.done'),
+            GROUP = GROUP)
+
+rule filter_vcf:
+    input:
+        vcf = os.path.join(DIR_VCF, '{CHROM}.vcf.gz')
+    output:
+        vcf = PREFIX_VCF_F + '.vcf'
+    shell:
+        '{BCFTOOLS} view --threads {THREADS} -V mnps,other {input.vcf} > {output.vcf}'
+
+rule build_major:
+    input:
+        genome = GENOME,
+        vcf = PREFIX_VCF_F + '.vcf'
+    output:
+        vcf_major = PREFIX_MAJOR_F + '.vcf',
+        vcf_major_gz = PREFIX_MAJOR_F + '.vcf.gz',
+        vcf_major_gz_csi = PREFIX_MAJOR_F + '.vcf.gz.csi',
+        out_genome = PREFIX_MAJOR + '.fa',
+        out_var = PREFIX_MAJOR + '.var',
+        out_vcf = PREFIX_MAJOR + '.vcf'
+    params:
+        chrom_genome = os.path.join(DIR, '{CHROM}.fa'),
+        out_prefix = os.path.join(DIR, 'major/{CHROM}_h37maj')
+    shell:
+        '{BCFTOOLS} view -O z --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels -m2 -M2 > '
+        '{output.vcf_major_gz};'
+        '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
+        'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
+        '{SAMTOOLS} faidx {input.genome} {wildcards.CHROM} > {params.chrom_genome};'
+        '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
+        '    --ref {params.chrom_genome} --vcf {output.vcf_major} '
+        '    --chrom {wildcards.CHROM} --out-prefix {params.out_prefix} '
+        '    --include-indels'
+
+rule merge_major:
+    input:
+        expand(PREFIX_MAJOR + '.fa', CHROM = CHROM)
+    output:
+        os.path.join(DIR, 'major/wg_h37maj.fa')
+    shell:
+        'cat {input} >> {output}'
+
+rule build_major_index:
+    input:
+        os.path.join(DIR, 'major/wg_h37maj.fa')
+    output:
+        expand(
+            os.path.join(DIR, 'major/indexes/wg_h37maj.{idx}.bt2'),
+            idx = IDX_ITEMS)
+        # PREFIX_MAJOR_IDX + '.1.bt2',
+        # PREFIX_MAJOR_IDX + '.2.bt2',
+        # PREFIX_MAJOR_IDX + '.3.bt2',
+        # PREFIX_MAJOR_IDX + '.4.bt2',
+        # PREFIX_MAJOR_IDX + '.rev.1.bt2',
+        # PREFIX_MAJOR_IDX + '.rev.2.bt2'
+    params:
+        os.path.join(DIR, 'major/wg_h37maj/indexes')
+    shell:
+        'bowtie2-build --threads {THREADS} {input} {params}'
+ 
+rule build_grc_index:
+    input:
+        genome = GENOME
+    output:
+        expand(
+            os.path.join(DIR, 'grch37/wg.{idx}.bt2'),
+            idx = IDX_ITEMS)
+        # PREFIX_MAJOR_IDX + '.1.bt2',
+        # PREFIX_MAJOR_IDX + '.2.bt2',
+        # PREFIX_MAJOR_IDX + '.3.bt2',
+        # PREFIX_MAJOR_IDX + '.4.bt2',
+        # PREFIX_MAJOR_IDX + '.rev.1.bt2',
+        # PREFIX_MAJOR_IDX + '.rev.2.bt2'
+    params:
+        os.path.join(DIR, 'grch37/wg')
+    shell:
+        'bowtie2-build --threads {THREADS} {input.genome} {params}'
+
+''' Reference flow: first pass '''
+rule align_to_ref:
+    input:
+        reads1 = READS1,
+        idx = expand(
+            os.path.join(DIR, 'grch37/wg.{idx}.bt2'),
+            idx = IDX_ITEMS)
+    params:
+        index = os.path.join(DIR, 'grch37/indexes/wg')
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, 'wg-GRCh37.sam')
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+
+rule align_to_major:
+    input:
+        reads1 = READS1,
+        idx = expand(
+            os.path.join(DIR, 'major/wg_h37maj.{idx}.bt2'),
+            idx = IDX_ITEMS)
+    params:
+        index = os.path.join(DIR, 'major/indexes/wg_h37maj')
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam')
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+# 
+# rule select_reads_using_mapq:
+# 
+# ''' Reference flow: prepare pop genome '''
+# 
+# ''' Reference flow: second pass '''
+# rule align_to_pop_genome:
+
+
+'''
+Rules for building population genomes
+'''
+rule prepare_pop_indiv:
+    output:
+        expand(
+            os.path.join(DIR, '1KG_indivs/sample_superpop_{GROUP}.txt'),
+            GROUP = GROUP
+        )
+    params:
+        prefix = os.path.join(DIR, '1KG_indivs/sample')
+    shell:
+        '{PYTHON} {DIR_SCRIPTS}/list_indiv_from_pop.py '
+        '-p {FAMILY} -sp {SPOP} -op {params.prefix}'
+
+rule build_pop_vcf:
+    input:
+        vcf = PREFIX_VCF_F + '.vcf',
+        indiv_group = os.path.join(
+            DIR,
+            '1KG_indivs/sample_superpop_{GROUP}.txt'
+        )
+    output:
+        vcf_gz = os.path.join(DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}.vcf.gz')
+    shell:
+        '{BCFTOOLS} view --threads {THREADS} -S {input.indiv_group} '
+        '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
+        'bgzip -@ {THREADS} > {output.vcf_gz}'
+
+rule get_pop_sample:
+    input:
+        vcf_gz = os.path.join(DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}.vcf.gz')
+    output:
+        vcf_header = os.path.join(DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}.samples')
+    shell:
+        '{BCFTOOLS} view -h {input.vcf_gz} | tail -1 '
+        '> {output.vcf_header}'
+
+rule filter_pop_vcf:
+    input:
+        vcf_gz = os.path.join(DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}.vcf.gz'),
+        vcf_header = os.path.join(DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}.samples')
+    output:
+        vcf = os.path.join(
+            DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
+        )
+    run:
+        fn = list({input.vcf_header})[0]
+        with open(fn, 'r') as f:
+            for line in f:
+                n = len(line.split()) - 9
+                thrsd = int(n * 2 * float(POP_THRSD))
+                filt = 'AC > {}'.format(thrsd)
+                break
+        shell('{BCFTOOLS} view --threads {THREADS} -i "{filt}" \
+            -v snps,indels {input.vcf_gz} > {output.vcf};')
+
+rule build_pop_genome:
+    input:
+        vcf = os.path.join(
+            DIR_POP_GENOME,
+            '{CHROM}_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
+        )
+    output:
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            '{CHROM}_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.fa'
+        ),
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            '{CHROM}_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.var'
+        )
+    params:
+        prefix = os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            '{CHROM}_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD)
+        )
+    run:
+        if POP_STOCHASTIC == 1 and POP_USE_LD == 1:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {wildcards.CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE} --ld')
+        elif POP_STOCHASTIC == 1:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {wildcards.CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE}')
+        else:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {wildcards.CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels')
+
+rule merge_pop_genome:
+    input:
+        # expand(PREFIX_MAJOR + '.fa', CHROM = CHROM)
+#        os.path.join(DIR_POP_GENOME_BLOCK, POP_GENOME_SUFFIX)
+        expand(os.path.join(DIR_POP_GENOME_BLOCK,
+            '{CHROM}_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.fa'), CHROM = CHROM, GROUP = GROUP)
+    output:
+#        os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX)
+        os.path.join(DIR_POP_GENOME_BLOCK,
+            'wg_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.fa')
+    run:
+        list_fn = []
+        for fn in input:
+            print (fn)
+            print (wildcards.GROUP)
+            if fn.count(wildcards.GROUP) > 0:
+                list_fn.append(fn)
+        shell('cat {list_fn} >> {output}')
+
+rule build_pop_genome_index:
+    input:
+        # genome = DIR_POP_GENOME_BLOCK + POP_GENOME_SUFFIX + '.fa'
+        # genome = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX)
+        genome = os.path.join(DIR_POP_GENOME_BLOCK,
+            'wg_superpop_{GROUP}_thrds' + str(POP_THRSD) +
+            '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + 
+            '_ld' + str(POP_USE_LD) + '.fa')
+    output:
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.1.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.2.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.3.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.4.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.rev.1.bt2',
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.rev.2.bt2'
+    params:
+        DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX
+    shell:
+        'bowtie2-build --threads {THREADS} {input.genome} {params};'
+
+rule check_pop_genome:
+    input:
+        expand(
+            DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+            GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
+        )
+    output:
+        touch(temp(os.path.join(DIR, 'check_popgenome_{GROUP}.done')))
