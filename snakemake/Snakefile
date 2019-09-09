@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 configfile: "config.yaml"
+# configfile: "config-pop_major.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
@@ -46,10 +47,13 @@ DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
 DIR_FIRST_PASS = os.path.join(DIR, 'experiments/{INDIV}/')
 DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
+PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
 
 DIR_RESULTS = os.path.join(DIR, 'results/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
+
+include: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake/shared/write_results.Snakefile'
 
 def organize_accuracy(fn_input, fn_output):
     with open(fn_input, 'r') as f:
@@ -455,38 +459,44 @@ rule refflow_align_secondpass:
     params:
         index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
     output:
-        sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam')
+        # sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME + '.sam')
+        sam = PREFIX_SECOND_PASS + '.sam'
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
 
 rule refflow_merge_secondpass:
     input:
         sam = expand(
-            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-{GROUP}.sam'),
+            PREFIX_SECOND_PASS + '.sam',
             INDIV = INDIV, GROUP = GROUP)
     output:
-        path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
-        id = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.ids'),
-        merge_path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths')
+        path = os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        id = os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.ids'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        merge_paths = os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+        # path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
+        # id = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.ids'),
+        # merge_path = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths')
     run:
         indiv = wildcards.INDIV
         dir_2p = os.path.join(DIR, 'experiments/' + indiv + '/' + POP_DIRNAME)
         for g in GROUP:
-            fn = os.path.join(dir_2p, CHROM + '-h37maj-' + g + '.sam')
+            fn = os.path.join(dir_2p, '{0}-h37maj-{1}-{2}-{3}.sam'.format(CHROM, ALN_MAPQ_THRSD, g, POP_DIRNAME))
             shell('ls {fn} >> {output.path};')
             shell('echo {g} >> {output.id}')
         shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
             -ns {output.path} -ids {output.id} \
-            -rs 0 -l {output.merge_path}')
+            -rs 0 -l {output.merge_paths}')
         
 rule check_secondpass:
     input:
         sam = expand(
-            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
+            os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+            # os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass.paths'),
             INDIV = INDIV, GROUP = GROUP
         ),
         merge = expand(
-            os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths'),
+            os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+            # os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-secondpass-merged.paths'),
             INDIV = INDIV, GROUP = GROUP
         )
     output:
@@ -563,10 +573,12 @@ rule calc_refflow_accuracy:
         first_sam = os.path.join(DIR_FIRST_PASS, CHROM + 
             '-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
         first_var_genome = PREFIX_MAJOR + '.var',
-        second_sam_path = os.path.join(DIR_SECOND_PASS, 
-            CHROM + '-h37maj-secondpass-merged.paths'),
-        second_group = os.path.join(DIR_SECOND_PASS, 
-            CHROM + '-h37maj-secondpass.ids'),
+        second_sam_path = os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        second_group = os.path.join(DIR_SECOND_PASS, '{0}-h37maj-{1}-{2}.ids'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        # second_sam_path = os.path.join(DIR_SECOND_PASS, 
+        #     CHROM + '-h37maj-secondpass-merged.paths'),
+        # second_group = os.path.join(DIR_SECOND_PASS, 
+        #     CHROM + '-h37maj-secondpass.ids'),
         second_var_genome = expand(
             os.path.join(
             DIR_POP_GENOME_BLOCK,
@@ -576,7 +588,8 @@ rule calc_refflow_accuracy:
             INDIV = INDIV, GROUP = GROUP
         )
     output:
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
+        acc_log = os.path.join(DIR_FIRST_PASS, '{0}-{1}-{2}.acc_log'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+        # acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
     run:
         if os.path.exists(output.acc_log):
             shell('rm {output.acc_log};')
@@ -606,17 +619,20 @@ rule calc_refflow_accuracy:
 
 rule sum_refflow_accuracy:
     input:
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
+        acc_log = os.path.join(DIR_FIRST_PASS, '{0}-{1}-{2}.acc_log'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+        # acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-' + POP_DIRNAME + '.acc_log')
     output:
         acc = os.path.join(DIR_RESULTS,
-            '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc')
+            '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+            # '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc')
     run:
         organize_accuracy(input.acc_log, output.acc)
 
-rule write_as_tsv:
+'''rule write_as_tsv:
     input:
         acc_log = expand(os.path.join(DIR_RESULTS,
-            '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc'),
+            '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+            # '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc'),
             INDIV = INDIV),
         check_onepass_acc = expand(os.path.join(DIR, '{INDIV}_onepass_acc.done'), INDIV = INDIV)
     output:
@@ -644,3 +660,4 @@ rule write_as_tsv:
         df['True Positive'] = list_tp
         df['Num Reads'] = list_all
         df.to_csv(output.tsv, sep='\t', index=None)
+'''
