@@ -53,8 +53,26 @@ DIR_RESULTS = os.path.join(DIR, 'results/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
-include: 'shared/write_results.Snakefile'
+''' Included rules '''
+#: Build major allele ref and its indexes
+#:      check: 'major.done'
+include: 'shared/prepare_major.Snakefile'
+
+#: Build personalized genomes and their indexes
+#:      check: 'personalization.done'
+include: 'shared/prepare_per.Snakefile'
+
+#: Simulate reads from personalized genomes
+#:      check: 'simulation.done'
+include: 'shared/simulated_reads.Snakefile'
+
+#: Align all reads to the refflow genomes (one-pass)
+#:      check: 'rf_onepass_acc.done'
 include: 'shared/align_refflow_onepass.Snakefile'
+
+#: Summarize all results into a tsv
+#:      check: 'accuracy.done'
+include: 'shared/write_results.Snakefile'
 
 def organize_accuracy(fn_input, fn_output):
     with open(fn_input, 'r') as f:
@@ -101,177 +119,6 @@ rule filter_vcf:
         vcf = PREFIX_VCF_F + '.vcf'
     shell:
         '{BCFTOOLS} view --threads {THREADS} -V mnps,other {input.vcf} > {output.vcf}'
-
-'''
-Rules for building major-allele genome
-'''
-rule build_major:
-    input:
-        genome = GENOME,
-        vcf = PREFIX_VCF_F + '.vcf'
-    output:
-        vcf_major = PREFIX_MAJOR_F + '.vcf',
-        vcf_major_gz = PREFIX_MAJOR_F + '.vcf.gz',
-        vcf_major_gz_csi = PREFIX_MAJOR_F + '.vcf.gz.csi',
-        out_genome = PREFIX_MAJOR + '.fa',
-        out_var = PREFIX_MAJOR + '.var',
-        out_vcf = PREFIX_MAJOR + '.vcf'
-    shell:
-        '{BCFTOOLS} view -O z --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels -m2 -M2 > '
-        '{output.vcf_major_gz};'
-        '{BCFTOOLS} index --threads {THREADS} {output.vcf_major_gz};'
-        'bgzip -cd {output.vcf_major_gz} > {output.vcf_major};'
-        '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
-        '    --ref {input.genome} --vcf {output.vcf_major} '
-        '    --chrom {CHROM} --out-prefix {PREFIX_MAJOR} '
-        '    --include-indels'
-
-rule build_major_index:
-    input:
-        major = PREFIX_MAJOR + '.fa'
-    output:
-        PREFIX_MAJOR_IDX + '.1.bt2',
-        PREFIX_MAJOR_IDX + '.2.bt2',
-        PREFIX_MAJOR_IDX + '.3.bt2',
-        PREFIX_MAJOR_IDX + '.4.bt2',
-        PREFIX_MAJOR_IDX + '.rev.1.bt2',
-        PREFIX_MAJOR_IDX + '.rev.2.bt2'
-    shell:
-        'bowtie2-build --threads {THREADS} {input.major} {PREFIX_MAJOR_IDX}'
-
-rule check_major:
-    input:
-        expand(PREFIX_MAJOR_IDX + '.{idx_item}.bt2', idx_item = IDX_ITEMS)
-    output:
-        touch(temp(os.path.join(DIR, 'major.done')))
-
-'''
-Rules for building personalized genome
-'''
-rule build_per:
-    input:
-        genome = GENOME,
-        vcf = PREFIX_VCF_F + '.vcf'
-    output:
-        hapA = PREFIX_PER + '_hapA.fa',
-        hapB = PREFIX_PER + '_hapB.fa',
-        var = PREFIX_PER + '.var'
-    params:
-        out_prefix = PREFIX_PER
-    shell:
-        '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
-        '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
-        '    --chrom {CHROM} --out-prefix {params.out_prefix} '
-        '    --include-indels'
-
-rule build_per_index:
-    input:
-        perA = PREFIX_PER + '_hapA.fa',
-        perB = PREFIX_PER + '_hapB.fa'
-    output:
-        DIR_PER_IDX + CHROM + '-per_hapA.1.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapA.2.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapA.3.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapA.4.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapA.rev.1.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapA.rev.2.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.1.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.2.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.3.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.4.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.rev.1.bt2',
-        DIR_PER_IDX + CHROM + '-per_hapB.rev.2.bt2'
-    params:
-        prefix_idxA = DIR_PER_IDX + CHROM + '-per_hapA',
-        prefix_idxB = DIR_PER_IDX + CHROM + '-per_hapB'
-    shell:
-        'bowtie2-build --threads {THREADS} {input.perA} {params.prefix_idxA};'
-        'bowtie2-build --threads {THREADS} {input.perB} {params.prefix_idxB}'
-
-rule check_per:
-    input:
-        expand(
-            DIR_PER_IDX + CHROM + '-per_hapA.{idx_item}.bt2',
-            idx_item = IDX_ITEMS,
-            INDIV = INDIV
-        ),
-        expand(
-            DIR_PER_IDX + CHROM + '-per_hapB.{idx_item}.bt2',
-            idx_item = IDX_ITEMS,
-            INDIV = INDIV
-        )
-    output:
-        touch(temp(os.path.join(DIR, 'personalization.done')))
-
-'''
-Rules for simulate reads from personalized genomes
-'''
-rule simulate_reads:
-    input:
-        hapA = PREFIX_PER + '_hapA.fa',
-        hapB = PREFIX_PER + '_hapB.fa'
-    output:
-        readsA1 = PREFIX_PER + '_hapA_1.fq',
-        readsA2 = PREFIX_PER + '_hapA_2.fq',
-        readsB1 = PREFIX_PER + '_hapB_1.fq',
-        readsB2 = PREFIX_PER + '_hapB_2.fq',
-        samA = PREFIX_PER + '_hapA.sam',
-        samB = PREFIX_PER + '_hapB.sam'
-    params:
-        num = NUM_SIM_READS,
-        prefix = PREFIX_PER
-    shell:
-        #: marcc specific
-        'module load gcc/5.5.0;'
-        '{MASON2} --num-threads {THREADS} -ir {input.hapA} -n {params.num} '
-        '-o {params.prefix}_hapA_1.fq -or {params.prefix}_hapA_2.fq '
-        '-oa {params.prefix}_hapA.sam --read-name-prefix "{params.prefix}_hapA_simulated.";'
-        '{MASON2} --num-threads {THREADS} -ir {input.hapB} -n {params.num} '
-        '-o {params.prefix}_hapB_1.fq -or {params.prefix}_hapB_2.fq '
-        '-oa {params.prefix}_hapB.sam --read-name-prefix "{params.prefix}_hapB_simulated.";'
-
-rule merge_simulated_reads:
-    input:
-        readsA1 = PREFIX_PER + '_hapA_1.fq',
-        readsA2 = PREFIX_PER + '_hapA_2.fq',
-        readsB1 = PREFIX_PER + '_hapB_1.fq',
-        readsB2 = PREFIX_PER + '_hapB_2.fq',
-    output:
-        reads1 = PREFIX_PER + '_1.fq',
-        reads2 = PREFIX_PER + '_2.fq'
-    shell:
-        'cat {input.readsA1} > {output.reads1};'
-        'cat {input.readsA2} > {output.reads2};'
-        'cat {input.readsB1} >> {output.reads1};'
-        'cat {input.readsB2} >> {output.reads2};'
-
-rule merge_simulated_sam:
-    input:
-        samA = PREFIX_PER + '_hapA.sam',
-        samB = PREFIX_PER + '_hapB.sam'
-    output:
-        sam = temp(PREFIX_PER + '.sam'),
-        sam1 = PREFIX_PER + '_1.sam',
-        sam2 = PREFIX_PER + '_2.sam'
-    shell:
-        'grep ^@ {input.samA} > {output.sam};'
-        #: get headers from B
-        'grep ^@ {input.samB} | tail -n +2 >> {output.sam};'
-        'grep -v ^@ {input.samA} >> {output.sam};'
-        'grep -v ^@ {input.samB} >> {output.sam};'
-        'samtools view -@ {THREADS} -h -f 64 {output.sam} -o {output.sam1};'
-        'samtools view -@ {THREADS} -h -f 128 {output.sam} -o {output.sam2}'
-
-rule check_simulation:
-    input:
-        expand(
-            PREFIX_PER + '_{seg}.{type}',
-            INDIV = INDIV,
-            seg = ['1', '2'],
-            type = ['fq', 'sam']
-        )
-    output:
-        touch(temp(os.path.join(DIR, 'simulation.done')))
 
 '''
 Rules for building population genomes
@@ -683,37 +530,3 @@ rule sum_refflow_accuracy:
             # '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc')
     run:
         organize_accuracy(input.acc_log, output.acc)
-
-'''rule write_as_tsv:
-    input:
-        acc_log = expand(os.path.join(DIR_RESULTS,
-            '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            # '{INDIV}-' + CHROM + '-h37maj-' + POP_DIRNAME + '.acc'),
-            INDIV = INDIV),
-        check_onepass_acc = expand(os.path.join(DIR, '{INDIV}_onepass_acc.done'), INDIV = INDIV)
-    output:
-        tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
-        check = touch(temp(os.path.join(DIR, 'accuracy.done')))
-    run:
-        df = pd.DataFrame()
-        list_fn = os.listdir(DIR_RESULTS)
-        list_fn = [os.path.join(DIR_RESULTS, fn) for fn in list_fn]
-        list_exp = []
-        list_tp = []
-        list_all = []
-        list_sensitivity = []
-        for fn in list_fn:
-            if fn.endswith('.acc'):
-                with open(fn, 'r') as f:
-                    for i, line in enumerate(f):
-                        if i == 0:
-                            list_tp.append(int(line))
-                        elif i == 1:
-                            list_all.append(int(line))
-                fn = fn[: fn.rfind('.acc')]
-                list_exp.append(os.path.basename(fn))
-        df['Experiments'] = list_exp
-        df['True Positive'] = list_tp
-        df['Num Reads'] = list_all
-        df.to_csv(output.tsv, sep='\t', index=None)
-'''
