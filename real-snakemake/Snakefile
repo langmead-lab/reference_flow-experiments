@@ -73,7 +73,8 @@ rule all:
         # secondpass_tmptmp = dynamic(os.path.join(DIR, 'secondpass_useless.done')),
         # secondpass_tmp = dynamic(os.path.join(DIR, 'secondpass_useless.done_{fq_id}'))
         het_no_overlaps = expand(os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'), INDIV = INDIV),
-        lifted_major = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam'), INDIV = INDIV)
+        lifted_major = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam'), INDIV = INDIV),
+        sorting = os.path.join(DIR, 'sorting.done')
 
 rule filter_vcf:
     input:
@@ -292,6 +293,35 @@ rule liftover_lift_major_highq:
     shell:
         'module load gcc/5.5.0;'
         '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}'
+
+''' Sort using samtools '''
+rule sort_lifted_major:
+    input:
+        os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam')
+    output:
+        os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover-sorted.sam')
+    shell:
+        'samtools sort -@ {THREADS} -o {output} {input}'
+
+rule sort_lifted_refflow_firstpass:
+    input:
+        os.path.join(DIR_FIRST_PASS,
+            'wg-h37maj-mapqgeq{}-liftover.sam'.format(ALN_MAPQ_THRSD))
+    output:
+        os.path.join(DIR_FIRST_PASS,
+            'wg-h37maj-mapqgeq{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD))
+    run:
+        shell('samtools sort -@ {THREADS} -o {output} {input};')
+
+rule check_sort:
+    input:
+        expand(os.path.join(DIR_FIRST_PASS,
+            'wg-h37maj-liftover-sorted.sam'), INDIV = INDIV),
+        expand(os.path.join(DIR_FIRST_PASS,
+            'wg-h37maj-mapqgeq{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD)),
+            INDIV = INDIV)
+    output:
+        touch(temp(os.path.join(DIR, 'sorting.done')))
 
 # rule liftover_lift_major:
 #     input:
