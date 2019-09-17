@@ -40,3 +40,25 @@ rule check_major:
         expand(PREFIX_MAJOR_IDX + '.{idx_item}.bt2', idx_item = IDX_ITEMS)
     output:
         touch(temp(os.path.join(DIR, 'major.done')))
+
+'''
+Rules for indexing GRCh37
+'''
+
+rule build_grc_index:
+    input:
+        GENOME
+    output:
+        expand(os.path.join(DIR_GRCH37_IDX, CHROM + '_grch37.{i}.bt2'),
+            i = IDX_ITEMS)
+    params:
+        DIR_GRCH37_IDX + CHROM + '_grch37'
+    shell:
+        'bowtie2-build --threads {THREADS} {input} {params}'
+
+rule check_grc:
+    input:
+        expand(os.path.join(DIR_GRCH37_IDX, CHROM + '_grch37.{i}.bt2'),
+            i = IDX_ITEMS)
+    output:
+        touch(temp(os.path.join(DIR, 'grch37.done')))
