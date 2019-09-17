@@ -1,14 +1,28 @@
 ''' Prepare lft files '''
 rule liftover_serialize_major:
     input:
-        vcf_major = os.path.join(DIR_MAJOR, CHROM + '_h37maj.vcf')
+        vcf = os.path.join(DIR_MAJOR, CHROM + '_h37maj.vcf')
     output:
         lft = os.path.join(DIR_MAJOR, CHROM + '-h37maj.lft')
     params:
         os.path.join(DIR_MAJOR, CHROM + '-h37maj')
     shell:
         'module load gcc/5.5.0;'
-        '{LIFTOVER} serialize -v {input.vcf_major} -p {params}'
+        '{LIFTOVER} serialize -v {input.vcf} -p {params}'
+
+rule liftover_serialize_per:
+    input:
+        vcf = PREFIX_VCF_F + '.vcf'
+    output:
+        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
+        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft')
+    params:
+        A = os.path.join(DIR_PER, CHROM + '-perA'),
+        B = os.path.join(DIR_PER, CHROM + '-perB')
+    shell:
+        'module load gcc/5.5.0;'
+        '{LIFTOVER} serialize -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};'
+        '{LIFTOVER} serialize -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};'
 
 rule liftover_serialize_pop_genome:
     input:
@@ -30,27 +44,98 @@ rule liftover_serialize_pop_genome:
 rule liftover_lift_major:
     input:
         sam = os.path.join(DIR_FIRST_PASS, '{}-h37maj.sam'.format(CHROM)),
-        lft = os.path.join(DIR_MAJOR, '{}-h37maj.lft'.format(CHROM))
+        lft = os.path.join(DIR_MAJOR, '{}-h37maj.lft'.format(CHROM)),
+        vcf = PREFIX_VCF_F + '.vcf'
     output:
         os.path.join(DIR_FIRST_PASS, '{}-h37maj-liftover.sam'.format(CHROM))
     params:
         os.path.join(DIR_FIRST_PASS, '{}-h37maj-liftover'.format(CHROM))
-    shell:
-        'module load gcc/5.5.0;'
-        '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}'
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        except:
+            shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf} -p {params} -s {wildcards.INDIV}')
+
+rule liftover_lift_per:
+    input:
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
+        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM)),
+        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft'),
+        vcf = PREFIX_VCF_F + '.vcf'
+    output:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM))
+    params:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover'.format(CHROM))
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samA} -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};')
+        try:
+            shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samB} -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};')
+
+rule fix_liftover_per_header:
+    input:
+        liftA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+        liftB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM)),
+    output:
+        liftA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover_diploid.sam'.format(CHROM)),
+        liftB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover_diploid.sam'.format(CHROM))
+    run:
+        header_A = ''
+        with open(input.samA, 'r') as f:
+            for line in f:
+                if line.startswith('@SQ'):
+                    header_A = line
+                    break
+        header_B = ''
+        with open(input.samB, 'r') as f:
+            for line in f:
+                if line.startswith('@SQ'):
+                    header_B = line
+                    break
+        f_liftA = open(input.liftA, 'r')
+        with open(output.liftA, 'w') as f:
+            for line in f_liftA:
+                if line.startswith('@SQ'):
+                    f.write(header_A)
+                else:
+                    f.write(line)
+        f_liftB = open(input.liftB, 'r')
+        with open(output.liftB, 'w') as f:
+            for line in f_liftB:
+                if line.startswith('@SQ'):
+                    f.write(header_B)
+                else:
+                    f.write(line)
+        f_liftA.close()
+        f_liftB.close()
 
 #: Refflow -- first pass
 rule liftover_lift_refflow_firstpass:
     input:
         sam = os.path.join(DIR_FIRST_PASS, '{}-h37maj-mapqgeq{}.sam'.format(CHROM, ALN_MAPQ_THRSD)),
-        lft = os.path.join(DIR_MAJOR, '{}-h37maj.lft'.format(CHROM))
+        lft = os.path.join(DIR_MAJOR, '{}-h37maj.lft'.format(CHROM)),
+        vcf = PREFIX_VCF_F + '.vcf'
     output:
         os.path.join(DIR_FIRST_PASS, '{}-h37maj-mapqgeq{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD))
     params:
         os.path.join(DIR_FIRST_PASS, '{}-h37maj-mapqgeq{}-liftover'.format(CHROM, ALN_MAPQ_THRSD))
-    shell:
-        'module load gcc/5.5.0;'
-        '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}'
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        except:
+            shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf} -p {params} -s {wildcards.INDIV};')
 
 #: Refflow -- second pass
 rule liftover_lift_refflow_secondpass:
@@ -116,6 +201,28 @@ rule sort_lifted_major:
     shell:
         'samtools sort -@ {THREADS} -o {output} {input}'
 
+rule sort_lifted_per:
+    input:
+        # A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+        # B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover_diploid.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover_diploid.sam'.format(CHROM))
+    output:
+        # os.path.join(DIR_FIRST_PASS, '{}-per-liftover-sorted.sam'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover-sorted.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover-sorted.sam'.format(CHROM))
+    shell:
+        'samtools sort -@ {THREADS} -o {output.A} {input.A};'
+        'samtools sort -@ {THREADS} -o {output.B} {input.B}'
+
+rule sort_grc:
+    input:
+        os.path.join(DIR_FIRST_PASS, '{}-grch37.sam'.format(CHROM))
+    output:
+        os.path.join(DIR_FIRST_PASS, '{}-grch37-sorted.sam'.format(CHROM))
+    shell:
+        'samtools sort -@ {THREADS} -o {output} {input}'
+
 rule sort_lifted_refflow_firstpass:
     input:
         os.path.join(DIR_FIRST_PASS,
@@ -148,6 +255,12 @@ rule check_liftover:
         major = expand(
             os.path.join(DIR_FIRST_PASS, '{}-h37maj-liftover.sam'.format(CHROM)),
             INDIV = INDIV),
+        perA = expand(
+            os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+            INDIV = INDIV),
+        perB = expand(
+            os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM)),
+            INDIV = INDIV),
         pop = expand(os.path.join(DIR_SECOND_PASS,
             '2ndpass-{g}-liftover.sam'), g = GROUP, INDIV = INDIV),
         pop_maj = expand(os.path.join(DIR_SECOND_PASS,
@@ -158,19 +271,33 @@ rule check_liftover:
 rule check_sort:
     input:
         #: major
+        maj = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-h37maj-liftover-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        #: per
+        # per = expand(os.path.join(DIR_FIRST_PASS,
+        #     '{}-per-liftover-sorted.sam'.format(CHROM)),
+        #     INDIV = INDIV),
+        perA = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-per-merged-hapA-liftover-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        perB = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-per-merged-hapB-liftover-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        #: grch37
+        grc = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-grch37-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        #: refflow
         pop_maj = expand(os.path.join(
             DIR_SECOND_PASS, '2ndpass-h37maj-liftover-sorted.sam'),
             INDIV = INDIV),
-        #: refflow
         fp = expand(os.path.join(DIR_FIRST_PASS,
             '{}-h37maj-mapqgeq{}-liftover-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD)),
             INDIV = INDIV),
         pop = expand(os.path.join(
             DIR_SECOND_PASS, '2ndpass-{GROUP}-liftover-sorted.sam'),
-            INDIV = INDIV, GROUP = GROUP),
-        maj = expand(os.path.join(DIR_FIRST_PASS,
-            '{}-h37maj-liftover-sorted.sam'.format(CHROM)),
-            INDIV = INDIV)
+            INDIV = INDIV, GROUP = GROUP)
     output:
         touch(temp(os.path.join(DIR, 'sorting.done')))
 
