@@ -233,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--vcf', help='vcf file specifying HETs')
     parser.add_argument('-f', '--het', help='file with HET sites')
     # parser.add_argument('-o', '--out', help='list of output file name(s)')
-    parser.add_argument('-o', '--out-prefix', help='list of output prefix(es)')
+    parser.add_argument('-id', '--id', help='list of id(s)')
     parser.add_argument('-m', '--merge', help = 'merged output file name')
     parser.add_argument(
         '-r', '--range', default='0-1',
@@ -241,15 +241,18 @@ if __name__ == '__main__':
             e.g. 0-0.2,0.8-1 removes HETs with bias from 0.2 to 0.8 [0-1]')
     #parser.add_argument('-v', '--val', help='ref bias range specified by user')
     parser.add_argument('--sample', type=float, default=1.0, help='sampling rate for HET sites [1.0]')
-    
     args = parser.parse_args()
     
     list_fn_sam = get_paths_from_list(args.sam)
     fn_vcf = args.vcf
     fn_het = args.het
-    list_fn_out = get_paths_from_list(args.out_prefix, suffix = '_' + args.range + '.reads')
-    #list_fn_out = get_paths_from_list(args.out)
     fn_merge = args.merge
+    list_fn_out = get_paths_from_list(
+        args.id,
+        prefix = fn_merge + '_'
+        # suffix = '_' + args.range + '.reads'
+        # auto_prefix = list_fn_sam
+    )
     list_range = range_to_lists(args.range)
     sample_rate = args.sample
 
