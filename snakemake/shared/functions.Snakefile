@@ -31,4 +31,24 @@ def organize_accuracy(fn_input, fn_output):
     f_out.write('{0}\n{1}\n{2}\n'.format(sum(list_tp), sum(list_all), sum(list_tp) / sum(list_all)))
     return
 
+def summarize_allelc_bias(fn_input, fn_output):
+    df = pd.read_csv(str(fn_input), sep='\t')
+    len_raw = len(df)
+    #: filter by BIAS_MIN_READ_COUNT
+    df_f = df[(df['REF COUNT'] + df['ALT COUNT']) >= BIAS_MIN_READ_COUNT]
+    len_filtered = len(df_f)
 
+    ref = df_f['REF COUNT']
+    alt = df_f['ALT COUNT']
+    ref_to_alt = sum(ref) / sum(alt)
+    num_refbias = len(df_f[ref / (ref+alt) >= 0.5 + BIAS_TAIL_THRDS])
+    num_altbias = len(df_f[ref / (ref+alt) <= 0.5 - BIAS_TAIL_THRDS])
+
+    with open(str(fn_output), 'w') as f:
+        f.write(str(len_filtered / len_raw) + '\n')
+        f.write(str(sum(ref)) + '\n')
+        f.write(str(sum(alt)) + '\n')
+        f.write(str(ref_to_alt) + '\n')
+        f.write(str(num_refbias) + '\n')
+        f.write(str(num_altbias) + '\n')
+    return
