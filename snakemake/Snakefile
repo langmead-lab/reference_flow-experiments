@@ -2,8 +2,8 @@
 import os
 import pandas as pd
 
-configfile: "config.yaml"
-# configfile: "config-pop_major.yaml"
+# configfile: "config.yaml"
+configfile: "deep.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
@@ -15,6 +15,8 @@ POP_THRSD = config['POP_THRSD']
 POP_STOCHASTIC = config['POP_STOCHASTIC']
 POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
 POP_USE_LD = config['POP_USE_LD']
+BIAS_MIN_READ_COUNT = config['BIAS_MIN_READ_COUNT']
+BIAS_TAIL_THRDS = config['BIAS_TAIL_THRDS']
 DIR = config['DIR']
 GENOME = config['GENOME']
 VCF = config['VCF']
@@ -58,6 +60,7 @@ DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
 PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
 
 DIR_RESULTS = os.path.join(DIR, 'results/')
+DIR_RESULTS_BIAS = os.path.join(DIR, 'results/bias/')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 
@@ -93,16 +96,12 @@ include: 'shared/align_standard_onepass.Snakefile'
 #:      check: 'refflow_secondpass.done'
 include: 'shared/align_refflow.Snakefile'
 
-#: Summarize all results into a tsv
-#:      check: 'accuracy.done'
-# include: 'shared/write_results.Snakefile'
-
 #: Liftover sams for major and refflow
 #:      check: 'liftover.done', 'sorting.done'
 include: 'shared/liftover.Snakefile'
 
 #: Calculate allelic bias
-#:      check: 'refbias.done'
+#:      check: 'refbias.done', 'find_biased_reads.done'
 include: 'shared/calc_refbias.Snakefile'
 
 #: Calculate mapping accuracy and
@@ -132,6 +131,7 @@ rule all:
         sort = os.path.join(DIR, 'sorting.done'),
         #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
+        find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
         acc = os.path.join(DIR, 'accuracy.done'),
         tsv = os.path.join(DIR_RESULTS, 'all.tsv')
