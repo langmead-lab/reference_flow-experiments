@@ -188,7 +188,7 @@ rule sum_refflow_accuracy:
 '''
 Summarize results as a TSV
 '''
-rule write_as_tsv:
+rule check_mapping_acc_and_write_as_tsv:
     input:
         acc = expand(os.path.join(DIR_RESULTS,
             '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
