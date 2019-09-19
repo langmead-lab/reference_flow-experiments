@@ -250,7 +250,7 @@ rule find_unbiased_reads_per:
             )
     run:
         range_bias = '0.45-0.55'
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} --sample 0.01')
 
 rule find_strongly_biased_reads_per:
     input:
@@ -319,7 +319,7 @@ rule find_strongly_biased_reads_major:
             ))
     run:
         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} --sample 0.01')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
 
 rule check_find_reads:
     input:
