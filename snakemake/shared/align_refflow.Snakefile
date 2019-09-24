@@ -60,7 +60,7 @@ rule refflow_merge_secondpass:
         for g in GROUP:
             fn = os.path.join(dir_2p, '{0}-h37maj-{1}-{2}-{3}.sam'.format(CHROM, ALN_MAPQ_THRSD, g, POP_DIRNAME))
             shell('ls {fn} >> {output.path};')
-            shell('echo {g} >> {output.id}')
+            shell('echo {g} >> {output.id};')
         shell('{PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.path} \
             -ids {output.id} -rs {RAND_SEED} -p {params.prefix} \
             -l {output.merge_paths};')

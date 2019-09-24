@@ -35,11 +35,11 @@ def summarize_allelc_bias(fn_input, fn_output):
     df = pd.read_csv(str(fn_input), sep='\t')
     len_raw = len(df)
     #: filter by BIAS_MIN_READ_COUNT
-    df_f = df[(df['REF COUNT'] + df['ALT COUNT']) >= BIAS_MIN_READ_COUNT]
+    df_f = df[(df['REF_COUNT'] + df['ALT_COUNT']) >= BIAS_MIN_READ_COUNT]
     len_filtered = len(df_f)
 
-    ref = df_f['REF COUNT']
-    alt = df_f['ALT COUNT']
+    ref = df_f['REF_COUNT']
+    alt = df_f['ALT_COUNT']
     ref_to_alt = sum(ref) / sum(alt)
     num_refbias = len(df_f[ref / (ref+alt) >= 0.5 + BIAS_TAIL_THRDS])
     num_altbias = len(df_f[ref / (ref+alt) <= 0.5 - BIAS_TAIL_THRDS])
