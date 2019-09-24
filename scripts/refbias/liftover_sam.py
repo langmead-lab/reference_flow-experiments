@@ -31,9 +31,9 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
     if not path.exists(vcf_file_name):
         chr_vcf = {}
         for line in file:
-            if line.startswith("##"):
-                f.write(line.strip())
-                f.write("\n")
+            # if line.startswith("##"):
+            #     f.write(line.strip())
+            #     f.write("\n")
             if not line.startswith("##") and line.startswith("#"):
                 categories = line.split()
                 index_cat = count_line
@@ -54,7 +54,8 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                         chr_vcf[chr][0].append('N/A')
                         chr_vcf[chr][1].append(['N/A', 'N/A'])
                     continue
-                chr = int(now[0])
+                # chr = int(now[0])
+                chr = now[0]
                 if not chr_vcf:
                     chr_vcf[chr] = [[], []]
                 elif chr not in chr_vcf.keys():
@@ -73,16 +74,9 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
     else:
         print ('Load from {}'.format(vcf_file_name))
         chr_vcf = pickle.load(open(vcf_file_name, "rb"))
-    #print("chr_vcf: ", chr_vcf[1]) 
 
-
-    #file = open('/net/langmead-bigmem-ib.bluecrab.cluster/storage/sheila/real-NA12878/SRR622457-bt2-grch37.sam', 'r')#open('/scratch/groups/blangme2/naechyun/relaxing/chr21/experiments/10M-ref
-    #/scratch/groups/blangme2/naechyun/test/SRR622457-bt2-chr21.sam
     file = open(fn_sam, 'r')
-    #open('/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/1000Genomes/SRR622457/SRR622457_-chr21.sam', 'r')
-
-    #f = open(fn_output, 'a+')
-    f.write("#CHR\tHET SITE\tREFERENCE BIAS\tREF COUNT\tALT COUNT\tGAP COUNT\tOTHER COUNT\t# READS")
+    f.write("CHR\tHET_SITE\tREFERENCE_BIAS\tREF_COUNT\tALT_COUNT\tGAP_COUNT\tOTHER_COUNT\tNUM_READS")
     f.write("\n")
     count_line = 0
     chr_sam = {}
@@ -94,7 +88,12 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                 tag = int(spl[1])
                 if (tag & 4):
                     continue
-                chr = int(spl[2][0:2])
+                chr = spl[2]
+                #: ignores haplotype suffixes
+                if chr.endswith('A') or chr.endswith('B'):
+                    chr = chr[:-1]
+                # chr = spl[2][0:2]
+                # chr = int(spl[2][0:2])
                 cigar = spl[5]
                 start_pos = int(spl[3]) - 1 #TODO
                 sequence = spl[9]
