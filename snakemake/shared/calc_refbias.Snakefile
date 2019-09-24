@@ -69,6 +69,24 @@ rule calc_per_bias:
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
             -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
 
+rule calc_per_bias_haploid_setting:
+    input:
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover-sorted.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover-sorted.sam'.format(CHROM))
+        # sam = os.path.join(DIR_FIRST_PASS, '{}-per-liftover-sorted.sam'.format(CHROM))
+    output:
+        list_path = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.txt')
+    shell:
+        'echo "perA" > {output.list_id};'
+        'echo "perB" >> {output.list_id};'
+        'ls {input.samA} > {output.list_path};'
+        'ls {input.samB} >> {output.list_path};'
+        '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
+            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+
 rule calc_refflow_bias:
     input:
         # vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}.vcf'),
@@ -132,6 +150,15 @@ rule summarize_per:
     run:
         summarize_allelc_bias(input, output)
 
+rule summarize_per_haploid_setting:
+    input:
+        os.path.join(DIR_FIRST_PASS,
+            'per_haploid-refbias.txt')
+    output:
+        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per_haploid.bias')
+    run:
+        summarize_allelc_bias(input, output)
+
 rule summarize_refflow:
     input:
         os.path.join(DIR_SECOND_PASS,
@@ -151,6 +178,9 @@ rule check_refbias_and_write_to_tsv:
             INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
+            INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per_haploid.bias'),
             INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
@@ -213,7 +243,8 @@ rule find_strongly_biased_reads_refflow:
         list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
         list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
         bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME)),
-        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
@@ -231,14 +262,16 @@ rule find_strongly_biased_reads_refflow:
             ))
     run:
         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
 rule find_unbiased_reads_per:
     input:
         list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
         list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt'),
-        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
@@ -250,14 +283,16 @@ rule find_unbiased_reads_per:
             )
     run:
         range_bias = '0.45-0.55'
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} --sample 0.01')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} --sample 0.01 -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
 rule find_strongly_biased_reads_per:
     input:
         list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
         list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt'),
-        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
@@ -273,14 +308,41 @@ rule find_strongly_biased_reads_per:
             ))
     run:
         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule find_strongly_biased_reads_per_haploid:
+    input:
+        list_path = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'per_haploid-refbias.txt'),
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per_haploid-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per_haploid-above{}_or_below{}.reads'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            ))
+    run:
+        range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
 rule find_strongly_biased_reads_grc:
     input:
         list_path = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.paths'),
         list_id = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.txt'),
-        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
@@ -296,14 +358,16 @@ rule find_strongly_biased_reads_grc:
             ))
     run:
         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
 rule find_strongly_biased_reads_major:
     input:
         list_path = os.path.join(DIR_FIRST_PASS, 'major-refbias.paths'),
         list_id = os.path.join(DIR_FIRST_PASS, 'major-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'major-refbias.txt'),
-        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+        vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
@@ -319,7 +383,8 @@ rule find_strongly_biased_reads_major:
             ))
     run:
         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
-        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias}')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
 rule check_find_reads:
     input:
@@ -342,6 +407,12 @@ rule check_find_reads:
         expand(os.path.join(
             DIR_RESULTS_BIAS,
             '{INDIV}-' + 'per-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )), INDIV = INDIV),
+        expand(os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per_haploid-above{}_or_below{}.reads.tsv'.format(
                 int(100*(0.5+BIAS_TAIL_THRDS)),
                 int(100*(0.5-BIAS_TAIL_THRDS))
             )), INDIV = INDIV),

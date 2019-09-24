@@ -120,6 +120,69 @@ rule fix_liftover_per_header:
         f_liftA.close()
         f_liftB.close()
 
+rule liftover_lift_per_haploid_setting:
+    input:
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid.sam'.format(CHROM)),
+        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid.sam'.format(CHROM)),
+        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft'),
+        vcf = PREFIX_VCF_F + '.vcf'
+    output:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover.sam'.format(CHROM))
+    params:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover'.format(CHROM))
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samA} -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};')
+        try:
+            shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samB} -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};')
+
+rule fix_liftover_per_header_haploid_setting:
+    input:
+        liftA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
+        liftB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover.sam'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid.sam'.format(CHROM)),
+    output:
+        liftA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover_diploid.sam'.format(CHROM)),
+        liftB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover_diploid.sam'.format(CHROM))
+    run:
+        header_A = ''
+        with open(input.samA, 'r') as f:
+            for line in f:
+                if line.startswith('@SQ'):
+                    header_A = line
+                    break
+        header_B = ''
+        with open(input.samB, 'r') as f:
+            for line in f:
+                if line.startswith('@SQ'):
+                    header_B = line
+                    break
+        f_liftA = open(input.liftA, 'r')
+        with open(output.liftA, 'w') as f:
+            for line in f_liftA:
+                if line.startswith('@SQ'):
+                    f.write(header_A)
+                else:
+                    f.write(line)
+        f_liftB = open(input.liftB, 'r')
+        with open(output.liftB, 'w') as f:
+            for line in f_liftB:
+                if line.startswith('@SQ'):
+                    f.write(header_B)
+                else:
+                    f.write(line)
+        f_liftA.close()
+        f_liftB.close()
+
 #: Refflow -- first pass
 rule liftover_lift_refflow_firstpass:
     input:
@@ -215,6 +278,17 @@ rule sort_lifted_per:
         'samtools sort -@ {THREADS} -o {output.A} {input.A};'
         'samtools sort -@ {THREADS} -o {output.B} {input.B}'
 
+rule sort_lifted_per_haploid_setting:
+    input:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover_diploid.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover_diploid.sam'.format(CHROM))
+    output:
+        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover-sorted.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover-sorted.sam'.format(CHROM))
+    shell:
+        'samtools sort -@ {THREADS} -o {output.A} {input.A};'
+        'samtools sort -@ {THREADS} -o {output.B} {input.B}'
+
 rule sort_grc:
     input:
         os.path.join(DIR_FIRST_PASS, '{}-grch37.sam'.format(CHROM))
@@ -261,6 +335,12 @@ rule check_liftover:
         perB = expand(
             os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM)),
             INDIV = INDIV),
+        perAh = expand(
+            os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
+            INDIV = INDIV),
+        perBh = expand(
+            os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover.sam'.format(CHROM)),
+            INDIV = INDIV),
         pop = expand(os.path.join(DIR_SECOND_PASS,
             '2ndpass-{g}-liftover.sam'), g = GROUP, INDIV = INDIV),
         pop_maj = expand(os.path.join(DIR_SECOND_PASS,
@@ -283,6 +363,12 @@ rule check_sort:
             INDIV = INDIV),
         perB = expand(os.path.join(DIR_FIRST_PASS,
             '{}-per-merged-hapB-liftover-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        perAh = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-per_hapA_haploid-liftover-sorted.sam'.format(CHROM)),
+            INDIV = INDIV),
+        perBh = expand(os.path.join(DIR_FIRST_PASS,
+            '{}-per_hapB_haploid-liftover-sorted.sam'.format(CHROM)),
             INDIV = INDIV),
         #: grch37
         grc = expand(os.path.join(DIR_FIRST_PASS,

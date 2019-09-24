@@ -38,6 +38,22 @@ rule align_to_grc:
 #     output:
 #         touch(temp(os.path.join(DIR, 'firstpass.done')))
 
+rule align_to_per_haploid_setting:
+    input:
+        readsA1 = PREFIX_PER + '_hapA_1.fq',
+        readsB1 = PREFIX_PER + '_hapB_1.fq',
+        idxA = expand(DIR_PER_IDX + CHROM + '-per_hapA.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV),
+        idxB = expand(DIR_PER_IDX + CHROM + '-per_hapB.{IDX_ITEMS}.bt2', IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
+    params:
+        indexA = DIR_PER_IDX + CHROM + '-per_hapA',
+        indexB = DIR_PER_IDX + CHROM + '-per_hapB'
+    output:
+        samA = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA_haploid.sam'),
+        samB = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB_haploid.sam')
+    shell:
+        'bowtie2 --reorder --threads {THREADS} -x {params.indexA} -U {input.readsA1} -S {output.samA};'
+        'bowtie2 --reorder --threads {THREADS} -x {params.indexB} -U {input.readsB1} -S {output.samB}'
+
 rule align_to_per:
     input:
         reads1 = PREFIX_PER + '_1.fq',
@@ -68,6 +84,12 @@ rule check_standard_onepass:
             INDIV = INDIV),
         samB = expand(
             os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB.sam'),
+            INDIV = INDIV),
+        samAh = expand(
+            os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA_haploid.sam'),
+            INDIV = INDIV),
+        samBh = expand(
+            os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB_haploid.sam'),
             INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'standard_onepass.done')))
