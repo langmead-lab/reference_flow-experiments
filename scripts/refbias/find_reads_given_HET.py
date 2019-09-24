@@ -4,26 +4,17 @@ import argparse
 import pandas as pd
 import random
 from utils import get_paths_from_list
-from count_variants import count_var
+from count_variants import count_var, count_num_nearby_var_for_a_list_of_var
 
 def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range, sample_rate):
     df_het = pd.read_csv(fn_het, sep='\t')
     filter = False
     for r in list_range:
         print (r)
-        filter = filter | df_het['REFERENCE BIAS'].between(r[0], r[1])
+        filter = filter | df_het['REFERENCE_BIAS'].between(r[0], r[1])
     df_pass = df_het[filter]
-    list_het_raw = df_pass['HET SITE']
-    list_het = []
-    for het_raw in list_het_raw:
-        het_raw = het_raw.rstrip()
-        het = [int(i) for i in het_raw.strip('[]').split(',')]
-        for h in het:
-            assert h == het[0]
-        list_het.append(het[0])
-    df_pass['HET SITE'] = list_het
+    list_het = list(df_pass['HET_SITE'])
 
-    # f_vcf = open(fn_vcf, 'r')
     dict_het_gt = {}
     with open(fn_vcf, 'r') as f_vcf:
         for line in f_vcf:
@@ -40,8 +31,8 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range, sample_rate):
         if not os.path.exists(fn):
             all_out_exist = False
     if all_out_exist:
-        merge(fn_out, fn_merge, fn_vcf, dict_het_gt, df_pass)
-        return
+        # merge(fn_out, fn_merge, fn_vcf, dict_het_gt, df_pass)
+        return dict_het_gt, df_pass
 
     set_het_sampled = set()
     for i_sam in range(len(fn_sam)):
@@ -138,9 +129,11 @@ def main(fn_sam, fn_vcf, fn_het, fn_out, fn_merge, list_range, sample_rate):
                 #print("starting: ", starting)
         f_out.close()
 
-    merge(fn_out, fn_merge, fn_vcf, dict_het_gt, df_pass)
+    return dict_het_gt, df_pass
 
-def merge(fn_output, fn_merge, fn_vcf, dict_het_gt, df):
+    # merge(fn_out, fn_merge, fn_vcf, dict_het_gt, df_pass)
+
+def merge(fn_output, fn_merge, fn_vcf, dict_het_gt, df, fn_vcf_complete, indiv):
     het_list = {}
     lines = []
     recent_site = -1
@@ -159,6 +152,7 @@ def merge(fn_output, fn_merge, fn_vcf, dict_het_gt, df):
     list_read_bias = []
     list_ref_read_bias = []
     list_avg_mapq = []
+    print (list(het_list.keys()))
     for item in list(het_list.keys()):
         toWrite = 'HET SITE ' + str(item) + "\n"
         f_out.write(toWrite)
@@ -174,28 +168,42 @@ def merge(fn_output, fn_merge, fn_vcf, dict_het_gt, df):
                 count_hapB += 1
             sum_mapq += int(element.rstrip().split('\t')[4])
 
+        if len(het_list[item]) == 0:
+            print (item)
+            input (het_list[item])
+
         ref_read_bias = calc_read_bias(het_list[item], dict_het_gt[item])
         list_ref_read_bias.append(ref_read_bias)
-        read_bias = count_hapA / (count_hapA + count_hapB)
+        if count_hapA + count_hapB == 0:
+            read_bias = 0
+            print ('warning: zero read count', het_list[item])
+        else:
+            read_bias = count_hapA / (count_hapA + count_hapB)
         list_read_bias.append(read_bias)
         list_avg_mapq.append(sum_mapq / len(het_list[item]))
     f_out.close()
 
     print ('{} HET sites to merge...'.format(len(het_list)))
 
-    list_var, list_numA, list_numB = \
-        count_var(fn_vcf, '', target_het = het_list)
-    assert set(het_list) == set(list_var)
-    list_num_var = [max(list_numA[i], list_numB[i]) for i in range(len(list_numA))]
+    list_target = sorted(het_list.keys())
+    # print (list_target)
 
-    df = df.loc[df['HET SITE'].isin(list_var)]
-    # df.assign(num_var = list_num_var, read_bias = list_read_bias, ref_read_bias = list_ref_read_bias, avg_mapq = list_avg_mapq)
-    df['NUM VAR'] = list_num_var
+    list_num_var = count_num_nearby_var_for_a_list_of_var(fn_vcf = fn_vcf_complete, indiv = indiv, threshold = 100, list_target = list_target)
+    assert len(list_num_var) == len(list_target)
+    # list_var, list_numA, list_numB = \
+        # count_var(fn_vcf_complete, target_het = het_list, indiv = indiv)
+        # count_var(fn_vcf, '', target_het = het_list)
+    #assert set(het_list) == set(list_var)
+    #list_num_var = [max(list_numA[i], list_numB[i]) for i in range(len(list_numA))]
 
-    df['READ BIAS'] = list_read_bias
-    df['REF READ BIAS'] = list_ref_read_bias
-    df['AVG MAPQ'] = list_avg_mapq
-    df.to_csv(fn_merge + '.tsv', sep='\t')
+    # df = df.loc[df['HET_SITE'].isin(list_var)]
+    df = df.loc[df['HET_SITE'].isin(list_target)]
+    df['NUM_VAR'] = list_num_var
+
+    df['READ_BIAS'] = list_read_bias
+    df['REF_READ_BIAS'] = list_ref_read_bias
+    df['AVG_MAPQ'] = list_avg_mapq
+    df.to_csv(fn_merge + '.tsv', sep='\t', float_format='%.4f', index=None)
 
 def calc_read_bias(list_reads, gt):
     gt = [int(i) for i in gt.split('|')]
@@ -216,6 +224,8 @@ def calc_read_bias(list_reads, gt):
             count_ref += 1
         else:
             count_alt += 1
+    if count_ref + count_alt == 0:
+        return 0
     return count_ref / (count_ref + count_alt)
 
 def range_to_lists(r):
@@ -232,9 +242,10 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--sam', help='list of sam file(s)')
     parser.add_argument('-v', '--vcf', help='vcf file specifying HETs')
     parser.add_argument('-f', '--het', help='file with HET sites')
-    # parser.add_argument('-o', '--out', help='list of output file name(s)')
     parser.add_argument('-id', '--id', help='list of id(s)')
+    parser.add_argument('-indiv', '--indiv', help='individual ID')
     parser.add_argument('-m', '--merge', help = 'merged output file name')
+    parser.add_argument('-vc', '--vcf_complete', help='vcf file for variants used in the aligned genome')
     parser.add_argument(
         '-r', '--range', default='0-1',
         help='ref bias range, values are separated by commas, \
@@ -253,8 +264,10 @@ if __name__ == '__main__':
         # suffix = '_' + args.range + '.reads'
         # auto_prefix = list_fn_sam
     )
+    fn_vcf_complete = args.vcf_complete
     list_range = range_to_lists(args.range)
     sample_rate = args.sample
+    indiv = args.indiv
 
     random.seed(0)
     
@@ -268,7 +281,7 @@ if __name__ == '__main__':
     print("sample   : ", sample_rate)
 
     # main(list_fn_sam, fn_het, list_fn_out, fn_merge, list_range)
-    main(
+    dict_het_gt, df_pass = main(
         fn_sam = list_fn_sam,
         fn_vcf = fn_vcf,
         fn_het = fn_het,
@@ -276,4 +289,5 @@ if __name__ == '__main__':
         fn_merge = fn_merge,
         list_range = list_range,
         sample_rate = sample_rate
-        )
+    )
+    merge(list_fn_out, fn_merge, fn_vcf, dict_het_gt, df_pass, fn_vcf_complete, indiv = indiv)
