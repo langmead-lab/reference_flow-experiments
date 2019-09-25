@@ -35,6 +35,7 @@ rule refflow_align_secondpass:
     output:
         # sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME + '.sam')
         sam = PREFIX_SECOND_PASS + '.sam'
+    threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
 

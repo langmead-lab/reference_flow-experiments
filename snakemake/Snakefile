@@ -3,7 +3,8 @@ import os
 import pandas as pd
 
 # configfile: "config.yaml"
-configfile: "deep.yaml"
+# configfile: "deep.yaml"
+configfile: "deep_100.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
@@ -28,6 +29,7 @@ LIFTOVER = config['LIFTOVER']
 PYTHON = config['PYTHON']
 DIR_SCRIPTS = config['DIR_SCRIPTS']
 THREADS = config['THREADS']
+MAX_SYSTEM_THREADS = config['MAX_SYSTEM_THREADS']
 RAND_SEED = config['RAND_SEED']
 ''''''
 
@@ -133,9 +135,10 @@ rule all:
         refbias = os.path.join(DIR, 'refbias.done'),
         find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
-        acc = os.path.join(DIR, 'accuracy.done'),
-        tsv = os.path.join(DIR_RESULTS, 'all.tsv')
+        # acc = os.path.join(DIR, 'accuracy.done'),
+        # tsv = os.path.join(DIR_RESULTS, 'all.tsv')
     run:
+        sys.stderr.write('skips accuracy measurement\n')
         sys.stderr.write('complete\n')
 
 rule filter_vcf:
@@ -143,6 +146,7 @@ rule filter_vcf:
         vcf = VCF
     output:
         vcf = PREFIX_VCF_F + '.vcf'
+    threads: THREADS
     shell:
         '{BCFTOOLS} view --threads {THREADS} -V mnps,other {input.vcf} > {output.vcf}'
 

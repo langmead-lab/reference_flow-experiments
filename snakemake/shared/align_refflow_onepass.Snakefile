@@ -13,6 +13,7 @@ rule refflow_align_onepass:
         index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
     output:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam')
+    threads: THREADS
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
 

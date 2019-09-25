@@ -12,6 +12,7 @@ rule build_major:
         out_genome = PREFIX_MAJOR + '.fa',
         out_var = PREFIX_MAJOR + '.var',
         out_vcf = PREFIX_MAJOR + '.vcf'
+    threads: THREADS
     shell:
         '{BCFTOOLS} view -O z --threads {THREADS} -q 0.5 {input.vcf} -e \'AF = 0.5\' -v snps,indels -m2 -M2 > '
         '{output.vcf_major_gz};'
@@ -32,6 +33,7 @@ rule build_major_index:
         PREFIX_MAJOR_IDX + '.4.bt2',
         PREFIX_MAJOR_IDX + '.rev.1.bt2',
         PREFIX_MAJOR_IDX + '.rev.2.bt2'
+    threads: THREADS
     shell:
         'bowtie2-build --threads {THREADS} {input.major} {PREFIX_MAJOR_IDX}'
 
@@ -53,6 +55,7 @@ rule build_grc_index:
             i = IDX_ITEMS)
     params:
         DIR_GRCH37_IDX + CHROM + '_grch37'
+    threads: THREADS
     shell:
         'bowtie2-build --threads {THREADS} {input} {params}'
 

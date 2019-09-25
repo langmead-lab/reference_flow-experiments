@@ -7,6 +7,7 @@ rule align_to_major:
         PREFIX_MAJOR_IDX
     output:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-h37maj.sam')
+    threads: THREADS
     shell:
         'bowtie2 --threads {THREADS} -x {params} -U {input.reads1} -S {output.sam}'
 
@@ -19,6 +20,7 @@ rule align_to_grc:
         DIR_GRCH37_IDX + CHROM + '_grch37'
     output:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-grch37.sam')
+    threads: THREADS
     shell:
         'bowtie2 --threads {THREADS} -x {params} -U {input.reads1} -S {output.sam}'
 
@@ -50,6 +52,7 @@ rule align_to_per_haploid_setting:
     output:
         samA = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA_haploid.sam'),
         samB = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB_haploid.sam')
+    threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.indexA} -U {input.readsA1} -S {output.samA};'
         'bowtie2 --reorder --threads {THREADS} -x {params.indexB} -U {input.readsB1} -S {output.samB}'
@@ -67,6 +70,7 @@ rule align_to_per:
         samB = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB.sam')
         # samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
         # samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam'
+    threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.indexA} -U {input.reads1} -S {output.samA};'
         'bowtie2 --reorder --threads {THREADS} -x {params.indexB} -U {input.reads1} -S {output.samB}'

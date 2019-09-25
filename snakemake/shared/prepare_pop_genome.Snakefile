@@ -24,9 +24,9 @@ rule build_pop_vcf:
         vcf_gz = os.path.join(DIR_POP_GENOME,
             CHROM + '_superpop_{GROUP}.vcf.gz')
     shell:
-        '{BCFTOOLS} view --threads {THREADS} -S {input.indiv_group} '
+        '{BCFTOOLS} view -S {input.indiv_group} '
         '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
-        'bgzip -@ {THREADS} > {output.vcf_gz}'
+        'bgzip > {output.vcf_gz}'
 
 rule get_pop_sample:
     input:
@@ -58,7 +58,7 @@ rule filter_pop_vcf:
                 thrsd = int(n * 2 * float(POP_THRSD))
                 filt = 'AC > {}'.format(thrsd)
                 break
-        shell('{BCFTOOLS} view --threads {THREADS} -i "{filt}" \
+        shell('{BCFTOOLS} view -i "{filt}" \
             -v snps,indels {input.vcf_gz} > {output.vcf};')
 
 rule build_pop_genome:
@@ -117,6 +117,7 @@ rule build_pop_genome_index:
     params:
         prefix = DIR_POP_GENOME_BLOCK_IDX +
         POP_GENOME_SUFFIX
+    threads: THREADS
     shell:
         'bowtie2-build --threads {THREADS} {input.genome} {params.prefix};'
 

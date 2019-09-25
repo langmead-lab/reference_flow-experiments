@@ -14,7 +14,9 @@ rule simulate_reads:
         samB = PREFIX_PER + '_hapB.sam'
     params:
         num = NUM_SIM_READS,
-        prefix = PREFIX_PER
+        prefix = PREFIX_PER,
+    #: set to MAX_SYSTEM_THREADS to avoid errors due to shared temp files
+    threads: MAX_SYSTEM_THREADS
     shell:
         #: marcc specific
         'module load gcc/5.5.0;'
@@ -54,8 +56,8 @@ rule merge_simulated_sam:
         'grep ^@ {input.samB} | tail -n +2 >> {output.sam};'
         'grep -v ^@ {input.samA} >> {output.sam};'
         'grep -v ^@ {input.samB} >> {output.sam};'
-        'samtools view -@ {THREADS} -h -f 64 {output.sam} -o {output.sam1};'
-        'samtools view -@ {THREADS} -h -f 128 {output.sam} -o {output.sam2}'
+        'samtools view -h -f 64 {output.sam} -o {output.sam1};'
+        'samtools view -h -f 128 {output.sam} -o {output.sam2}'
 
 rule check_simulation:
     input:

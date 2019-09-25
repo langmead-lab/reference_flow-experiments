@@ -8,7 +8,8 @@ rule build_per:
     output:
         hapA = PREFIX_PER + '_hapA.fa',
         hapB = PREFIX_PER + '_hapB.fa',
-        var = PREFIX_PER + '.var'
+        var = PREFIX_PER + '.var',
+        vcf = PREFIX_PER + '.vcf'
     params:
         out_prefix = PREFIX_PER
     shell:
@@ -37,6 +38,7 @@ rule build_per_index:
     params:
         prefix_idxA = DIR_PER_IDX + CHROM + '-per_hapA',
         prefix_idxB = DIR_PER_IDX + CHROM + '-per_hapB'
+    threads: THREADS
     shell:
         'bowtie2-build --threads {THREADS} {input.perA} {params.prefix_idxA};'
         'bowtie2-build --threads {THREADS} {input.perB} {params.prefix_idxB}'
