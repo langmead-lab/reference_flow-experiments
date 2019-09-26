@@ -202,15 +202,13 @@ def update_genome(
             orig = row[3]
             alts = row[4].split(',')
 
+            alleles = row[col].split('|')
             if is_ld:
-                if ld_hap == 0:
-                    alleleA = int(row[col][0])
-                elif ld_hap == 1:
-                    alleleA = int(row[col][2])
+                alleleA = int(alleles[ld_hap])
                 alleleB = 0
             elif indiv != None:
-                alleleA = int(row[col][0])
-                alleleB = int(row[col][2])
+                alleleA = int(alleles[0])
+                alleleB = int(alleles[1])
             else:
                 #: always uses allele "1"
                 alleleA = 1
