@@ -1,30 +1,6 @@
 '''
 Calculate mapping accuracy for all settings
 '''
-rule merge_per:
-    input:
-        samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
-        samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam'
-    output:
-        path = os.path.join(DIR_FIRST_PASS, '{}-per.paths'.format(CHROM)),
-        id = os.path.join(DIR_FIRST_PASS, '{}-per.ids'.format(CHROM)),
-        merge_paths = os.path.join(DIR_FIRST_PASS, '{}-per.merge_paths'.format(CHROM)),
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM))
-    params:
-        os.path.join(DIR_FIRST_PASS, '{}-per-merged'.format(CHROM))
-    run:
-        #: prepare ids
-        for h in ['hapA', 'hapB']:
-            shell('echo {h} >> {output.id};')
-        #: prepare paths
-        shell('ls {input.samA} >> {output.path};')
-        shell('ls {input.samB} >> {output.path};')
-        #: merge_incremental
-        shell('{PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.path} \
-            -ids {output.id} -rs {RAND_SEED} -p {params} \
-            -l {output.merge_paths};')
-
 rule calc_per_accuracy:
     input:
         gold = PREFIX_PER + '_1.sam',

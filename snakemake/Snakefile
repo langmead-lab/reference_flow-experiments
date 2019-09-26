@@ -135,10 +135,9 @@ rule all:
         refbias = os.path.join(DIR, 'refbias.done'),
         find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
-        # acc = os.path.join(DIR, 'accuracy.done'),
-        # tsv = os.path.join(DIR_RESULTS, 'all.tsv')
+        acc = os.path.join(DIR, 'accuracy.done'),
+        tsv = os.path.join(DIR_RESULTS, 'all.tsv')
     run:
-        sys.stderr.write('skips accuracy measurement\n')
         sys.stderr.write('complete\n')
 
 rule filter_vcf:

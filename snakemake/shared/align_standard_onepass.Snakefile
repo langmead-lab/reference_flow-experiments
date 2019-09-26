@@ -1,4 +1,13 @@
+'''
+Rules for one-pass alignment methods including grch37, major and personalized.
 
+Grch37 and major are straightforward one-pass alignments, but the personalized
+alignment method all are aligned to both hapA and hapB, and a merging step
+is performed to generate the "best" outputs.
+
+Checkpoint:
+    temp(os.path.join(DIR, 'standard_onepass.done'))
+'''
 rule align_to_major:
     input:
         reads1 = PREFIX_PER + '_1.fq',
@@ -75,6 +84,32 @@ rule align_to_per:
         'bowtie2 --reorder --threads {THREADS} -x {params.indexA} -U {input.reads1} -S {output.samA};'
         'bowtie2 --reorder --threads {THREADS} -x {params.indexB} -U {input.reads1} -S {output.samB}'
 
+rule merge_per:
+    input:
+        samA = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA.sam'),
+        samB = os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB.sam')
+        # samA = DIR_FIRST_PASS + CHROM + '-per_hapA.sam',
+        # samB = DIR_FIRST_PASS + CHROM + '-per_hapB.sam'
+    output:
+        path = os.path.join(DIR_FIRST_PASS, '{}-per.paths'.format(CHROM)),
+        id = os.path.join(DIR_FIRST_PASS, '{}-per.ids'.format(CHROM)),
+        merge_paths = os.path.join(DIR_FIRST_PASS, '{}-per.merge_paths'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM))
+    params:
+        os.path.join(DIR_FIRST_PASS, '{}-per-merged'.format(CHROM))
+    run:
+        #: prepare ids
+        for h in ['hapA', 'hapB']:
+            shell('echo {h} >> {output.id};')
+        #: prepare paths
+        shell('ls {input.samA} >> {output.path};')
+        shell('ls {input.samB} >> {output.path};')
+        #: merge_incremental
+        shell('{PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.path} \
+            -ids {output.id} -rs {RAND_SEED} -p {params} \
+            -l {output.merge_paths};')
+
 rule check_standard_onepass:
     input:
         maj = expand(
@@ -84,10 +119,12 @@ rule check_standard_onepass:
             os.path.join(DIR_FIRST_PASS, CHROM + '-grch37.sam'),
             INDIV = INDIV),
         samA = expand(
-            os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA.sam'),
+            os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
+            # os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA.sam'),
             INDIV = INDIV),
         samB = expand(
-            os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB.sam'),
+            os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM)),
+            # os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapB.sam'),
             INDIV = INDIV),
         samAh = expand(
             os.path.join(DIR_FIRST_PASS, CHROM + '-per_hapA_haploid.sam'),
