@@ -23,6 +23,10 @@ rule build_per:
         '    --chrom {wildcards.CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
 
+'''
+Merge fasta for all chromosomes into one whole genome fasta.
+The A, B suffixes of chromsomes are removed before merging.
+'''
 rule merge_per_fasta:
     input:
         hapA = expand(os.path.join(DIR_PER, '{INDIV}-{CHROM}-per_hapA.fa'),
@@ -36,13 +40,43 @@ rule merge_per_fasta:
         list_hapA = []
         for h in input.hapA:
             if h.count(wildcards.INDIV) > 0:
-                list_hapA.append(h)
-        shell('cat {list_hapA} >> {output.outA};')
+                f_outA = open(output.outA, 'a')
+                with open(h, 'r') as f:
+                    #: remove the suffix of chromosome if it is like 1A, 10A
+                    header = f.readline().split()
+                    if header[0].endswith('A'):
+                        header[0] = header[0][0:len(header[0])-1]
+                    fixed = ' '.join(header) + '\n'
+                    f_outA.write(fixed)
+                    #: write the rest of lines
+                    for line in f:
+                        f_outA.write(line)
+        f_outA.close()
         list_hapB = []
         for h in input.hapB:
             if h.count(wildcards.INDIV) > 0:
-                list_hapB.append(h)
-        shell('cat {list_hapB} >> {output.outB}')
+                f_outB = open(output.outB, 'a')
+                with open(h, 'r') as f:
+                    #: remove the suffix of chromosome if it is like 1B, 10B
+                    header = f.readline().split()
+                    if header[0].endswith('B'):
+                        header[0] = header[0][0:len(header[0])-1]
+                    fixed = ' '.join(header) + '\n'
+                    f_outB.write(fixed)
+                    #: write the rest of lines
+                    for line in f:
+                        f_outB.write(line)
+        f_outB.close()
+        # list_hapA = []
+        # for h in input.hapA:
+        #     if h.count(wildcards.INDIV) > 0:
+        #         list_hapA.append(h)
+        # shell('cat {list_hapA} >> {output.outA};')
+        # list_hapB = []
+        # for h in input.hapB:
+        #     if h.count(wildcards.INDIV) > 0:
+        #         list_hapB.append(h)
+        # shell('cat {list_hapB} >> {output.outB}')
 
 rule build_major_index:
     input:
