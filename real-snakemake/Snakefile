@@ -77,6 +77,10 @@ include: 'shared/prepare_pop_genome.Snakefile'
 #:      check: 'prepare_standard_genome.done'
 include: 'shared/prepare_standard_genome.Snakefile'
 
+#: Align reads to grch37, major, reference flow #TODO personalized genomes
+#:      check: 'alignment_standard.done', 'alignment_refflow.done'
+include: 'shared/alignment.Snakefile'
+
 #: Calculate allelic bias
 #:      check: 'allelic_bias.done'
 include: 'shared/calc_bias.Snakefile'
@@ -89,9 +93,10 @@ rule all:
         standard_genome = os.path.join(DIR, 'prepare_standard_genome.done'),
         major_sam = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam'), INDIV = INDIV),
         grch37_sam = expand(os.path.join(DIR_FIRST_PASS, 'wg-GRCh37-sorted.sam'), INDIV = INDIV),
-        secondpass = os.path.join(DIR, 'secondpass.done'),
-        # secondpass_tmptmp = dynamic(os.path.join(DIR, 'secondpass_useless.done')),
-        # secondpass_tmp = dynamic(os.path.join(DIR, 'secondpass_useless.done_{fq_id}'))
+        # secondpass = os.path.join(DIR, 'secondpass.done'),
+        #: alignment check files
+        align_standard = os.path.join(DIR, 'alignment_standard.done'),
+        align_refflow = os.path.join(DIR, 'alignment_refflow.done'),
         het_no_overlaps = expand(os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'), INDIV = INDIV),
         lifted_major = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam'), INDIV = INDIV),
         sorting = os.path.join(DIR, 'sorting.done'),
@@ -131,62 +136,6 @@ rule build_major:
         '    --ref {params.chrom_genome} --vcf {output.vcf_major} '
         '    --chrom {wildcards.CHROM} --out-prefix {params.out_prefix} '
         '    --include-indels'
-
-
-''' Reference flow: first pass '''
-rule align_to_ref:
-    input:
-        reads1 = READS1,
-        idx = expand(
-            os.path.join(DIR, 'grch37/wg.{idx}.bt2'),
-            idx = IDX_ITEMS)
-    params:
-        index = os.path.join(DIR, 'grch37/indexes/wg')
-    output:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-GRCh37.sam')
-    threads: THREADS
-    shell:
-        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
-
-rule align_to_major:
-    input:
-        reads1 = READS1,
-        idx = expand(
-            os.path.join(DIR, 'major/wg_h37maj.{idx}.bt2'),
-            idx = IDX_ITEMS)
-    params:
-        index = os.path.join(DIR, 'major/indexes/wg_h37maj')
-    output:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam')
-    threads: THREADS
-    shell:
-        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
-# 
-# rule select_reads_using_mapq:
-# 
-# ''' Reference flow: prepare pop genome '''
-# 
-# ''' Reference flow: second pass '''
-# rule align_to_pop_genome:
-
-rule refflow_separate_fistpass_results:
-    input:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam')
-    output:
-        highq = os.path.join(DIR_FIRST_PASS,
-            'wg-h37maj-mapqgeq' + ALN_MAPQ_THRSD + '.sam'),
-        lowq = os.path.join(DIR_FIRST_PASS,
-            'wg-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.sam'),
-        lowq_reads = os.path.join(DIR_FIRST_PASS,
-            'wg-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq')
-    shell:
-        'awk -v var="{ALN_MAPQ_THRSD}" \
-        \'{{ if ($5 >= var || $1 ~ /^@/) {{ print }} }}\' {input.sam} > \
-        {output.highq};'
-        'awk -v var={ALN_MAPQ_THRSD} \
-        \'{{ if ($5 < var || $1 ~ /^@/) {{ print }} }}\' {input.sam} > \
-        {output.lowq};'
-        'samtools fastq {output.lowq} > {output.lowq_reads}'
 
 rule aggregate_major_vcf:
     input:
@@ -249,7 +198,6 @@ rule get_het_with_indel:
     shell:
         '{BCFTOOLS} view -s {INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
 
-
 rule get_het_with_indel_processed:
     input:
         het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
@@ -272,26 +220,58 @@ rule liftover_serialize_major:
 rule liftover_lift_major:
     input:
         sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam'),
-        lft = os.path.join(DIR_MAJOR, 'wg-h37maj.lft')
+        lft = os.path.join(DIR_MAJOR, 'wg-h37maj.lft'),
+        vcf_major = os.path.join(DIR, 'major/wg_h37maj.vcf')
     output:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam')
     params:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover')
-    shell:
-        'module load gcc/5.5.0;'
-        '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}'
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        except:
+            shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf_major} -p {params} -s {wildcards.INDIV};')
+
+rule liftover_lift_per:
+    input:
+        samA = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA.sam'),
+        lftA = os.path.join(DIR_PER, 'wg-perA.lft'),
+        samB = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB.sam'),
+        lftB = os.path.join(DIR_PER, 'wg-perB.lft'),
+        vcf = PREFIX_VCF_F + '.vcf'
+    output:
+        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover.sam'),
+        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover.sam')
+    params:
+        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover'),
+        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover')
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samA} -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};')
+        try:
+            shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
+        except:
+            shell('{LIFTOVER} lift -a {input.samB} -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};')
 
 rule liftover_lift_major_highq:
     input:
         sam = os.path.join(DIR_FIRST_PASS, 'wg-h37maj-mapqgeq10.sam'),
-        lft = os.path.join(DIR_MAJOR, 'wg-h37maj.lft')
+        lft = os.path.join(DIR_MAJOR, 'wg-h37maj.lft'),
+        vcf_major = os.path.join(DIR, 'major/wg_h37maj.vcf')
     output:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-mapqgeq10-liftover.sam')
     params:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-mapqgeq10-liftover')
-    shell:
-        'module load gcc/5.5.0;'
-        '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}'
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        except:
+            shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf_major} -p {params} -s {wildcards.INDIV};')
 
 ''' Sort using samtools '''
 rule sort_lifted_major:
@@ -299,6 +279,7 @@ rule sort_lifted_major:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam')
     output:
         os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover-sorted.sam')
+    threads: THREADS
     shell:
         'samtools sort -@ {THREADS} -o {output} {input}'
 
@@ -307,8 +288,21 @@ rule sort_grc:
         os.path.join(DIR_FIRST_PASS, 'wg-GRCh37.sam')
     output:
         os.path.join(DIR_FIRST_PASS, 'wg-GRCh37-sorted.sam')
+    threads: THREADS
     shell:
         'samtools sort -@ {THREADS} -o {output} {input}'
+
+rule sort_lifted_per:
+    input:
+        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover.sam'),
+        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover.sam')
+    output:
+        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover-sorted.sam'),
+        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover-sorted.sam')
+    threads: THREADS
+    shell:
+        'samtools sort -@ {THREADS} -o {output.A} {input.A};'
+        'samtools sort -@ {THREADS} -o {output.B} {input.B}'
 
 rule sort_lifted_refflow_firstpass:
     input:
@@ -377,55 +371,4 @@ rule check_sort:
 #     shell:
 #         'split -d -l {MAX_NUM_READS_FOR_MERGING} {input} {input}_'
 
-rule refflow_align_secondpass:
-    input:
-        reads = os.path.join(DIR_FIRST_PASS,
-            'wg-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
-        idx1 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.1.bt2'),
-        idx2 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.2.bt2'),
-        idx3 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.3.bt2'),
-        idx4 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.4.bt2'),
-        idx5 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.1.bt2'),
-        idx6 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.2.bt2')
-    params:
-        index = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX)
-    output:
-        sam = PREFIX_SECOND_PASS + '.sam'
-    threads: THREADS
-    shell:
-        'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
-
-rule refflow_merge_secondpass:
-    input:
-        sam = expand(
-            PREFIX_SECOND_PASS + '.sam',
-            INDIV = INDIV, GROUP = GROUP)
-    output:
-        path = os.path.join(DIR_SECOND_PASS, 'wg-h37maj-{}-{}.paths'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-        id = os.path.join(DIR_SECOND_PASS, 'wg-h37maj-{}-{}.ids'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-        merge_paths = os.path.join(DIR_SECOND_PASS, 'wg-h37maj-{}-{}.merge_paths'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    params:
-        prefix = os.path.join(DIR_SECOND_PASS, '2ndpass')
-    run:
-        # indiv = wildcards.INDIV
-        dir_2p = os.path.join(DIR, 'experiments/' + wildcards.INDIV + '/' + POP_DIRNAME)
-        maj_lowq = os.path.join(DIR, 'experiments/' + wildcards.INDIV + '/wg-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.sam')
-
-        shell('echo {maj_lowq} > {output.path};')
-        shell('echo "h37maj" > {output.id};')
-        for g in GROUP:
-            fn = os.path.join(dir_2p, 'wg-h37maj-{}-{}-{}.sam'.format(ALN_MAPQ_THRSD, g, POP_DIRNAME))
-            shell('ls {fn} >> {output.path};')
-            shell('echo {g} >> {output.id};')
-        shell('{PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.path} \
-            -ids {output.id} -rs {RAND_SEED} -p {params.prefix} \
-            -l {output.merge_paths};')
-
-rule check_secondpass:
-    input:
-        merge_paths = expand(
-            os.path.join(DIR_SECOND_PASS, 'wg-h37maj-{}-{}.merge_paths'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV)
-    output:
-        touch(temp(os.path.join(DIR, 'secondpass.done')))
 
