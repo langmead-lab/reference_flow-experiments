@@ -11,12 +11,12 @@ rule build_per:
         genome = GENOME,
         vcf = PREFIX_VCF_F + '.vcf'
     output:
-        hapA = os.path.join(DIR_PER, '{INDIV}-{CHROM}-per_hapA.fa'),
-        hapB = os.path.join(DIR_PER, '{INDIV}-{CHROM}-per_hapB.fa'),
-        var = os.path.join(DIR_PER, '{INDIV}-{CHROM}-per.var'),
-        vcf = os.path.join(DIR_PER, '{INDIV}-{CHROM}-per.vcf')
+        hapA = os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per_hapA.fa'),
+        hapB = os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per_hapB.fa'),
+        var = os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per.var'),
+        vcf = os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per.vcf')
     params:
-        out_prefix = os.path.join(DIR_PER, '{INDIV}-{CHROM}-per')
+        out_prefix = os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per')
     shell:
         '{PYTHON} {DIR_SCRIPTS}/update_genome.py '
         '    --ref {input.genome} --vcf {input.vcf} --name {wildcards.INDIV}'
