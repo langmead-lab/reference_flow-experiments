@@ -151,6 +151,22 @@ rule aggregate_major_vcf:
                 vcf = input.vcf[i]
                 shell('{BCFTOOLS} view -H {vcf} >> {output.vcf_major}')
 
+rule aggregate_per_vcf:
+    input:
+        vcf = expand(os.path.join(DIR_PER, '{INDIV}-c{CHROM}-per.vcf'), CHROM = CHROM, INDIV = INDIV)
+    output:
+        vcf = os.path.join(DIR_PER, '{INDIV}-wg-per.vcf')
+    # wildcard_constraints:
+    #     CHROM="\d+"
+    run:
+        for i, chrom in enumerate(CHROM):
+            if i == 0:
+                vcf = input.vcf[0]
+                shell('cp {vcf} {output.vcf};')
+            else:
+                vcf = input.vcf[i]
+                shell('{BCFTOOLS} view -H {vcf} >> {output.vcf}')
+
 rule aggregate_vcf:
     input:
         vcf = expand(os.path.join(DIR, '{CHROM}_filtered.vcf'), CHROM = CHROM)
@@ -233,13 +249,27 @@ rule liftover_lift_major:
         except:
             shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf_major} -p {params} -s {wildcards.INDIV};')
 
+rule liftover_serialize_per:
+    input:
+        vcf = os.path.join(DIR_PER, '{INDIV}-wg-per.vcf')
+    output:
+        lftA = os.path.join(DIR_PER, 'wg-perA.lft'),
+        lftB = os.path.join(DIR_PER, 'wg-perB.lft')
+    params:
+        A = os.path.join(DIR_PER, 'wg-perA'),
+        B = os.path.join(DIR_PER, 'wg-perB')
+    shell:
+        'module load gcc/5.5.0;'
+        '{LIFTOVER} serialize -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};'
+        '{LIFTOVER} serialize -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};'
+
 rule liftover_lift_per:
     input:
         samA = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA.sam'),
         lftA = os.path.join(DIR_PER, 'wg-perA.lft'),
         samB = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB.sam'),
         lftB = os.path.join(DIR_PER, 'wg-perB.lft'),
-        vcf = PREFIX_VCF_F + '.vcf'
+        vcf = os.path.join(DIR_PER, '{INDIV}-wg-per.vcf')
     output:
         A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover.sam'),
         B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover.sam')
@@ -321,7 +351,11 @@ rule check_sort:
             'wg-h37maj-liftover-sorted.sam'), INDIV = INDIV),
         expand(os.path.join(DIR_FIRST_PASS,
             'wg-h37maj-mapqgeq{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD)),
-            INDIV = INDIV)
+            INDIV = INDIV),
+        expand(os.path.join(DIR_FIRST_PASS,
+            'wg-per-merged-hapA-liftover-sorted.sam'), INDIV = INDIV),
+        expand(os.path.join(DIR_FIRST_PASS,
+            'wg-per-merged-hapB-liftover-sorted.sam'), INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'sorting.done')))
 
