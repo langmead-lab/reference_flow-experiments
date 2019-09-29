@@ -26,6 +26,23 @@ rule calc_grc_bias:
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
 
+rule calc_per_bias:
+    input:
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover-sorted.sam'),
+        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover-sorted.sam')
+    output:
+        list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt')
+    shell:
+        'echo "perA" > {output.list_id};'
+        'echo "perB" >> {output.list_id};'
+        'ls {input.A} > {output.list_path};'
+        'ls {input.B} >> {output.list_path};'
+        '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
+            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+
 rule summarize_grc:
     input:
         os.path.join(DIR_FIRST_PASS,
@@ -44,6 +61,15 @@ rule summarize_major:
     run:
         summarize_allelc_bias(input, output)
 
+rule summarize_per:
+    input:
+        os.path.join(DIR_FIRST_PASS,
+            'per-refbias.txt')
+    output:
+        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias')
+    run:
+        summarize_allelc_bias(input, output)
+
 rule check_refbias_and_write_to_tsv:
     input:
         expand(
@@ -51,6 +77,9 @@ rule check_refbias_and_write_to_tsv:
             INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major.bias'),
+            INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
             INDIV = INDIV),
         # expand(
         #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
