@@ -43,6 +43,41 @@ rule calc_per_bias:
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
             -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
 
+rule calc_refflow_bias:
+    input:
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        maj = os.path.join(DIR_FIRST_PASS,
+            'wg-h37maj-mapqgeq{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD)),
+        second_maj = os.path.join(DIR_SECOND_PASS, '2ndpass-h37maj-liftover-sorted.sam'),
+        second_pop = [os.path.join(DIR_SECOND_PASS,'2ndpass-') + 
+            g + '-liftover-sorted.sam' for g in GROUP]
+    output:
+        list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
+        list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
+        bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
+    run:
+        #: prepare list_path and list_id
+        second_pass_group = ['h37maj']
+        for g in GROUP:
+            second_pass_group.append(g)
+        with open(output.list_id, 'w') as f:
+            for g in second_pass_group:
+                f.write(g + '\n')
+            f.write('h37maj-mapqgeq{}\n'.format(ALN_MAPQ_THRSD))
+        list_second_pass_lifted_sam = [
+            # os.path.join(DIR_SECOND_PASS, '2ndpass-') + g +
+            os.path.join(DIR, 'experiments/' + wildcards.INDIV +
+            '/' + POP_DIRNAME + '/2ndpass-') + g +
+            '-liftover-sorted.sam' for g in second_pass_group]
+        with open(output.list_path, 'w') as f:
+            for s in list_second_pass_lifted_sam:
+                # sys.stderr.write(s + '\n')
+                f.write(s + '\n')
+            f.write(input.maj + '\n')
+        shell('cat {output.list_path};')
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
+               -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}')
+
 rule summarize_grc:
     input:
         os.path.join(DIR_FIRST_PASS,
@@ -70,6 +105,14 @@ rule summarize_per:
     run:
         summarize_allelc_bias(input, output)
 
+rule summarize_refflow:
+    input:
+        os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
+    output:
+        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias')
+    run:
+        summarize_allelc_bias(input, output)
+
 rule check_refbias_and_write_to_tsv:
     input:
         expand(
@@ -81,6 +124,9 @@ rule check_refbias_and_write_to_tsv:
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
             INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
+            INDIV = INDIV)
         # expand(
         #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
         #     INDIV = INDIV),
@@ -130,4 +176,4 @@ rule check_refbias_and_write_to_tsv:
         df['NUM_REFBIAS({})'.format(0.5+BIAS_TAIL_THRDS)] = list_num_refbias
         df['NUM_ALTBIAS({})'.format(0.5-BIAS_TAIL_THRDS)] = list_num_altbias
         df = df.sort_values('INDIV')
-        df.to_csv(output.tsv, sep = '\t', index = None)
+        df.to_csv(output.tsv, sep = '\t', index = None, float_format = '%.4f')
