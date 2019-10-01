@@ -190,13 +190,16 @@ rule aggregate_pop_genome_vcf:
         vcf = os.path.join(DIR_POP_GENOME_BLOCK,
             WG_POP_GENOME_SUFFIX + '.vcf')
     run:
-        for i, chrom in enumerate(CHROM):
-            if i == 0:
-                vcf = input.vcf[0]
-                shell('cp {vcf} {output.vcf};')
-            else:
-                vcf = input.vcf[i]
-                shell('{BCFTOOLS} view -H {vcf} >> {output.vcf}')
+        done_first = False
+        #: vcf files will come out following the order of CHROM
+        for vcf in input.vcf:
+            if vcf.count(wildcards.GROUP) > 0:
+                print (wildcards.GROUP, vcf)
+                if done_first == False:
+                    shell('cp {vcf} {output.vcf};')
+                    done_first = True
+                else:
+                    shell('{BCFTOOLS} view -H {vcf} >> {output.vcf}')
 
 rule get_het:
     input:
