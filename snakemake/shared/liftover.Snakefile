@@ -140,10 +140,8 @@ rule convert_chrom_for_per_haploid_setting:
 rule liftover_lift_per_haploid_setting:
     input:
         samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-converted.sam'.format(CHROM)),
-        # samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid.sam'.format(CHROM)),
         lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
         samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-converted.sam'.format(CHROM)),
-        # samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid.sam'.format(CHROM)),
         lftB = os.path.join(DIR_PER, CHROM + '-perB.lft'),
         vcf = PREFIX_VCF_F + '.vcf'
     output:
@@ -234,6 +232,26 @@ rule liftover_lift_refflow_secondpass:
                             shell('{LIFTOVER} lift -a {sam} -v {vcf} -p {prefix}')
                             break
 
+rule liftover_refflow_onepass:
+    input:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam'),
+        lft = os.path.join(
+            DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.lft'),
+        vcf = os.path.join(
+            DIR_POP_GENOME, POP_DIRNAME + '/' +
+            CHROM + '_superpop_{GROUP}_' + POP_DIRNAME  + '.vcf')
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
+    params:
+        os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover')
+    run:
+        shell('module load gcc/5.5.0;')
+        try:
+            shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        except:
+            shell('{LIFTOVER} lift -a {input.sam} -v {input.vcf} -p {params}')
+
 ''' If there are multiple files, merge them after liftover ''' 
 rule merge_refflow_allinone:
     input:
@@ -281,12 +299,8 @@ rule sort_lifted_major:
 rule sort_lifted_per:
     input:
         os.path.join(DIR_FIRST_PASS, '{}-per-merged-liftover.sam'.format(CHROM))
-        # A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
-        # B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM))
     output:
         os.path.join(DIR_FIRST_PASS, '{}-per-merged-liftover-sorted.sam'.format(CHROM))
-        # A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover-sorted.sam'.format(CHROM)),
-        # B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover-sorted.sam'.format(CHROM))
     threads: 2
     shell:
         'samtools sort -@ {threads} -o {output} {input};'
@@ -294,12 +308,8 @@ rule sort_lifted_per:
 rule sort_lifted_per_haploid_setting:
     input:
         os.path.join(DIR_FIRST_PASS, '{}-per_h2h-merged-liftover.sam'.format(CHROM))
-        # A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
-        # B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover.sam'.format(CHROM))
     output:
         os.path.join(DIR_FIRST_PASS, '{}-per_h2h-merged-liftover-sorted.sam'.format(CHROM))
-        # A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover-sorted.sam'.format(CHROM)),
-        # B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover-sorted.sam'.format(CHROM))
     threads: 2
     shell:
         'samtools sort -@ {threads} -o {output} {input};'
@@ -316,12 +326,8 @@ rule sort_grc:
 rule sort_refflow_allinone:
     input:
         os.path.join(DIR_SECOND_PASS, '{}-refflow-{}-{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-        # os.path.join(DIR_FIRST_PASS,
-        #     '{}-h37maj-mapqgeq{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD))
     output:
         os.path.join(DIR_SECOND_PASS, '{}-refflow-{}-{}-liftover-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-        # os.path.join(DIR_FIRST_PASS,
-        #     '{}-h37maj-mapqgeq{}-liftover-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD))
     threads: 2
     run:
         shell('samtools sort -@ {threads} -o {output} {input};')
@@ -369,7 +375,14 @@ rule check_liftover:
             os.path.join(DIR_FIRST_PASS,
             '{}-per_h2h-merged-liftover.sam'.format(CHROM)),
             INDIV = INDIV),
-        refflow = expand(os.path.join(DIR_SECOND_PASS, '{}-refflow-{}-{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)), INDIV = INDIV)
+        refflow = expand(
+            os.path.join(DIR_SECOND_PASS,
+            '{}-refflow-{}-{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+            INDIV = INDIV),
+        refflow_onepass = expand(
+            os.path.join(DIR_FIRST_PASS,
+            CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
+            GROUP = GROUP, INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'liftover.done')))
 

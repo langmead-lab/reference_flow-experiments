@@ -1,3 +1,21 @@
+''' Align to refflow genomes in one-pass '''
+rule refflow_align_onepass:
+    input:
+        reads = PREFIX_PER + '_1.fq',
+        idx1 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
+        idx2 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
+        idx3 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
+        idx4 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
+        idx5 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
+        idx6 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
+    params:
+        index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam')
+    threads: THREADS
+    shell:
+        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
+
 '''
 Rules for two-pass refflow
 '''
@@ -33,7 +51,6 @@ rule refflow_align_secondpass:
     params:
         index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
     output:
-        # sam = os.path.join(DIR_SECOND_PASS, CHROM + '-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME + '.sam')
         sam = PREFIX_SECOND_PASS + '.sam'
     threads: THREADS
     shell:
@@ -65,9 +82,6 @@ rule refflow_merge_secondpass:
         shell('{PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.path} \
             -ids {output.id} -rs {RAND_SEED} -p {params.prefix} \
             -l {output.merge_paths};')
-        # shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
-        #     -ns {output.path} -ids {output.id} \
-        #     -rs 0 -l {output.merge_paths}')
 
 rule check_secondpass:
     input:
@@ -81,36 +95,3 @@ rule check_secondpass:
         )
     output:
         touch(temp(os.path.join(DIR, 'refflow_secondpass.done')))
-
-''' Old merge methods '''
-# rule refflow_align_and_merge_secondpass:
-#     input:
-#         reads = os.path.join(DIR_FIRST_PASS, CHROM +
-#             '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
-#         idx = expand(
-#             DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{idx}.bt2',
-#             idx = IDX_ITEMS, GROUP = GROUP)
-#     params:
-#         prefix = os.path.join(DIR_SECOND_PASS, '2ndpass')
-#     #     index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
-#     output:
-#         merge_log = os.path.join(DIR_SECOND_PASS, 'merged_log'),
-#         merge_id = os.path.join(DIR_SECOND_PASS, 'merge_id'),
-#         merge_path = os.path.join(DIR_SECOND_PASS, 'merge_path')
-#     run:
-#         maj_lowq = os.path.join(DIR, 'experiments/' + wildcards.INDIV + '/' + CHROM +
-#             '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.sam')
-#         shell('echo {maj_lowq} > {output.merge_path};')
-#         shell('echo "h37maj" > {output.merge_id};')
-#         for g in GROUP:
-#             shell('echo {g} >> {output.merge_id};')
-#             index = DIR_POP_GENOME_BLOCK_IDX + \
-#                 CHROM + '_superpop_' + g + \
-#                 '_thrds{}_S{}_b{}_ld{}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
-#             shell(
-#             'bowtie2 --reorder --threads {THREADS} -x {index} \
-#             -U {input.reads} | \
-#             {PYTHON} {DIR_SCRIPTS}/merge_incremental.py -ns {output.merge_path} \
-#             -ids {output.merge_id} -rs {RAND_SEED} -p {params.prefix} \
-#             -l {output.merge_log} -id {g};')
-#             shell('tail -1 {output.merge_log} >> {output.merge_path};')

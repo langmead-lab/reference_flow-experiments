@@ -124,6 +124,21 @@ rule calc_refflow_accuracy:
         {output.acc_log};')
         organize_accuracy(output.acc_log, output.acc)
 
+rule calc_refflow_accuracy_onepass:
+    input:
+        gold = PREFIX_PER + '_1.sam',
+        var_reads = PREFIX_PER + '.var',
+        sam = os.path.join(DIR_FIRST_PASS,CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam')
+    output:
+        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc_log'),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc')
+    run:
+        shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+        -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
+        -n {input.sam} >> \
+        {output.acc_log};')
+        organize_accuracy(output.acc_log, output.acc)
+
 # rule calc_refflow_firstpass_accuracy:
 #     input:
 #         gold = PREFIX_PER + '_1.sam',
@@ -207,15 +222,25 @@ rule check_standard_accuracy:
     output:
         touch(temp(os.path.join(DIR, 'standard_acc.done')))
 
+rule check_refflow_accuracy:
+    input:
+        twopass = expand(os.path.join(DIR_RESULTS,
+            '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+            INDIV = INDIV),
+        onepass = expand(
+            os.path.join(DIR_RESULTS,
+            '{INDIV}-' + CHROM + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc'),
+            INDIV = INDIV, GROUP = GROUP)
+    output:
+        touch(temp(os.path.join(DIR, 'refflow_acc.done')))
+
 '''
 Summarize results as a TSV
 '''
 rule check_mapping_acc_and_write_as_tsv:
     input:
-        acc = expand(os.path.join(DIR_RESULTS,
-            '{INDIV}' + '-{0}-h37maj-{1}-{2}.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV),
         acc_standard = os.path.join(DIR, 'standard_acc.done'),
+        acc_refflow  = os.path.join(DIR, 'refflow_acc.done'),
         acc_vg = os.path.join(DIR, 'vg_acc.done')
     output:
         tsv = os.path.join(DIR_RESULTS, 'all.tsv'),

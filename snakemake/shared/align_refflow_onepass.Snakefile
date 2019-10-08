@@ -1,22 +1,3 @@
-rule refflow_align_onepass:
-    input:
-        reads = PREFIX_PER + '_1.fq',
-#         reads = os.path.join(DIR_FIRST_PASS, CHROM +
-#             '-h37maj-mapqlt' + ALN_MAPQ_THRSD + '.fq'),
-        idx1 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.1.bt2',
-        idx2 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.2.bt2',
-        idx3 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.3.bt2',
-        idx4 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.4.bt2',
-        idx5 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.1.bt2',
-        idx6 = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.rev.2.bt2'
-    params:
-        index = DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX
-    output:
-        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam')
-    threads: THREADS
-    shell:
-        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads} -S {output.sam};'
-
 rule refflow_onepass_calc_accuracy:
     input:
         sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam'),
