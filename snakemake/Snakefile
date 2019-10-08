@@ -2,9 +2,9 @@
 import os
 import pandas as pd
 
-# configfile: "config.yaml"
+configfile: "config.yaml"
 # configfile: "deep.yaml"
-configfile: "deep_100.yaml"
+# configfile: "deep_100.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
@@ -28,6 +28,9 @@ MASON2 = config['MASON2']
 LIFTOVER = config['LIFTOVER']
 PYTHON = config['PYTHON']
 DIR_SCRIPTS = config['DIR_SCRIPTS']
+ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
+VG = config['VG']
+TIME = config['TIME']
 THREADS = config['THREADS']
 MAX_SYSTEM_THREADS = config['MAX_SYSTEM_THREADS']
 RAND_SEED = config['RAND_SEED']
@@ -46,6 +49,9 @@ DIR_GRCH37_IDX = os.path.join(DIR, 'grch37/indexes/')
 DIR_PER = os.path.join(DIR, 'simulation/{INDIV}/')
 DIR_PER_IDX = os.path.join(DIR, 'simulation/{INDIV}/indexes/')
 PREFIX_PER = os.path.join(DIR, 'simulation/{INDIV}/' + CHROM + '-per')
+
+DIR_VG = os.path.join(DIR, 'vg/')
+DIR_VG_TMP = os.path.join(DIR, 'vg/tmp/')
 
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_b{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
@@ -71,12 +77,12 @@ IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
 include: 'shared/functions.Snakefile'
 
 #: Build major allele ref and its indexes
-#:      check: 'major.done', 'grch37.done'
+#:      check: 'major.done', 'grch37.done', 'personalization.done'
 include: 'shared/prepare_major_grch37.Snakefile'
 
-#: Build personalized genomes and their indexes
-#:      check: 'personalization.done'
-include: 'shared/prepare_per.Snakefile'
+# #: Build personalized genomes and their indexes
+# #:      check: 'personalization.done'
+# include: 'shared/prepare_per.Snakefile'
 
 #: Build personalized genomes and their indexes
 #:      check: 'prepare_pop_genome.done'
@@ -97,6 +103,11 @@ include: 'shared/align_standard_onepass.Snakefile'
 #: Split reads by MAPQ and align low-quality reads to pop genomes
 #:      check: 'refflow_secondpass.done'
 include: 'shared/align_refflow.Snakefile'
+
+#: graph aligners
+#:      vg: build graphs for vg and align reads to it
+#:      check: 'vg_index.done', 'vg_map.done'
+include: 'shared/graph_alignment.Snakefile'
 
 #: Liftover sams for major and refflow
 #:      check: 'liftover.done', 'sorting.done'
@@ -123,17 +134,21 @@ rule all:
         #: indivs in populations
         popg = os.path.join(DIR, 'prepare_pop_genome.done'),
         #: first pass alignment
-        std_onepass = os.path.join(DIR, 'standard_onepass.done'),
-        #: refflow one pass
-        # acc_rf_onepass = os.path.join(DIR, 'rf_onepass_acc.done'),
-        #: second pass alignment
-        secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
-        #: liftover and sorting
+        # std_onepass = os.path.join(DIR, 'standard_onepass.done'),
+        # #: refflow one pass
+        # # acc_rf_onepass = os.path.join(DIR, 'rf_onepass_acc.done'),
+        # #: second pass alignment
+        # secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
+        # #: liftover and sorting
         lft = os.path.join(DIR, 'liftover.done'),
         sort = os.path.join(DIR, 'sorting.done'),
-        #: refbias
+        #: graph aligner
+        vg_index = os.path.join(DIR, 'vg_index.done'),
+        vg_map = os.path.join(DIR, 'vg_map.done'),
+        vg_acc = os.path.join(DIR, 'vg_acc.done'),
+        # #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
-        find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
+        # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
         acc = os.path.join(DIR, 'accuracy.done'),
         tsv = os.path.join(DIR_RESULTS, 'all.tsv')
