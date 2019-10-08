@@ -80,10 +80,6 @@ include: 'shared/functions.Snakefile'
 #:      check: 'major.done', 'grch37.done', 'personalization.done'
 include: 'shared/prepare_major_grch37.Snakefile'
 
-# #: Build personalized genomes and their indexes
-# #:      check: 'personalization.done'
-# include: 'shared/prepare_per.Snakefile'
-
 #: Build personalized genomes and their indexes
 #:      check: 'prepare_pop_genome.done'
 include: 'shared/prepare_pop_genome.Snakefile'
@@ -91,10 +87,6 @@ include: 'shared/prepare_pop_genome.Snakefile'
 #: Simulate reads from personalized genomes
 #:      check: 'simulation.done'
 include: 'shared/simulated_reads.Snakefile'
-
-#: Align all reads to the refflow genomes (one-pass)
-#:      check: 'rf_onepass_acc.done'
-include: 'shared/align_refflow_onepass.Snakefile'
 
 #: Align all reads to the standard genomes (one-pass)
 #:      check: 'standard_onepass.done'
@@ -134,19 +126,17 @@ rule all:
         #: indivs in populations
         popg = os.path.join(DIR, 'prepare_pop_genome.done'),
         #: first pass alignment
-        # std_onepass = os.path.join(DIR, 'standard_onepass.done'),
-        # #: refflow one pass
-        # # acc_rf_onepass = os.path.join(DIR, 'rf_onepass_acc.done'),
-        # #: second pass alignment
-        # secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
-        # #: liftover and sorting
+        std_onepass = os.path.join(DIR, 'standard_onepass.done'),
+        #: second pass alignment
+        secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
+        #: liftover and sorting
         lft = os.path.join(DIR, 'liftover.done'),
         sort = os.path.join(DIR, 'sorting.done'),
         #: graph aligner
         vg_index = os.path.join(DIR, 'vg_index.done'),
         vg_map = os.path.join(DIR, 'vg_map.done'),
         vg_acc = os.path.join(DIR, 'vg_acc.done'),
-        # #: refbias
+        #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
         # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
