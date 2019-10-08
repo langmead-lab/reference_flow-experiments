@@ -68,7 +68,7 @@ rule refflow_merge_secondpass:
         # shell('{PYTHON} {DIR_SCRIPTS}/merge_sam.py \
         #     -ns {output.path} -ids {output.id} \
         #     -rs 0 -l {output.merge_paths}')
-        
+
 rule check_secondpass:
     input:
         sam = expand(
