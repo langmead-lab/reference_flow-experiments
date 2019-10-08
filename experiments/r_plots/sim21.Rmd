@@ -4,6 +4,14 @@ author: "Nae-Chyun"
 date: "8/13/2019"
 output: html_document
 ---
+```{r include}
+library(dplyr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(reshape2)
+```
+
 ```{r combined_plot}
 # Borrowed from: https://rpubs.com/sjackman/grid_arrange_shared_legend
 # Thanks to Shaun Jackman
@@ -33,23 +41,25 @@ grid_arrange_shared_legend <- function(show_legend, num_rows, legend_plot_id, ..
 }
 ```
 
-```{r include}
-library(ggplot2)
-library(grid)
-library(gridExtra)
-```
-
 ### Analyze biased HET sites ###
 ```{r load_data_and_show_summary}
-df_ref <- read.delim("histogram/deep-snp_only-chr21-ref.txt", header = TRUE, sep = "\t")
-df_maj <- read.delim("histogram/deep-snp_only-chr21-h37maj.txt", header = TRUE, sep = "\t")
-df_rf <- read.delim("histogram/deep-snp_only-chr21-RF_5s0.txt", header = TRUE, sep = "\t")
-df_per <- read.delim("histogram/deep-snp_only-chr21-per.txt", header = TRUE, sep = "\t")
+#: reads simulated without indels
+# df_ref <- read.delim("histogram/deep-snp_only-chr21-ref.txt", header = TRUE, sep = "\t")
+# df_maj <- read.delim("histogram/deep-snp_only-chr21-h37maj.txt", header = TRUE, sep = "\t")
+# df_rf <- read.delim("histogram/deep-snp_only-chr21-RF_5s0.txt", header = TRUE, sep = "\t")
+# df_per <- read.delim("histogram/deep-snp_only-chr21-per.txt", header = TRUE, sep = "\t")
 
-ref_alt_frac_ref <- sum(df_ref$REF.COUNT) / sum(df_ref$ALT.COUNT)
-ref_alt_frac_maj <- sum(df_maj$REF.COUNT) / sum(df_maj$ALT.COUNT)
-ref_alt_frac_rf <- sum(df_rf$REF.COUNT) / sum(df_rf$ALT.COUNT)
-ref_alt_frac_per <- sum(df_per$REF.COUNT) / sum(df_per$ALT.COUNT)
+#: reads simulated with indels
+df_ref <- read.delim("allelic_bias/NA12878_with_indel/histogram/grch37-refbias.txt", header = TRUE, sep = "\t")
+df_maj <- read.delim("allelic_bias/NA12878_with_indel/histogram/major-refbias.txt", header = TRUE, sep = "\t")
+# df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per_haploid-refbias.txt", header = TRUE, sep = "\t")
+df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per-refbias.txt", header = TRUE, sep = "\t")
+df_rf <- read.delim("allelic_bias/NA12878_with_indel/histogram/refflow-thrds0_S1_b1_ld0.txt", header = TRUE, sep = "\t")
+
+ref_alt_frac_ref <- sum(df_ref$REF_COUNT) / sum(df_ref$ALT_COUNT)
+ref_alt_frac_maj <- sum(df_maj$REF_COUNT) / sum(df_maj$ALT_COUNT)
+ref_alt_frac_rf <- sum(df_rf$REF_COUNT) / sum(df_rf$ALT_COUNT)
+ref_alt_frac_per <- sum(df_per$REF_COUNT) / sum(df_per$ALT_COUNT)
 
 mat_ref_alt <- matrix(c(ref_alt_frac_ref, ref_alt_frac_maj, ref_alt_frac_rf, ref_alt_frac_per), ncol=4, byrow=T)
 colnames(mat_ref_alt) <- c("GRCh37", "Major", "RF-b1", "Personalized")
@@ -62,10 +72,10 @@ print ("diff(REF,RF) / diff(REF,PER)")
 (ref_alt_frac_ref - ref_alt_frac_rf) / (ref_alt_frac_ref - ref_alt_frac_per)
 
 filter_df <- function (df){
-  df <- df[df$X..READS > 15,]
+  df <- df[df$NUM_READS > 15,]
   
-  df$REFBIAS = df$REF.COUNT / df$X..READS
-  # df$REFBIAS = as.numeric(as.character(df$REFERENCE.BIAS))
+  df$REFBIAS = df$REF_COUNT / df$NUM_READS
+  # df$REFBIAS = as.numeric(as.character(df$REFERENCE_BIAS))
   # sum(df$REFBIAS > 0.8)
   # sum(df$REFBIAS < 0.2)
   return (df)
@@ -90,100 +100,134 @@ print ("MAJ / PER (0.5+-0.2)")
 calc_improvement_compared_to_per(0.2, df_maj)
 ```
 
+
 # Plots countour-only histograms #
-```{r contour_only}
-hist_step <- 0.025
-num_bins <- 1 / hist_step
-hist_bins <- rep(seq(0 + hist_step / 2, 1 - hist_step / 2, by=hist_step), 4)
-hist_ref <- hist(df_ref$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
-hist_maj <- hist(df_maj$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
-hist_rf <- hist(df_rf$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
-hist_per <- hist(df_per$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+```{r histogram_refbias_major}
+hist_step <- 0.02
+half_step <- hist_step / 2
+hist_ref <- hist(df_ref$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
+hist_maj <- hist(df_maj$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
+hist_rf <- hist(df_rf$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
+hist_per <- hist(df_per$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
 
-df <- data.frame(xx = c(hist_ref, hist_maj, hist_rf, hist_per), yy = rep(c('GRCh37', 'Major', 'RefFlow', 'Personalized'), each=num_bins))
+adjusted_bins <- seq(0, 1, by=hist_step) - 0.01
+adjusted_bins[1] <- 0
+adjusted_bins[length(adjusted_bins)] <- 1
 
-p_refbias_sim21 <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(1,NA)) + theme_bw() + 
-  xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
-  geom_step(mapping=aes(x=hist_bins, y=df$xx, colour=df$yy, linetype=df$yy)) +
-  theme(legend.position = "right", aspect.ratio=NULL)
-p_refbias_sim21
+plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
+  hist_bins <- rep(adjusted_bins, length(hist_names))
+  df_hist_onepass <- data.frame(xx = hist_targets, yy = rep(hist_names, each=length(hist_maj)))
+  
+  p_hist <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(1,NA)) + theme_bw() + 
+    xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
+    geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy, linetype=df_hist_onepass$yy), size=1) +
+    theme(legend.position = "right", aspect.ratio=NULL)
+  if (save){
+    ggsave(paste(prefix, ".jpg", sep=""), p_hist, width = 12, height = 8)
+    ggsave(paste(prefix, ".pdf", sep=""), p_hist, width = 12, height = 8)
+  }
+  return (p_hist)
+}
 
-# ggsave("fig_refbias_sim21.pdf", p_refbias_sim21)
+save = F
+
+hist_targets <- c(hist_ref, hist_maj,  hist_per)
+hist_names <- c('GRCh37', 'Major', 'Personalized')
+p_refbias_sim21_major <- plot_contour_hist(hist_targets, hist_names, save, "hist_contour_sim21_major")
+p_refbias_sim21_major
+
+hist_targets <- c(hist_ref, hist_maj, hist_rf, hist_per)
+hist_names <- c('GRCh37', 'Major', 'RefFlow', 'Personalized')
+p_refbias_sim21_refflow <- plot_contour_hist(hist_targets, hist_names, save, "hist_contour_sim21_refflow")
+p_refbias_sim21_refflow
 ```
 
 
 # Plot scatter plots for highly-biased HET sites #
+```{r load_strongly_biased_data}
+# df_biased_rf <- read.delim("refbias-tail/RF_5s0_above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
+# df_biased_maj <- read.delim("refbias-tail/h37maj-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
+# df_biased_ref <- read.delim("refbias-tail/ref-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
+# df_biased_per <- read.delim("refbias-tail/per-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
+# df_unbiased <- read.delim("refbias-tail/per-above045_and_below055.reads.tsv", header = TRUE, sep = "\t")
+
+df_biased_rf <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-thrds0_S1_b1_ld0-above80_or_below20.reads.tsv", header = TRUE, sep = "\t")
+df_biased_maj <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-major-above80_or_below20.reads.tsv", header = TRUE, sep = "\t")
+df_biased_ref <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-grch37-above80_or_below20.reads.tsv", header = TRUE, sep = "\t")
+# df_biased_per <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-per_haploid-above80_or_below20.reads.tsv", header = TRUE, sep = "\t")
+df_biased_per <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-per-above80_or_below20.reads.tsv", header = TRUE, sep = "\t")
+df_unbiased <- read.delim("allelic_bias/NA12878_with_indel/reads/NA12878-per-between_45_55.reads.tsv", header = TRUE, sep = "\t")
+```
+
 ```{r scatter_plot_highly_biased}
 plot_scatter <- function(df, title="", tail){
     if (tail == "REF"){
-        df_filtered <- df[df$REFERENCE.BIAS >= 0.8 & df$X..READS >= 15,]
+        df_filtered <- df[df$REFERENCE_BIAS >= 0.8 & df$NUM_READS >= 15,]
         ylim <- c(0.4, 1)
         xlim <- c(0.8, 1)
     }
     else if (tail == "ALT"){
-        df_filtered <- df[df$REFERENCE.BIAS <= 0.2 & df$X..READS >= 15,]
+        df_filtered <- df[df$REFERENCE_BIAS <= 0.2 & df$NUM_READS >= 15,]
         ylim <- c(0, 0.6)
         xlim <- c(0, 0.2)
     }
     diag <- function(x) x
-    # x = df_filtered$REFERENCE.BIAS
+    # x = df_filtered$REFERENCE_BIAS
     p_biased_ref <- 
-      ggplot(df_filtered, aes(x = REFERENCE.BIAS, y = REF.READ.BIAS, size = NUM.VAR, color = AVG.MAPQ)) +
+      ggplot(df_filtered, aes(x = REFERENCE_BIAS, y = REF_READ_BIAS, size = NUM_VAR, color = AVG_MAPQ)) +
       geom_point() + theme_bw() + scale_color_gradient(low="blue", high="red", limits=c(0,42)) + 
-      scale_size_identity(trans="sqrt", guide="legend", breaks=c(1,3,6,9)) +
+      scale_size_identity(trans="sqrt", guide="legend", breaks=c(1,10,20,30)) +
       ylim(ylim) + xlim(xlim) +
-      ylab("Reference Bias (Read)") + xlab("Reference Bias (Nucleotide)") +
+      ylab("Read Bias") + xlab("Nucleotide Bias") +
       labs(color="Average MAPQ", size="Num. Variants", title=title) +
       stat_function(fun = diag, colour="gray", show.legend=F, alpha=0.5)
     p_biased_ref
 }
 
 plot_tail <- function(tail, fn){
-    df_biased_rf <- read.delim("refbias-tail/RF_5s0_above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
-    p_biased_rf <- plot_scatter(df_biased_rf, "REFFLOW (stochastic, no LD)", tail)
-    
-    df_biased_maj <- read.delim("refbias-tail/h37maj-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
-    p_biased_maj <- plot_scatter(df_biased_maj, "1KG Major", tail)
-    
-    df_biased_ref <- read.delim("refbias-tail/ref-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
+    p_biased_rf <- plot_scatter(df_biased_rf, "RefFlow", tail)
+    p_biased_maj <- plot_scatter(df_biased_maj, "Major", tail)
     p_biased_ref <- plot_scatter(df_biased_ref, "GRCh37", tail)
-    
-    df_biased_per <- read.delim("refbias-tail/per-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
     p_biased_per <- plot_scatter(df_biased_per, "Personalized", tail)
     
     p <- grid_arrange_shared_legend(T, 2, 2, p_biased_ref, p_biased_maj, p_biased_rf, p_biased_per)
     p
-    # ggsave(fn, p)
+    if (save)
+      ggsave(fn, p)
 }
 
 plot_both_tails <- function(fn){
-    df_biased_rf <- read.delim("refbias-tail/RF_5s0_above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
-    p_biased_rf_ref <- plot_scatter(df_biased_rf, "REFFLOW (stochastic, no LD)", "REF")
-    p_biased_rf_alt <- plot_scatter(df_biased_rf, "REFFLOW (stochastic, no LD)", "ALT")
+    p_biased_rf_ref <- plot_scatter(df_biased_rf, "RefFlow", "REF")
+    p_biased_rf_alt <- plot_scatter(df_biased_rf, "RefFlow", "ALT")
     
-    df_biased_maj <- read.delim("refbias-tail/h37maj-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
-    p_biased_maj_ref <- plot_scatter(df_biased_maj, "1KG Major", "REF")
-    p_biased_maj_alt <- plot_scatter(df_biased_maj, "1KG Major", "ALT")
+    p_biased_maj_ref <- plot_scatter(df_biased_maj, "Major", "REF")
+    p_biased_maj_alt <- plot_scatter(df_biased_maj, "Major", "ALT")
     
-    df_biased_ref <- read.delim("refbias-tail/ref-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
     p_biased_ref_ref <- plot_scatter(df_biased_ref, "GRCh37", "REF")
     p_biased_ref_alt <- plot_scatter(df_biased_ref, "GRCh37", "ALT")
     
-    df_biased_per <- read.delim("refbias-tail/per-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
     p_biased_per_ref <- plot_scatter(df_biased_per, "Personalized", "REF")
     p_biased_per_alt <- plot_scatter(df_biased_per, "Personalized", "ALT")
+    # p_biased_per_ref
+    # p_biased_per_alt
     
     p <- grid_arrange_shared_legend(
         T, 2, 1, 
         p_biased_ref_ref, p_biased_maj_ref, p_biased_rf_ref, p_biased_per_ref,
         p_biased_ref_alt, p_biased_maj_alt, p_biased_rf_alt, p_biased_per_alt)
     p
-    # ggsave(fn, p, width = 12, height = 8)
+    if (save)
+      ggsave(fn, p, width = 12, height = 8)
 }
 
-# plot_tail(tail = "ALT", fn = "fig_scatter_alt.pdf")
-# plot_tail(tail = "REF", fn = "fig_scatter_ref.pdf")
+save = F
+plot_tail(tail = "ALT", fn = "fig_scatter_alt.pdf")
+plot_tail(tail = "REF", fn = "fig_scatter_ref.pdf")
 plot_both_tails(fn = "fig_scatter_21.pdf")
+
+plot_tail(tail = "ALT", fn = "fig_scatter_alt.jpg")
+plot_tail(tail = "REF", fn = "fig_scatter_ref.jpg")
+plot_both_tails(fn = "fig_scatter_21.jpg")
 ```
 
 ```{r cluster_tail_sites}
@@ -191,13 +235,10 @@ analyze_tail <- function(df, fn, save=F){
     OFF_TOLERANCE <- 0.1
     MAPQ_CUTOFF <- 10
     
-    # df <- df[,c("NUM.VAR", "AVG.MAPQ", "X..READS", "REFERENCE.BIAS", "REF.READ.BIAS")]
-    classes <- (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) < OFF_TOLERANCE) * 1 +
-      (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) >= OFF_TOLERANCE & df$AVG.MAPQ < MAPQ_CUTOFF) * 2 +
-      (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) >= OFF_TOLERANCE & df$AVG.MAPQ >= MAPQ_CUTOFF) * 3
-    # classes <- (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) < OFF_TOLERANCE) * 1 + 
-    #   (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) >= OFF_TOLERANCE & df$REF.READ.BIAS >= 0.55) * 2 + 
-    #   (df$GOLD == 0 & abs(df$REFERENCE.BIAS-df$REF.READ.BIAS) >= OFF_TOLERANCE & df$REF.READ.BIAS < 0.55) * 3
+    # df <- df[,c("NUM_VAR", "AVG_MAPQ", "NUM_READS", "REFERENCE_BIAS", "REF_READ_BIAS")]
+    classes <- (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) < OFF_TOLERANCE) * 1 +
+      (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ < MAPQ_CUTOFF) * 2 +
+      (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ >= MAPQ_CUTOFF) * 3
     df$CLASS <- classes
     
     df_diag <- df[df$CLASS == 1 ,]
@@ -225,18 +266,18 @@ analyze_tail <- function(df, fn, save=F){
     }
     
     #: https://stackoverflow.com/questions/17319487/median-and-quartile-on-violin-plots-in-ggplot2
-    p_avg_mapq <- ggplot(df, aes(x=CLASS, y=AVG.MAPQ)) + 
+    p_avg_mapq <- ggplot(df, aes(x=CLASS, y=AVG_MAPQ)) + 
       # geom_boxplot() +
       geom_violin() +
       stat_summary(fun.y=median.quartile, geom='point')+
       theme_bw() + theme(legend.position="bottom") + ylab("Avg. MAPQ") + xlab("")
     
-    p_num_var <- ggplot(df, aes(x=CLASS, y=NUM.VAR)) + 
+    p_num_var <- ggplot(df, aes(x=CLASS, y=NUM_VAR)) + 
       geom_violin() +
       stat_summary(fun.y=median.quartile, geom='point')+
       theme_bw() + theme(legend.position="bottom") + ylab("Num. Variants") + xlab("")
     
-    p_coverage <- ggplot(df, aes(x=CLASS, y=X..READS)) + 
+    p_coverage <- ggplot(df, aes(x=CLASS, y=NUM_READS)) + 
       geom_violin() +
       stat_summary(fun.y=median.quartile, geom='point')+
       theme_bw() + theme(legend.position="bottom") + ylab("Coverage")
@@ -255,23 +296,21 @@ analyze_tail <- function(df, fn, save=F){
     if (save == T)
         ggsave(fn, p, width = 12, height = 8)
 }
-df_unbiased <- read.delim("refbias-tail/per-above045_and_below055.reads.tsv", header = TRUE, sep = "\t")
-# df_unbiased <- df_unbiased[sample(nrow(df_unbiased), 100), ]
 df_unbiased$GOLD <- 1
-
-save = T
-
-df_biased_ref <- read.delim("refbias-tail/ref-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
 df_biased_ref$GOLD <- 0
-analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.pdf", save = save)
-
-df_biased_maj <- read.delim("refbias-tail/h37maj-above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
-df_biased_maj$GOLD <- 0
-analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.pdf", save = save)
-
-df_biased_rf <- read.delim("refbias-tail/RF_5s0_above080_or_below020.reads.tsv", header = TRUE, sep = "\t")
 df_biased_rf$GOLD <- 0
+df_biased_per$GOLD <- 0
+df_biased_maj$GOLD <- 0
+
+analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.pdf", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.pdf", save = save)
 analyze_tail(rbind(df_unbiased, df_biased_rf), fn = "fig_violin_biased_rf.pdf", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_per), fn = "fig_violin_biased_per.pdf", save = save)
+
+analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.jpg", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.jpg", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_rf), fn = "fig_violin_biased_rf.jpg", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_per), fn = "fig_violin_biased_per.jpg", save = save)
 ```
 
 # Analyze ALT tail in alignment using personalized genomes #
@@ -308,33 +347,147 @@ p
 *HapA reads can be misaligned because of multi-mapping.*
 Many "Aln to hapB (hapA)" reads are aligned incorrectly because such alignments on hapB are higher in MAPQ (same AS).
 
-
-```{r load_data}
+```{r boxplot_sensitivity_refflow}
 total <- 2000000
+save = F
+# df_sensitivity <- read.delim("sweep-chr21/0917_reduced.tsv", header = TRUE, sep = "\t")
+df_sensitivity <- read.delim("sweep-chr21/1008_reduced.tsv", header = TRUE, sep = "\t")
+
+filter_should_include_all <- c("GRCh37", "Major", "AFR (1000,LD)", "AMR (1000,LD)", "EAS (1000,LD)", "EUR (1000,LD)", "SAS (1000,LD)", "AFR", "AMR",  "EAS", "EUR", "SAS", "Matched", "RF (Major)", "vg", "RF (1000)", "RF (1)", "RF (1,LD)", "RF (1000,LD)", "Personalized", "Personalized (h2h)")
+df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = filter_should_include_all)
+df_filtered <- df_sensitivity %>% filter(!Reduced %in% filter_should_include_all)
+print (unique(df_filtered$Reduced))
+
+
+# p_box_sim21 <- ggplot(df_sensitivity, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+p_box_sim21 <- ggplot(df_sensitivity, aes(x=Reduced, y=True.Positive/total)) + 
+    geom_boxplot() + 
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21
+if (save == T) {
+  ggsave("fig_sim21_all.pdf", p_box_sim21, width = 12, height = 7)
+  ggsave("fig_sim21_all.jpg", p_box_sim21, width = 12, height = 7)
+  # ggsave("fig_sim21_all_deep.pdf", p_box_sim21, width = 12, height = 7)
+  # ggsave("fig_sim21_all_deep.jpg", p_box_sim21, width = 12, height = 7)
+}
+
+filter_onepass <- c("GRCh37", "Major", "AFR","AMR","EAS", "EUR", "SAS", "Matched", "Personalized")
+df_sensitivity_onepass <- df_sensitivity %>% filter(Reduced %in% filter_onepass)
+p_box_sim21_onepass <- ggplot(df_sensitivity_onepass, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21_onepass
+if (save == T){
+  ggsave("fig_sim21_onepass.pdf", p_box_sim21_onepass, width = 12, height = 7)
+  ggsave("fig_sim21_onepass.jpg", p_box_sim21_onepass, width = 12, height = 7)
+}
+
+filter_should_include_all <- c("GRCh37", "Major", "Matched", "RF (Major)", "vg", "RF (1000,LD)", "RF (1)", "Personalized")
+df_sensitivity_twopass <- df_sensitivity %>% filter(Reduced %in% filter_should_include_all)
+# df_sensitivity_twopass <- df_sensitivity[df_sensitivity$Label != 1,]
+p_box_sim21_twopass <- ggplot(df_sensitivity_twopass, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21_twopass
+if (save == T){
+  ggsave("fig_sim21_twopass.pdf", p_box_sim21_twopass, width = 12, height = 7)
+  ggsave("fig_sim21_twopass.jpg", p_box_sim21_twopass, width = 12, height = 7)
+}
+
+filter_onepass_det_vs_sto <- c("AFR", "AFR (1000,LD)", "AMR", "AMR (1000,LD)", "EAS", "EAS (1000,LD)", "EUR", "EUR (1000,LD)", "SAS", "SAS (1000,LD)")
+df_sensitivity_onepass_det_vs_sto <- df_sensitivity %>% filter(Reduced %in% filter_onepass_det_vs_sto)
+p_box_sim21_onepass_det_vs_sto <- ggplot(df_sensitivity_onepass_det_vs_sto, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21_onepass_det_vs_sto
+if (save == T){
+  ggsave("fig_sim21_onepass_det_vs_sto.pdf", p_box_sim21_onepass_det_vs_sto, width = 12, height = 7)
+  ggsave("fig_sim21_onepass_det_vs_sto.jpg", p_box_sim21_onepass_det_vs_sto, width = 12, height = 7)
+}
+```
+
+```{r boxplot_sensitivity_major}
+total <- 2000000
+df_sensitivity <- read.delim("/Users/naechyun/Dropbox/Documents/University/JHU/Projects/genome_relaxation/experiments/r_plots/sweep-chr21/tmp_mapq_reduced.tsv", header = TRUE, sep = "\t")
+df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = c("21-h37maj", "5", "10", "15", "20", "25", "21-per"))
+
+df_sensitivity <- read.delim("sweep-chr21/0830_reduced.tsv", header = TRUE, sep = "\t")
+df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = c("GRCh37", "Major", "AFR", "AMR", "EAS", "EUR", "SAS", "RF-popmajor", "RF", "Personalized"))
+
+#: plots one-pass results, primarily using major
+df_sensitivity_major <- df_sensitivity[df_sensitivity$Reduced != "RF-popmajor" & df_sensitivity$Reduced != "RF",]
+p_box_sim21_major <- ggplot(df_sensitivity_major, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21_major
+
+# p_refbias_sim21_major
+p_sim21_major <- grid.arrange(
+  grobs = list(p_box_sim21_major, p_refbias_sim21_major),
+  layout_matrix = rbind(c(1),
+                        c(2))
+)
+# ggsave("fig_sim21_major.pdf", p_sim21_major, width = 12, height = 7)
+
+#: plots primarily two-pass results
+df_sensitivity_refflow <- df_sensitivity[df_sensitivity$Reduced != "Major" & df_sensitivity$Reduced != "AFR" & df_sensitivity$Reduced != "AMR" & df_sensitivity$Reduced != "EAS" & df_sensitivity$Reduced != "EUR" & df_sensitivity$Reduced != "SAS" & df_sensitivity$Reduced != "GRCh37",]
+median_grch37 <- function() return(median(df_sensitivity[df_sensitivity$Reduced == "GRCh37",]$True.Positive) / total)
+median_major <- function() return(median(df_sensitivity[df_sensitivity$Reduced == "Major",]$True.Positive) / total)
+
+p_box_sim21_refflow <- ggplot(df_sensitivity_refflow, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=median_grch37(), color="red", show.legend = T) +
+  geom_text(aes(0, median_grch37(), label="GRCh37", hjust=-0.2, vjust=-1))+
+  geom_hline(yintercept = median_major(), color="blue", linetype = "dashed", show.legend = T) +
+  geom_text(aes(0, median_major(), label="Major", hjust=-0.2, vjust=-1))+
+  # geom_abline(aes(y=median_major()), color="blue") +
+  # stat_function(fun = median_grch37, colour="red", show.legend=F, alpha=0.5) +
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_box_sim21_refflow
+  p_sim21_refflow <- grid.arrange(
+  grobs = list(p_box_sim21_refflow, p_refbias_sim21),
+  layout_matrix = rbind(c(1),
+                        c(2))
+)
+ggsave("fig_sim21_refflow.pdf", p_sim21_refflow, width = 12, height = 7)
+```
+
+```{r boxplot_sensitivity_refflow}
 df <- read.delim("sweep-chr21/cur_sample-sensitivity.tsv", header = TRUE, sep = "\t")
 ddf <- data.frame(
-  acc=c(df$Grch37, df$Major, df$RF.b1, df$RF.b5000LD, df$Personalized) / total, 
+  acc=c(df$Grch37, df$Major, df$RF.b1, df$RF.b5000LD, df$Personalized) / total,
   method=rep(c("GRCh37", "Major", "RF no block", "RF block 5000 with LD", "Personalized"), each=nrow(df)),
   spop=rep(df$Super.Population, 5)
   )
 # class(ddf$spop) = "factor"
 ddf$method <- factor(ddf$method, levels = c("GRCh37", "Major", "RF no block", "RF block 5000 with LD", "Personalized"))
-p_box_sim21 <- ggplot(ddf, aes(x=method, y=acc)) + 
-  geom_boxplot() + 
+p_box_sim21 <- ggplot(ddf, aes(x=method, y=acc)) +
+  geom_boxplot() +
   # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
-  ylab("Sensitivity") + xlab("Method") + #labs(color="Super Population") + theme(legend.position="bottom") + 
+  ylab("Sensitivity") + xlab("Method") + #labs(color="Super Population") + theme(legend.position="bottom") +
   theme_bw()
 p_box_sim21
 # ggsave("fig_box_sim21.pdf", p_box_sim21)
 
 ddf$method <- factor(ddf$method, levels = c("GRCh37", "Major", "RF no block", "RF block 5000 with LD", "Personalized"))
-p_box_pop_sim21 <- ggplot(ddf, aes(x=method, y=acc, color=spop)) + 
-  geom_boxplot() + 
+p_box_pop_sim21 <- ggplot(ddf, aes(x=method, y=acc, color=spop)) +
+  geom_boxplot() +
   # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
-  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") + 
+  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") +
   theme_bw() + theme(legend.position="right") #+ facet_grid(. ~ ddf$spop)
 p_box_pop_sim21
-p_refbias_sim21
+# p_refbias_sim21
 # ggsave("fig_box_pop_sim21.pdf", p_box_pop_sim21)
 p_sim21 <- grid.arrange(
   grobs = list(p_box_pop_sim21, p_refbias_sim21),
@@ -361,6 +514,7 @@ summary(df$Personalized)
 ```
 
 ```{r combine plots}
+save = T
 # fig1 <- grid_arrange_shared_legend(T, 1, 2, p_box_sim21, p_box_pop_sim21)
 # g_legend<-function(a.gplot){
 #     tmp <- ggplot_gtable(ggplot_build(a.gplot))
@@ -370,11 +524,101 @@ summary(df$Personalized)
 # }
 # legend <- g_legend(p_box_pop_sim21)
 
-fig1 <- grid_arrange_shared_legend(T, 1, 2, p_box_sim21, p_refbias_sim21)
-grid.arrange(
-  grobs = list(p_box_sim21, p_box_pop_sim21+theme(legend.position="none"), p_refbias_sim21),
-  layout_matrix = rbind(c(1, 2),
-                        c(3, 3))
+# fig_onepass_combined <- grid_arrange_shared_legend(T, 2, 1, p_box_sim21_onepass, p_refbias_sim21_major)
+#: above method keeps legend of two plots
+fig_onepass_combined <- grid.arrange(
+  grobs = list(p_box_sim21_onepass, p_refbias_sim21_major),
+  layout_matrix = rbind(c(1),
+                        c(2))
 )
+if (save == T)
+  ggsave("fig_onepass_combined.pdf", width = 12, height = 7, plot=fig_onepass_combined)
+
+# fig_twopass_combined <- grid_arrange_shared_legend(T, 2, 1, p_box_sim21_twopass, p_refbias_sim21)
+# ggsave("fig_twopass_combined.pdf", width = 12, height = 7, plot=fig_twopass_combined)
+fig_twopass_combined <- grid.arrange(
+  grobs = list(p_box_sim21_twopass, p_refbias_sim21),
+  layout_matrix = rbind(c(1),
+                        c(2))
+)
+if (save == T)
+  ggsave("fig_twopass_combined.pdf", width = 12, height = 7, plot=fig_twopass_combined)
+
+# fig1 <- grid_arrange_shared_legend(T, 1, 2, p_box_sim21, p_refbias_sim21)
+# grid.arrange(
+#   grobs = list(p_box_sim21, p_box_pop_sim21+theme(legend.position="none"), p_refbias_sim21),
+#   layout_matrix = rbind(c(1, 2),
+#                         c(3, 3))
+# )
 # ggsave("test_fig1.pdf", width = 12, height = 5, plot=fig1)
+```
+
+```{r boxplot_for_summary_bias}
+# df_summary_bias <- read.delim("allelic_bias/NA12878_with_indel/bias_reduced.tsv", header = T, sep = "\t")
+df_summary_bias <- read.delim("allelic_bias/NA12878_with_indel/vg_shallow_reduced.tsv", header = T, sep = "\t")
+df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = c("GRCh37", "Major", "RF (1)", "VG (0.01)", "Personalized", "Personalized (h2h)"))
+df_summary_bias$SUM_TAIL <- df_summary_bias$NUM_REFBIAS.0.8. + df_summary_bias$NUM_ALTBIAS.0.2.
+p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, fill = Super_Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Num Biased Sites") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_summary_bias
+p_summary_bias_ref <- ggplot(df_summary_bias, aes(x=Reduced, y=NUM_REFBIAS.0.8., fill = Super_Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Num Biased Sites") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_summary_bias_ref
+p_summary_bias_alt <- ggplot(df_summary_bias, aes(x=Reduced, y=NUM_ALTBIAS.0.2., fill = Super_Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Num Biased Sites") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_summary_bias_alt
+p_summary_bias_r2a <- ggplot(df_summary_bias, aes(x=Reduced, y=REF_TO_ALT, fill = Super_Population)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Ratio REF to ALT") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_summary_bias_r2a
+
+
+save = F
+if (save == T){
+  ggsave("allelic_bias/NA12878_with_indel/fig_sim21_num_biased_sites.pdf", p_summary_bias, width = 12, height = 7)
+  ggsave("allelic_bias/NA12878_with_indel/fig_sim21_num_biased_sites.jpg", p_summary_bias, width = 12, height = 7)
+}
+```
+
+```{r heatmap_varset_comp}
+df_var_popmajor_raw <- read.delim("variant_sets/pop_major_NA12878_jaccard.tsv", header = T, sep = "\t")
+# tmp <- df_var_popmajor_raw$X
+# tmp[tmp=="21_h37maj"] <- "Major"
+# df_var_popmajor_raw$X <- replace(tmp, tmp=="21_h37maj", "Major")
+# colnames(df_var_popmajor_raw) <- replace(row.names(df_var_popmajor_raw), colnames(df_var_popmajor_raw)=="X21_h37maj", "Major")
+
+df_var_popmajor <- melt(df_var_popmajor_raw)
+df_var_popmajor <- df_var_popmajor[!is.na(df_var_popmajor['value']),]
+
+df_var_popmajor$X <- factor(df_var_popmajor$X, levels = c("AFR", "AMR", "EAS", "EUR", "SAS", "21_h37maj", "NA12878"))
+df_var_popmajor$variable <- factor(df_var_popmajor$variable, levels = rev(c("AFR", "AMR", "EAS", "EUR", "SAS", "X21_h37maj", "NA12878")))
+
+ggplot(df_var_popmajor, aes(X, variable)) +
+    geom_tile(aes(fill = value), color='white') +
+    scale_fill_gradient(low='white') +
+    # scale_fill_gradient(low='white', limits=(c(0,1))) +
+    theme_bw() + labs(fill="Jaccard similarity", x="", y="")
+```
+
+# ```{r plot_mapq_cutoff_exps}
+df_mapq_cutoff_exp <- read.delim("mapq-cutoffs/combined.tsv", header = T, sep = "\t")
+df_mapq_cutoff_exp$True <- df_mapq_cutoff_exp$FP.True + df_mapq_cutoff_exp$SP.True
+df_mapq_cutoff_exp$Time <- df_mapq_cutoff_exp$FP.Time + df_mapq_cutoff_exp$SP.Time
+p_mapq_cutoff_exp <- ggplot(df_mapq_cutoff_exp, aes(x=MAPQ, y=True)) + 
+  geom_boxplot() + 
+  # geom_jitter(shape=16, position=position_jitter(0.2), aes(color=ddf$spop)) +
+  ylab("Sensitivity") + xlab("Method") + labs(fill="Super Population") +
+  theme_bw()
+p_mapq_cutoff_exp
 ```
