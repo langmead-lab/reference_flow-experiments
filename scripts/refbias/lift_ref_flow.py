@@ -49,7 +49,8 @@ def merge(ref_bi_list, fn_out):
     for i, sub_df in enumerate(list_df):
         if i > 0:
             df_out[['REF_COUNT', 'ALT_COUNT', 'GAP_COUNT', 'OTHER_COUNT', 'NUM_READS']] += sub_df[['REF_COUNT', 'ALT_COUNT', 'GAP_COUNT', 'OTHER_COUNT', 'NUM_READS']]
-    df_out['REFERENCE_BIAS'] = df_out['REF_COUNT'] / df_out['NUM_READS']
+    df_out['REFERENCE_BIAS'] = df_out['REF_COUNT'] / (df_out['REF_COUNT'] + df_out['ALT_COUNT'])
+    # df_out['REFERENCE_BIAS'] = df_out['REF_COUNT'] / df_out['NUM_READS']
     df_out.to_csv(fn_out, sep = '\t', index = None, float_format = '%.4f')
     return 
 
