@@ -1,0 +1,142 @@
+---
+title: "real_data"
+author: "Nae-Chyun"
+date: "9/30/2019"
+output: html_document
+---
+```{r include}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(reshape2)
+```
+
+### Analyze biased HET sites ###
+```{r load_data_and_show_summary}
+df_ref <- read.delim("histogram/grch37-refbias.txt", header = TRUE, sep = "\t")
+df_maj <- read.delim("histogram/major-refbias.txt", header = TRUE, sep = "\t")
+df_per <- read.delim("histogram/per-refbias.txt", header = TRUE, sep = "\t")
+df_rf <- read.delim("histogram/refflow-thrds0_S1_b1_ld0.txt", header = TRUE, sep = "\t")
+
+ref_alt_frac_ref <- sum(df_ref$REF_COUNT) / sum(df_ref$ALT_COUNT)
+ref_alt_frac_maj <- sum(df_maj$REF_COUNT) / sum(df_maj$ALT_COUNT)
+ref_alt_frac_rf <- sum(df_rf$REF_COUNT) / sum(df_rf$ALT_COUNT)
+ref_alt_frac_per <- sum(df_per$REF_COUNT) / sum(df_per$ALT_COUNT)
+
+mat_ref_alt <- matrix(c(ref_alt_frac_ref, ref_alt_frac_maj, ref_alt_frac_rf, ref_alt_frac_per), ncol=4, byrow=T)
+colnames(mat_ref_alt) <- c("GRCh37", "Major", "RF-b1", "Personalized")
+rownames(mat_ref_alt) <- "REF/ALT"
+mat_ref_alt <- as.table(mat_ref_alt)
+print ("Ratio of REF to ALT")
+print (mat_ref_alt)
+
+print ("diff(REF,RF) / diff(REF,PER)")
+(ref_alt_frac_ref - ref_alt_frac_rf) / (ref_alt_frac_ref - ref_alt_frac_per)
+
+filter_df <- function (df){
+  df <- df[df$NUM_READS > 15,]
+  
+  df$REFBIAS = df$REF_COUNT / df$NUM_READS
+  # df$REFBIAS = as.numeric(as.character(df$REFERENCE_BIAS))
+  # sum(df$REFBIAS > 0.8)
+  # sum(df$REFBIAS < 0.2)
+  return (df)
+}
+df_ref <- filter_df(df_ref)
+df_maj <- filter_df(df_maj)
+df_rf <- filter_df(df_rf)
+df_per <- filter_df(df_per)
+
+calc_improvement_compared_to_per <- function(off_value, df){
+  bias_ref <- sum(df_ref$REFBIAS >= 0.5 + off_value) + sum(df_ref$REFBIAS <= 0.5 - off_value)
+  bias_target <- sum(df$REFBIAS >= 0.5 + off_value) + sum(df$REFBIAS <= 0.5 - off_value)
+  bias_per <- sum(df_per$REFBIAS >= 0.5 + off_value) + sum(df_per$REFBIAS <= 0.5 - off_value)
+  return ((bias_ref - bias_target) / (bias_ref - bias_per))
+}
+print ("Ratio of strongly biased sites")
+print ("RF / PER (0.5+-0.3)")
+calc_improvement_compared_to_per(0.3, df_rf)
+print ("RF / PER (0.5+-0.2)")
+calc_improvement_compared_to_per(0.2, df_rf)
+print ("MAJ / PER (0.5+-0.2)")
+calc_improvement_compared_to_per(0.2, df_maj)
+```
+
+# Plots countour-only histograms #
+```{r histogram_refbias_major}
+hist_step <- 0.025
+num_bins <- 1 / hist_step
+hist_ref <- hist(df_ref$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_maj <- hist(df_maj$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_rf <- hist(df_rf$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+hist_per <- hist(df_per$REFBIAS, breaks=seq(0, 1, by=hist_step))$counts
+
+hist_bins <- rep(seq(0 + hist_step / 2, 1 - hist_step / 2, by=hist_step), 3)
+
+df_hist_onepass <- data.frame(xx = c(hist_ref, hist_maj,  hist_per), yy = rep(c('GRCh37', 'Major', 'Personalized'), each=num_bins))
+
+p_refbias_major <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(500,NA)) + theme_bw() + 
+  xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
+  geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy, linetype=df_hist_onepass$yy), size=1) +
+  theme(legend.position = "right", aspect.ratio=NULL)
+p_refbias_major
+
+save = F
+if (save == T){
+  ggsave("fig_refbias_real_onepass.pdf", p_refbias_major, width = 12, height = 8)
+  ggsave("fig_refbias_real_onepass.jpg", p_refbias_major, width = 12, height = 8)
+}
+```
+
+```{r histogram_refbias_refflow}
+hist_bins_refflow <- rep(seq(0 + hist_step / 2, 1 - hist_step / 2, by=hist_step), 4)
+
+df_hist_all <- data.frame(xx = c(hist_ref, hist_maj, hist_rf, hist_per), yy = rep(c('GRCh37', 'Major', 'RefFlow', 'Personalized'), each=num_bins))
+
+p_refbias <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(400,NA)) + theme_bw() + 
+  xlab("Bias") + ylab("Count") + labs(color='Method') + 
+  geom_step(mapping=aes(x=hist_bins_refflow, y=df_hist_all$xx, colour=df_hist_all$yy), size=1) +
+  theme(legend.position = "right", aspect.ratio=NULL)
+
+# p_refbias <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(500,NA)) + theme_bw() + 
+#   xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
+#   geom_step(mapping=aes(x=hist_bins_refflow, y=df_hist_all$xx, colour=df_hist_all$yy, linetype=df_hist_all$yy), size=1) +
+#   theme(legend.position = "right", aspect.ratio=NULL)
+p_refbias
+
+save = F
+if (save == T){
+  ggsave("real_histogram_refflow_na12878.pdf", p_refbias, width = 9, height = 3)
+  ggsave("real_histogram_refflow_na12878.jpg", p_refbias, width = 9, height = 3)
+}
+```
+
+```{r histogram_mapq_distribution}
+save = T
+# df_mapq_dist <- read.delim("mapq-cutoffs/NA12878-real-wg-mapq.txt", header = F, sep = "\t")
+df_mapq_dist <- read.delim("../mapq-cutoffs/NA12878-sim-21-mapq.txt", header = F)
+p_hist_21_mapq <- ggplot(df_mapq_dist, aes(V1)) + 
+  scale_y_continuous(trans = 'log10', limits=c(1,NA)) + theme_bw() + geom_histogram(bins=43, closed="left") +
+  xlab("MAPQ") + ylab("Count")
+p_hist_21_mapq
+if (save == T){
+  ggsave("fig_hist_count_21_mapq.pdf", p_hist_21_mapq, width = 12, height = 8)
+}
+
+p_freq_21_mapq <- ggplot(df_mapq_dist, aes(V1, stat(density))) + 
+  theme_bw() + geom_freqpoly(bins=43, closed="left") +
+  xlab("MAPQ") + ylab("Density")
+p_freq_21_mapq
+if (save == T){
+  ggsave("fig_hist_freq_21_mapq.pdf", p_freq_21_mapq, width = 12, height = 8)
+}
+
+p_cumcount_21_mapq <- ggplot(df_mapq_dist, aes(V1)) + 
+  stat_ecdf(geom="step") +
+  theme_bw() + 
+  xlab("MAPQ") + ylab("Cumulative frequency")
+p_cumcount_21_mapq
+if (save == T){
+  ggsave("fig_cumcount_21_mapq.pdf", p_cumcount_21_mapq, width = 12, height = 8)
+}
+```

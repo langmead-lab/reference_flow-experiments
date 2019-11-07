@@ -52,24 +52,16 @@ grid_arrange_shared_legend <- function(show_legend, num_rows, legend_plot_id, ..
 #: reads simulated with indels
 df_ref <- read.delim("allelic_bias/NA12878_with_indel/histogram/grch37-refbias.txt", header = TRUE, sep = "\t")
 df_maj <- read.delim("allelic_bias/NA12878_with_indel/histogram/major-refbias.txt", header = TRUE, sep = "\t")
-# df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per_haploid-refbias.txt", header = TRUE, sep = "\t")
-df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per-refbias.txt", header = TRUE, sep = "\t")
 df_rf <- read.delim("allelic_bias/NA12878_with_indel/histogram/refflow-thrds0_S1_b1_ld0.txt", header = TRUE, sep = "\t")
+df_vg <- read.delim("allelic_bias/NA12878_with_indel/histogram/vg_0.01-refbias.txt", header = TRUE, sep = "\t")
+# df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per_h2h-refbias.txt", header = TRUE, sep = "\t")
+df_per <- read.delim("allelic_bias/NA12878_with_indel/histogram/per-refbias.txt", header = TRUE, sep = "\t")
 
 ref_alt_frac_ref <- sum(df_ref$REF_COUNT) / sum(df_ref$ALT_COUNT)
 ref_alt_frac_maj <- sum(df_maj$REF_COUNT) / sum(df_maj$ALT_COUNT)
+ref_alt_frac_vg <- sum(df_vg$REF_COUNT) / sum(df_vg$ALT_COUNT)
 ref_alt_frac_rf <- sum(df_rf$REF_COUNT) / sum(df_rf$ALT_COUNT)
 ref_alt_frac_per <- sum(df_per$REF_COUNT) / sum(df_per$ALT_COUNT)
-
-mat_ref_alt <- matrix(c(ref_alt_frac_ref, ref_alt_frac_maj, ref_alt_frac_rf, ref_alt_frac_per), ncol=4, byrow=T)
-colnames(mat_ref_alt) <- c("GRCh37", "Major", "RF-b1", "Personalized")
-rownames(mat_ref_alt) <- "REF/ALT"
-mat_ref_alt <- as.table(mat_ref_alt)
-print ("Ratio of REF to ALT")
-print (mat_ref_alt)
-
-print ("diff(REF,RF) / diff(REF,PER)")
-(ref_alt_frac_ref - ref_alt_frac_rf) / (ref_alt_frac_ref - ref_alt_frac_per)
 
 filter_df <- function (df){
   df <- df[df$NUM_READS > 15,]
@@ -82,8 +74,20 @@ filter_df <- function (df){
 }
 df_ref <- filter_df(df_ref)
 df_maj <- filter_df(df_maj)
+df_vg <- filter_df(df_vg)
 df_rf <- filter_df(df_rf)
 df_per <- filter_df(df_per)
+
+
+mat_ref_alt <- matrix(c(ref_alt_frac_ref, ref_alt_frac_maj, ref_alt_frac_rf, ref_alt_frac_per), ncol=4, byrow=T)
+colnames(mat_ref_alt) <- c("GRCh37", "Major", "RF-b1", "Personalized")
+rownames(mat_ref_alt) <- "REF/ALT"
+mat_ref_alt <- as.table(mat_ref_alt)
+print ("Ratio of REF to ALT")
+print (mat_ref_alt)
+
+print ("diff(REF,RF) / diff(REF,PER)")
+(ref_alt_frac_ref - ref_alt_frac_rf) / (ref_alt_frac_ref - ref_alt_frac_per)
 
 calc_improvement_compared_to_per <- function(off_value, df){
   bias_ref <- sum(df_ref$REFBIAS >= 0.5 + off_value) + sum(df_ref$REFBIAS <= 0.5 - off_value)
@@ -105,12 +109,13 @@ calc_improvement_compared_to_per(0.2, df_maj)
 ```{r histogram_refbias_major}
 hist_step <- 0.02
 half_step <- hist_step / 2
-hist_ref <- hist(df_ref$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
-hist_maj <- hist(df_maj$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
-hist_rf <- hist(df_rf$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
-hist_per <- hist(df_per$REFBIAS, breaks=seq(-half_step, 1.01, by=hist_step))$counts
+hist_ref <- hist(df_ref$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
+hist_maj <- hist(df_maj$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
+hist_rf <- hist(df_rf$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
+hist_vg <- hist(df_vg$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
+hist_per <- hist(df_per$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
 
-adjusted_bins <- seq(0, 1, by=hist_step) - 0.01
+adjusted_bins <- seq(0, 1, by=hist_step) - half_step
 adjusted_bins[1] <- 0
 adjusted_bins[length(adjusted_bins)] <- 1
 
@@ -119,8 +124,10 @@ plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
   df_hist_onepass <- data.frame(xx = hist_targets, yy = rep(hist_names, each=length(hist_maj)))
   
   p_hist <- ggplot() + scale_y_continuous(trans = 'log10', limits=c(1,NA)) + theme_bw() + 
-    xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
-    geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy, linetype=df_hist_onepass$yy), size=1) +
+    xlab("Bias") + ylab("Count") + labs(color='Method') + 
+    geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
+    # xlab("Bias") + ylab("Count") + labs(color='Method', linetype='Method') + 
+    # geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy, linetype=df_hist_onepass$yy), size=1) +
     theme(legend.position = "right", aspect.ratio=NULL)
   if (save){
     ggsave(paste(prefix, ".jpg", sep=""), p_hist, width = 12, height = 8)
@@ -129,15 +136,17 @@ plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
   return (p_hist)
 }
 
-save = F
+save = T
 
 hist_targets <- c(hist_ref, hist_maj,  hist_per)
 hist_names <- c('GRCh37', 'Major', 'Personalized')
 p_refbias_sim21_major <- plot_contour_hist(hist_targets, hist_names, save, "hist_contour_sim21_major")
 p_refbias_sim21_major
 
-hist_targets <- c(hist_ref, hist_maj, hist_rf, hist_per)
-hist_names <- c('GRCh37', 'Major', 'RefFlow', 'Personalized')
+# hist_targets <- c(hist_ref, hist_maj, hist_rf, hist_per, hist_vg)
+# hist_names <- c('GRCh37', 'Major', 'RefFlow', 'Personalized', 'vg')
+hist_targets <- c(hist_maj, hist_vg, hist_per, hist_rf)
+hist_names <- c('Major', 'vg', 'Personalized', 'RefFlow')
 p_refbias_sim21_refflow <- plot_contour_hist(hist_targets, hist_names, save, "hist_contour_sim21_refflow")
 p_refbias_sim21_refflow
 ```
@@ -225,76 +234,83 @@ plot_tail(tail = "ALT", fn = "fig_scatter_alt.pdf")
 plot_tail(tail = "REF", fn = "fig_scatter_ref.pdf")
 plot_both_tails(fn = "fig_scatter_21.pdf")
 
-plot_tail(tail = "ALT", fn = "fig_scatter_alt.jpg")
-plot_tail(tail = "REF", fn = "fig_scatter_ref.jpg")
-plot_both_tails(fn = "fig_scatter_21.jpg")
+# plot_tail(tail = "ALT", fn = "fig_scatter_alt.jpg")
+# plot_tail(tail = "REF", fn = "fig_scatter_ref.jpg")
+# plot_both_tails(fn = "fig_scatter_21.jpg")
 ```
 
-```{r cluster_tail_sites}
+```{r cluster_tail_sites_old}
 analyze_tail <- function(df, fn, save=F){
-    OFF_TOLERANCE <- 0.1
-    MAPQ_CUTOFF <- 10
-    
-    # df <- df[,c("NUM_VAR", "AVG_MAPQ", "NUM_READS", "REFERENCE_BIAS", "REF_READ_BIAS")]
-    classes <- (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) < OFF_TOLERANCE) * 1 +
-      (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ < MAPQ_CUTOFF) * 2 +
-      (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ >= MAPQ_CUTOFF) * 3
-    df$CLASS <- classes
-    
-    df_diag <- df[df$CLASS == 1 ,]
-    p_diag <- plot_scatter(df_diag, tail="REF")
-    
-    df_off_diag_lowq <- df[df$CLASS == 2 ,]
-    p_off_diag_lowq <- plot_scatter(df_off_diag_lowq, tail="REF")
-    
-    df_off_diag_highq <- df[df$CLASS == 3 ,]
-    p_off_diag_highq <- plot_scatter(df_off_diag_highq, tail="REF")
-    
-    print (nrow(df[df$GOLD == 0,]))
-    print (nrow(df_diag))
-    print (nrow(df_off_diag_lowq))
-    print (nrow(df_off_diag_highq))
-    
-    df$CLASS <- factor(df$CLASS, labels=c("Unbiased", "HapDepleted", "LowQuality","HighQuality"))
-    
-    median.quartile <- function(x){
-      # out <- quantile(x, probs = c(0.25,0.5,0.75))
-      # names(out) <- c("ymin","y","ymax")
-      out <- quantile(x, probs = c(0.5))
-      names(out) <- c("y")
-      return(out) 
-    }
-    
-    #: https://stackoverflow.com/questions/17319487/median-and-quartile-on-violin-plots-in-ggplot2
-    p_avg_mapq <- ggplot(df, aes(x=CLASS, y=AVG_MAPQ)) + 
-      # geom_boxplot() +
-      geom_violin() +
-      stat_summary(fun.y=median.quartile, geom='point')+
-      theme_bw() + theme(legend.position="bottom") + ylab("Avg. MAPQ") + xlab("")
-    
-    p_num_var <- ggplot(df, aes(x=CLASS, y=NUM_VAR)) + 
-      geom_violin() +
-      stat_summary(fun.y=median.quartile, geom='point')+
-      theme_bw() + theme(legend.position="bottom") + ylab("Num. Variants") + xlab("")
-    
-    p_coverage <- ggplot(df, aes(x=CLASS, y=NUM_READS)) + 
-      geom_violin() +
-      stat_summary(fun.y=median.quartile, geom='point')+
-      theme_bw() + theme(legend.position="bottom") + ylab("Coverage")
-    
-    # grid_arrange_shared_legend(F, 1, 1, p_num_var, p_avg_mapq, p_coverage)
-    # grid.arrange(
-    #     grobs = list(p_avg_mapq, p_num_var, p_coverage)
-    # )
-    p <- grid.arrange(
-        grobs = list(p_avg_mapq, p_num_var, p_coverage, 
-                     p_diag + theme(legend.position="none") + labs(x="", y="", title="HapDepleted"),
-                     p_off_diag_lowq + theme(legend.position="none") + labs(x="", y="", title="LowQuality"),
-                     p_off_diag_highq + theme(legend.position="none") + labs(x="", y="", title="HighQuality")),
-        layout_matrix = rbind(c(1, 1, 4), c(2, 2, 5), c(3, 3, 6))
-    )
-    if (save == T)
-        ggsave(fn, p, width = 12, height = 8)
+  # if (ref_or_alt == "ref")
+  #   df = df[df$REFERENCE_BIAS >= 0.8,]
+  # else if (ref_or_alt == "alt")
+  #   df = df[df$REFERENCE_BIAS <= 0.2,]
+  # else
+  #   return (1)
+  
+  OFF_TOLERANCE <- 0.2
+  MAPQ_CUTOFF <- 10
+  
+  # df <- df[,c("NUM_VAR", "AVG_MAPQ", "NUM_READS", "REFERENCE_BIAS", "REF_READ_BIAS")]
+  classes <- (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) < OFF_TOLERANCE) * 1 +
+    (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ < MAPQ_CUTOFF) * 2 +
+    (df$GOLD == 0 & abs(df$REFERENCE_BIAS-df$REF_READ_BIAS) >= OFF_TOLERANCE & df$AVG_MAPQ >= MAPQ_CUTOFF) * 3
+  df$CLASS <- classes
+  
+  df_diag <- df[df$CLASS == 1 ,]
+  p_diag <- plot_scatter(df_diag, tail="REF")
+  
+  df_off_diag_lowq <- df[df$CLASS == 2 ,]
+  p_off_diag_lowq <- plot_scatter(df_off_diag_lowq, tail="REF")
+  
+  df_off_diag_highq <- df[df$CLASS == 3 ,]
+  p_off_diag_highq <- plot_scatter(df_off_diag_highq, tail="REF")
+  
+  print (nrow(df[df$GOLD == 0,]))
+  print (nrow(df_diag))
+  print (nrow(df_off_diag_lowq))
+  print (nrow(df_off_diag_highq))
+  
+  df$CLASS <- factor(df$CLASS, labels=c("Unbiased", "HapDepleted", "LowQuality","HighQuality"))
+  
+  median.quartile <- function(x){
+    # out <- quantile(x, probs = c(0.25,0.5,0.75))
+    # names(out) <- c("ymin","y","ymax")
+    out <- quantile(x, probs = c(0.5))
+    names(out) <- c("y")
+    return(out) 
+  }
+  
+  #: https://stackoverflow.com/questions/17319487/median-and-quartile-on-violin-plots-in-ggplot2
+  p_avg_mapq <- ggplot(df, aes(x=CLASS, y=AVG_MAPQ)) + 
+    # geom_boxplot() +
+    geom_violin() +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Avg. MAPQ") + xlab("")
+  
+  p_num_var <- ggplot(df, aes(x=CLASS, y=NUM_VAR)) + 
+    geom_violin() +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Num. Variants") + xlab("")
+  
+  p_coverage <- ggplot(df, aes(x=CLASS, y=NUM_READS)) + 
+    geom_violin() +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Coverage")
+  
+  # grid_arrange_shared_legend(F, 1, 1, p_num_var, p_avg_mapq, p_coverage)
+  # grid.arrange(
+  #     grobs = list(p_avg_mapq, p_num_var, p_coverage)
+  # )
+  p <- grid.arrange(
+      grobs = list(p_avg_mapq, p_num_var, p_coverage, 
+                   p_diag + theme(legend.position="none") + labs(x="", y="", title="HapDepleted"),
+                   p_off_diag_lowq + theme(legend.position="none") + labs(x="", y="", title="LowQuality"),
+                   p_off_diag_highq + theme(legend.position="none") + labs(x="", y="", title="HighQuality")),
+      layout_matrix = rbind(c(1, 1, 4), c(2, 2, 5), c(3, 3, 6))
+  )
+  if (save == T)
+      ggsave(fn, p, width = 12, height = 8)
 }
 df_unbiased$GOLD <- 1
 df_biased_ref$GOLD <- 0
@@ -302,15 +318,124 @@ df_biased_rf$GOLD <- 0
 df_biased_per$GOLD <- 0
 df_biased_maj$GOLD <- 0
 
-analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.pdf", save = save)
-analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.pdf", save = save)
-analyze_tail(rbind(df_unbiased, df_biased_rf), fn = "fig_violin_biased_rf.pdf", save = save)
-analyze_tail(rbind(df_unbiased, df_biased_per), fn = "fig_violin_biased_per.pdf", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.pdf", ref_or_alt = "ref", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.pdf", ref_or_alt = "ref", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_rf), fn = "fig_violin_biased_rf.pdf", ref_or_alt = "ref", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_per), fn = "fig_violin_biased_per.pdf", ref_or_alt = "ref", save = save)
 
-analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.jpg", save = save)
+analyze_tail(rbind(df_unbiased, df_biased_ref), fn = "fig_violin_biased_ref.jpg", ref_or_alt = "alt", save = save)
 analyze_tail(rbind(df_unbiased, df_biased_maj), fn = "fig_violin_biased_maj.jpg", save = save)
 analyze_tail(rbind(df_unbiased, df_biased_rf), fn = "fig_violin_biased_rf.jpg", save = save)
 analyze_tail(rbind(df_unbiased, df_biased_per), fn = "fig_violin_biased_per.jpg", save = save)
+```
+
+```{r cluster_tail_sites_gold_agnostic}
+analyze_tail <- function(df, df_unbiased, fn, title, ref_or_alt, save=F){
+  if (ref_or_alt == "REF")
+    df = df[df$REFERENCE_BIAS >= 0.8,]
+  else if (ref_or_alt == "ALT")
+    df = df[df$REFERENCE_BIAS <= 0.2,]
+  else
+    return (1)
+  
+  # MAPQ_CUTOFF <- 10
+  
+  # df <- df[,c("NUM_VAR", "AVG_MAPQ", "NUM_READS", "REFERENCE_BIAS", "REF_READ_BIAS")]
+  # classes <- (df$GOLD == 0 & df$NUM_READS < TH_HAPDEPLETED) * 1 +
+  #   (df$GOLD == 0 & df$NUM_READS >= TH_HAPDEPLETED & df$AVG_MAPQ < MAPQ_CUTOFF) * 2 +
+  #   (df$GOLD == 0 & df$NUM_READS >= TH_HAPDEPLETED & df$AVG_MAPQ >= MAPQ_CUTOFF) * 3
+  # classes <- (df$GOLD == 0 & df$NUM_READS < TH_HAPDEPLETED) * 1 +
+  #   (df$GOLD == 0 & df$NUM_READS >= TH_HAPDEPLETED) * 2 
+  
+  #: unsupervised clustering
+  cluster_coverage <- kmeans(df$NUM_READS, 2, centers = c(0.5 * med_unbiased, med_unbiased))
+  # cluster_mapq <- kmeans(df$AVG_MAPQ, 2, centers = c(20, 21))
+  cluster_mapq <- kmeans(df$AVG_MAPQ, 2, centers = c(0, 42))
+  
+  classes <- (cluster_coverage$cluster == 1) * 1 +
+    (cluster_mapq$cluster == 1 & cluster_coverage$cluster == 2) * 2 +
+    (cluster_mapq$cluster == 2 & cluster_coverage$cluster == 2) * 3
+  df$CLASS <- classes
+  
+  df_diag <- df[df$CLASS == 1 ,]
+  print (cor(df_diag$REF_READ_BIAS, df_diag$REFERENCE_BIAS))
+  p_diag <- plot_scatter(df_diag, tail=ref_or_alt)
+  
+  df_off_diag_lowq <- df[df$CLASS == 2 ,]
+  p_off_diag_lowq <- plot_scatter(df_off_diag_lowq, tail=ref_or_alt)
+  
+  df_off_diag_highq <- df[df$CLASS == 3 ,]
+  p_off_diag_highq <- plot_scatter(df_off_diag_highq, tail=ref_or_alt)
+  
+  df$CLASS <- replace(df$CLASS, df$CLASS == 1, "HapDepleted")
+  df$CLASS <- replace(df$CLASS, df$CLASS == 2, "LowQuality")
+  df$CLASS <- replace(df$CLASS, df$CLASS == 3, "HighQuality")
+
+  median.quartile <- function(x){
+    # out <- quantile(x, probs = c(0.25,0.5,0.75))
+    # names(out) <- c("ymin","y","ymax")
+    out <- quantile(x, probs = c(0.5))
+    names(out) <- c("y")
+    return(out) 
+  }
+
+  # df_unbiased$CLASS <- "Unbiased"
+  # df <- rbind(df_unbiased, df)
+  
+  #: https://stackoverflow.com/questions/17319487/median-and-quartile-on-violin-plots-in-ggplot2
+  p_avg_mapq <- ggplot(df, aes(x=CLASS, y=AVG_MAPQ)) + 
+    # geom_boxplot() +
+    geom_violin() +
+    geom_hline(yintercept=quantile(df_unbiased$AVG_MAPQ, probs = c(0.5), names=F), color="red", show.legend = T) +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Avg. MAPQ") + xlab("")
+  
+  p_num_var <- ggplot(df, aes(x=CLASS, y=NUM_VAR)) + 
+    geom_violin() +
+    geom_hline(yintercept=quantile(df_unbiased$NUM_VAR, probs = c(0.5), names=F), color="red", show.legend = T) +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Num. Variants") + xlab("")
+  
+  p_coverage <- ggplot(df, aes(x=CLASS, y=NUM_READS)) + 
+    geom_violin() +
+    geom_hline(yintercept=quantile(df_unbiased$NUM_READS, probs = c(0.5), names=F), color="red", show.legend = T) +
+    stat_summary(fun.y=median.quartile, geom='point')+
+    theme_bw() + theme(legend.position="bottom") + ylab("Coverage")
+  
+  # grid_arrange_shared_legend(F, 1, 1, p_num_var, p_avg_mapq, p_coverage)
+  # grid.arrange(
+  #     grobs = list(p_avg_mapq, p_num_var, p_coverage)
+  # )
+  p <- grid.arrange(
+      grobs = list(p_avg_mapq, p_num_var, p_coverage, 
+                   p_diag + theme(legend.position="none") + labs(x="", y="", title="HapDepleted"),
+                   p_off_diag_lowq + theme(legend.position="none") + labs(x="", y="", title="LowQuality"),
+                   p_off_diag_highq + theme(legend.position="none") + labs(x="", y="", title="HighQuality")),
+      layout_matrix = rbind(c(1, 1, 4), c(2, 2, 5), c(3, 3, 6)),
+      top = textGrob(title, gp=gpar(fontsize=20,font=2))
+  )
+  if (save == T)
+      ggsave(fn, p, width = 12, height = 8)
+}
+df_unbiased$GOLD <- 1
+df_biased_ref$GOLD <- 0
+df_biased_rf$GOLD <- 0
+df_biased_per$GOLD <- 0
+df_biased_maj$GOLD <- 0
+
+med_unbiased <- summary(df_unbiased$NUM_READS)[3]
+TH_HAPDEPLETED <- 0.8 * med_unbiased
+
+save = F
+analyze_tail(df_biased_ref, df_unbiased, fn = "fig_violin_refbiased_ref.pdf", title = "GRCh37", ref_or_alt = "REF", save = save)
+analyze_tail(df_biased_maj, df_unbiased, fn = "fig_violin_refbiased_maj.pdf", title = "Major", ref_or_alt = "REF", save = save)
+analyze_tail(df_biased_rf, df_unbiased, fn = "fig_violin_refbiased_rf.pdf", title = "Refflow", ref_or_alt = "REF", save = save)
+analyze_tail(df_biased_per, df_unbiased, fn = "fig_violin_refbiased_per.pdf", title = "Personalized", ref_or_alt = "REF", save = save)
+
+analyze_tail(df_biased_ref, df_unbiased, fn = "fig_violin_altbiased_ref.pdf", title = "GRCh37", ref_or_alt = "ALT", save = save)
+analyze_tail(df_biased_maj, df_unbiased, fn = "fig_violin_altbiased_maj.pdf", title = "Major", ref_or_alt = "ALT", save = save)
+analyze_tail(df_biased_rf, df_unbiased, fn = "fig_violin_altbiased_rf.pdf", title = "Refflow", ref_or_alt = "ALT", save = save)
+analyze_tail(df_biased_per, df_unbiased, fn = "fig_violin_altbiased_per.pdf", title = "Personalized", ref_or_alt = "ALT", save = save)
 ```
 
 # Analyze ALT tail in alignment using personalized genomes #
@@ -337,23 +462,16 @@ level <- unique(source_and_method)
 df_bias <- data.frame(bias = c(df_sim$V4, df_bias_perA$V4, df_bias_perB$V4), group = source_and_method)
 ```
 
-```{r plot_histogram}
-p <- ggplot(df_bias, aes(x=bias, fill=group)) + 
-  geom_histogram() + theme_bw() + 
-  xlab("Position") + labs(fill='') + ylab("Count")
-p
-```
-
 *HapA reads can be misaligned because of multi-mapping.*
 Many "Aln to hapB (hapA)" reads are aligned incorrectly because such alignments on hapB are higher in MAPQ (same AS).
 
 ```{r boxplot_sensitivity_refflow}
 total <- 2000000
 save = F
-# df_sensitivity <- read.delim("sweep-chr21/0917_reduced.tsv", header = TRUE, sep = "\t")
-df_sensitivity <- read.delim("sweep-chr21/1008_reduced.tsv", header = TRUE, sep = "\t")
+df_sensitivity <- read.delim("sweep-chr21/1019_vg_reduced.tsv", header = TRUE, sep = "\t")
+# df_sensitivity <- read.delim("sweep-chr21/1008_reduced.tsv", header = TRUE, sep = "\t")
 
-filter_should_include_all <- c("GRCh37", "Major", "AFR (1000,LD)", "AMR (1000,LD)", "EAS (1000,LD)", "EUR (1000,LD)", "SAS (1000,LD)", "AFR", "AMR",  "EAS", "EUR", "SAS", "Matched", "RF (Major)", "vg", "RF (1000)", "RF (1)", "RF (1,LD)", "RF (1000,LD)", "Personalized", "Personalized (h2h)")
+filter_should_include_all <- c("GRCh37", "Major", "AFR (1000,LD)", "AMR (1000,LD)", "EAS (1000,LD)", "EUR (1000,LD)", "SAS (1000,LD)", "AFR", "AMR",  "EAS", "EUR", "SAS", "Matched", "RF (Major)", "vg (0.1)", "vg (0.01)", "RF (1000)", "RF (1)", "RF (1,LD)", "RF (1000,LD)", "Personalized", "Personalized (h2h)")
 df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = filter_should_include_all)
 df_filtered <- df_sensitivity %>% filter(!Reduced %in% filter_should_include_all)
 print (unique(df_filtered$Reduced))
@@ -372,7 +490,7 @@ if (save == T) {
   # ggsave("fig_sim21_all_deep.jpg", p_box_sim21, width = 12, height = 7)
 }
 
-filter_onepass <- c("GRCh37", "Major", "AFR","AMR","EAS", "EUR", "SAS", "Matched", "Personalized")
+filter_onepass <- c("GRCh37", "Major", "AFR", "AMR", "EAS", "EUR", "SAS", "Matched", "Personalized", "Personalized (h2h)")
 df_sensitivity_onepass <- df_sensitivity %>% filter(Reduced %in% filter_onepass)
 p_box_sim21_onepass <- ggplot(df_sensitivity_onepass, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
   geom_boxplot() + 
@@ -381,11 +499,11 @@ p_box_sim21_onepass <- ggplot(df_sensitivity_onepass, aes(x=Reduced, y=True.Posi
   theme_bw()
 p_box_sim21_onepass
 if (save == T){
-  ggsave("fig_sim21_onepass.pdf", p_box_sim21_onepass, width = 12, height = 7)
-  ggsave("fig_sim21_onepass.jpg", p_box_sim21_onepass, width = 12, height = 7)
+  ggsave("fig_sim21_onepass.pdf", p_box_sim21_onepass, width = 12, height = 5)
+  ggsave("fig_sim21_onepass.jpg", p_box_sim21_onepass, width = 12, height = 5)
 }
 
-filter_should_include_all <- c("GRCh37", "Major", "Matched", "RF (Major)", "vg", "RF (1000,LD)", "RF (1)", "Personalized")
+filter_should_include_all <- c("GRCh37", "Major", "Matched", "RF (Major)", "vg (0.1)", "vg (0.01)", "RF (1000,LD)", "RF (1)", "Personalized", "Personalized (h2h)")
 df_sensitivity_twopass <- df_sensitivity %>% filter(Reduced %in% filter_should_include_all)
 # df_sensitivity_twopass <- df_sensitivity[df_sensitivity$Label != 1,]
 p_box_sim21_twopass <- ggplot(df_sensitivity_twopass, aes(x=Reduced, y=True.Positive/total, fill = Super.Population)) + 
@@ -395,8 +513,8 @@ p_box_sim21_twopass <- ggplot(df_sensitivity_twopass, aes(x=Reduced, y=True.Posi
   theme_bw()
 p_box_sim21_twopass
 if (save == T){
-  ggsave("fig_sim21_twopass.pdf", p_box_sim21_twopass, width = 12, height = 7)
-  ggsave("fig_sim21_twopass.jpg", p_box_sim21_twopass, width = 12, height = 7)
+  ggsave("fig_sim21_twopass.pdf", p_box_sim21_twopass, width = 12, height = 5)
+  ggsave("fig_sim21_twopass.jpg", p_box_sim21_twopass, width = 12, height = 5)
 }
 
 filter_onepass_det_vs_sto <- c("AFR", "AFR (1000,LD)", "AMR", "AMR (1000,LD)", "EAS", "EAS (1000,LD)", "EUR", "EUR (1000,LD)", "SAS", "SAS (1000,LD)")
@@ -415,8 +533,8 @@ if (save == T){
 
 ```{r boxplot_sensitivity_major}
 total <- 2000000
-df_sensitivity <- read.delim("/Users/naechyun/Dropbox/Documents/University/JHU/Projects/genome_relaxation/experiments/r_plots/sweep-chr21/tmp_mapq_reduced.tsv", header = TRUE, sep = "\t")
-df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = c("21-h37maj", "5", "10", "15", "20", "25", "21-per"))
+# df_sensitivity <- read.delim("/Users/naechyun/Dropbox/Documents/University/JHU/Projects/genome_relaxation/experiments/r_plots/sweep-chr21/tmp_mapq_reduced.tsv", header = TRUE, sep = "\t")
+# df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = c("21-h37maj", "5", "10", "15", "20", "25", "21-per"))
 
 df_sensitivity <- read.delim("sweep-chr21/0830_reduced.tsv", header = TRUE, sep = "\t")
 df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = c("GRCh37", "Major", "AFR", "AMR", "EAS", "EUR", "SAS", "RF-popmajor", "RF", "Personalized"))
@@ -544,6 +662,16 @@ fig_twopass_combined <- grid.arrange(
 if (save == T)
   ggsave("fig_twopass_combined.pdf", width = 12, height = 7, plot=fig_twopass_combined)
 
+fig_twopass_combined <- grid_arrange_shared_legend(T, 2, 1, p_box_sim21_twopass, p_summary_bias)
+if (save == T)
+  ggsave("fig_twopass_combined_box.pdf", width = 12, height = 7, plot=fig_twopass_combined)
+
+fig_twopass_combined_three_rows <- grid_arrange_shared_legend(T, 3, 1, p_box_sim21_twopass, p_summary_bias, p_summary_bias_r2a)
+if (save == T){
+  ggsave("fig_twopass_combined_box_three_rows.pdf", width = 12, height = 10, plot=fig_twopass_combined_three_rows)
+  ggsave("fig_twopass_combined_box_three_rows.jpg", width = 12, height = 10, plot=fig_twopass_combined_three_rows)
+}
+
 # fig1 <- grid_arrange_shared_legend(T, 1, 2, p_box_sim21, p_refbias_sim21)
 # grid.arrange(
 #   grobs = list(p_box_sim21, p_box_pop_sim21+theme(legend.position="none"), p_refbias_sim21),
@@ -555,8 +683,11 @@ if (save == T)
 
 ```{r boxplot_for_summary_bias}
 # df_summary_bias <- read.delim("allelic_bias/NA12878_with_indel/bias_reduced.tsv", header = T, sep = "\t")
-df_summary_bias <- read.delim("allelic_bias/NA12878_with_indel/vg_shallow_reduced.tsv", header = T, sep = "\t")
-df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = c("GRCh37", "Major", "RF (1)", "VG (0.01)", "Personalized", "Personalized (h2h)"))
+df_summary_bias <- read.delim("allelic_bias/1016_deep100_bias_reduced.tsv", header = T, sep = "\t")
+df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = c("GRCh37", "Major", "RF (1)", "RF (1000,LD)", "VG (0.01)", "VG (0.1)", "Personalized", "Personalized (h2h)"))
+
+# df_summary_bias <- read.delim("allelic_bias/1012_deep100_bias_reduced.tsv", header = T, sep = "\t")
+# df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = c("GRCh37", "Major", "RF (1)", "VG (0.01)", "Personalized", "Personalized (h2h)"))
 df_summary_bias$SUM_TAIL <- df_summary_bias$NUM_REFBIAS.0.8. + df_summary_bias$NUM_ALTBIAS.0.2.
 p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, fill = Super_Population)) + 
   geom_boxplot() + 
@@ -589,29 +720,297 @@ if (save == T){
   ggsave("allelic_bias/NA12878_with_indel/fig_sim21_num_biased_sites.pdf", p_summary_bias, width = 12, height = 7)
   ggsave("allelic_bias/NA12878_with_indel/fig_sim21_num_biased_sites.jpg", p_summary_bias, width = 12, height = 7)
 }
+
+# fig_allelic_bias <- grid.arrange(
+#   grobs = list(p_summary_bias, p_summary_bias_r2a),
+#   layout_matrix = rbind(c(1),
+#                         c(2))
+# )
+fig_allelic_bias_two_rows <- grid_arrange_shared_legend(T, 2, 1, p_summary_bias, p_summary_bias_r2a)
+if (save == T){
+  ggsave("fig_twopass_allelic_bias_two_rows.pdf", width = 12, height = 10, plot=fig_allelic_bias_two_rows)
+}
 ```
 
 ```{r heatmap_varset_comp}
-df_var_popmajor_raw <- read.delim("variant_sets/pop_major_NA12878_jaccard.tsv", header = T, sep = "\t")
-# tmp <- df_var_popmajor_raw$X
-# tmp[tmp=="21_h37maj"] <- "Major"
-# df_var_popmajor_raw$X <- replace(tmp, tmp=="21_h37maj", "Major")
-# colnames(df_var_popmajor_raw) <- replace(row.names(df_var_popmajor_raw), colnames(df_var_popmajor_raw)=="X21_h37maj", "Major")
+# df_var_popmajor_raw <- read.delim("variant_sets/pop_major_NA12878_jaccard.tsv", header = T, sep = "\t")
+df_var_popmajor_raw <- read.delim("variant_sets/all_5random_jaccard.tsv", header = T, sep = "\t")
+# df_var_popmajor_raw <- read.delim("variant_sets/all_5random_union.tsv", header = T, sep = "\t")
 
-df_var_popmajor <- melt(df_var_popmajor_raw)
-df_var_popmajor <- df_var_popmajor[!is.na(df_var_popmajor['value']),]
+variant_lvl <- c("major", "AFR_major", "AMR_major", "EUR_major", "EAS_major", "SAS_major", "AFR_stochastic_no_LD", "AMR_stochastic_no_LD", "EUR_stochastic_no_LD", "EAS_stochastic_no_LD", "SAS_stochastic_no_LD", "AFR_stochastic_LD1000", "AMR_stochastic_LD1000", "EUR_stochastic_LD1000", "EAS_stochastic_LD1000", "SAS_stochastic_LD1000", "HG03028", "HG02660", "HG01072", "NA20528", "NA18631", "NA12878")
+# df_var_popmajor_raw$X <- factor(df_var_popmajor_raw$X, levels = variant_lvl)
 
-df_var_popmajor$X <- factor(df_var_popmajor$X, levels = c("AFR", "AMR", "EAS", "EUR", "SAS", "21_h37maj", "NA12878"))
-df_var_popmajor$variable <- factor(df_var_popmajor$variable, levels = rev(c("AFR", "AMR", "EAS", "EUR", "SAS", "X21_h37maj", "NA12878")))
+#: flatten the matrix
+df_var_popmajor <- melt(df_var_popmajor_raw, na.rm = T)
+# df_var_popmajor <- df_var_popmajor[!is.na(df_var_popmajor['value']),]
+
+# filter_should_include_all <- c("GRCh37", "Major", "AFR (1000,LD)", "AMR (1000,LD)", "EAS (1000,LD)", "EUR (1000,LD)", "SAS (1000,LD)", "AFR", "AMR",  "EAS", "EUR", "SAS", "Matched", "RF (Major)", "vg", "RF (1000)", "RF (1)", "RF (1,LD)", "RF (1000,LD)", "Personalized", "Personalized (h2h)")
+# df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = filter_should_include_all)
+# df_filtered <- df_sensitivity %>% filter(!Reduced %in% filter_should_include_all)
+
+# df_var_popmajor$X <- factor(df_var_popmajor$X, levels = c("AFR", "AMR", "EAS", "EUR", "SAS", "21_h37maj", "NA12878"))
+# df_var_popmajor$variable <- factor(df_var_popmajor$variable, levels = rev(c("AFR", "AMR", "EAS", "EUR", "SAS", "X21_h37maj", "NA12878")))
+
+# variant_lvl_X <- c("major", "AFR.major", "AMR.major", "EUR.major", "EAS.major", "SAS.major", "AFR.stochastic_no_LD", "AMR.stochastic_no_LD", "EUR.stochastic_no_LD", "EAS.stochastic_no_LD", "SAS.stochastic_no_LD", "AFR.stochastic_LD1000", "AMR.stochastic_LD1000", "EUR.stochastic_LD1000", "EAS.stochastic_LD1000", "SAS.stochastic_LD1000", "HG02660", "HG01072", "NA20528", "NA18631", "NA12878")
+# variant_lvl <- c("major", "AFR_major", "AMR_major", "EUR_major", "EAS_major", "SAS_major", "AFR_stochastic_no_LD", "AMR_stochastic_no_LD", "EUR_stochastic_no_LD", "EAS_stochastic_no_LD", "SAS_stochastic_no_LD", "AFR_stochastic_LD1000", "AMR_stochastic_LD1000", "EUR_stochastic_LD1000", "EAS_stochastic_LD1000", "SAS_stochastic_LD1000", "HG02660", "HG01072", "NA20528", "NA18631", "HG03028", "NA12878")
+# df_var_popmajor$X <- factor(df_var_popmajor$X, levels = variant_lvl)
+# df_var_popmajor$variable <- factor(df_var_popmajor$variable, levels = variant_lvl)
 
 ggplot(df_var_popmajor, aes(X, variable)) +
-    geom_tile(aes(fill = value), color='white') +
-    scale_fill_gradient(low='white') +
-    # scale_fill_gradient(low='white', limits=(c(0,1))) +
-    theme_bw() + labs(fill="Jaccard similarity", x="", y="")
+  geom_tile(aes(fill = value), color='white') +
+  scale_fill_gradient(low='white') +
+  # scale_fill_gradient(low='white', limits=(c(0,1))) +
+  theme_bw() + labs(fill="Jaccard similarity", x="", y="") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+df_var_popmajor2 <- df_var_popmajor
+df_var_popmajor2$X <- df_var_popmajor$variable
+df_var_popmajor2$variable <- df_var_popmajor$X
+
+df_var_all <- rbind(df_var_popmajor, df_var_popmajor2)
+df_var_all$X <- factor(df_var_all$X, levels = variant_lvl)
+df_var_all$variable <- factor(df_var_all$variable, levels = variant_lvl)
+
+ggplot(df_var_all, aes(X, variable)) +
+  geom_tile(aes(fill = value), color='white') +
+  # scale_fill_gradient(low='white') +
+  scale_fill_gradient2(low='white', limits=(c(min(df_var_all$value),1))) +
+  # scale_fill_gradient2(high='red', low='blue', mid='yellow', midpoint=0.5, limits=(c(min(df_var_all$value),1))) +
+  theme_bw() + labs(fill="Jaccard similarity", x="", y="") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+```{r test_var_scatter}
+df_var_popmajor_test <- df_var_all
+group_major <- c("major", "AFR_major", "AMR_major", "EUR_major", "EAS_major", "SAS_major")
+group_stoc_noLD <- c("AFR_stochastic_no_LD", "AMR_stochastic_no_LD", "EUR_stochastic_no_LD", "EAS_stochastic_no_LD", "SAS_stochastic_no_LD")
+group_stoc_1kLD <- c("AFR_stochastic_LD1000", "AMR_stochastic_LD1000", "EUR_stochastic_LD1000", "EAS_stochastic_LD1000", "SAS_stochastic_LD1000")
+group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660")
+# group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660", "NA12878")
+group_global <- c("major")
+group_AFR <- c("AFR_major", "AFR_stochastic_no_LD", "AFR_stochastic_LD1000", "HG03028")
+group_AMR <- c("AMR_major", "AMR_stochastic_no_LD", "AMR_stochastic_LD1000", "HG01072")
+group_EUR <- c("EUR_major", "EUR_stochastic_no_LD", "EUR_stochastic_LD1000", "NA20528")
+group_EAS <- c("EAS_major", "EAS_stochastic_no_LD", "EAS_stochastic_LD1000", "NA18631")
+group_SAS <- c("SAS_major", "SAS_stochastic_no_LD", "SAS_stochastic_LD1000", "HG02660")
+
+var_groups <- c("Major", "Stoc. noLD", "Stoc. 1kLD", "Individuals")
+ethnicity_groups <- c("Global", "AFR", "AMR", "EUR", "EAS", "SAS")
+
+# add group labels corresponding to X
+df_var_popmajor_test_major <- df_var_popmajor_test %>% filter(X %in% group_major, value != 1)
+df_var_popmajor_test_major$group_X = var_groups[1]
+df_var_popmajor_test_stoc_noLD <- df_var_popmajor_test %>% filter(X %in% group_stoc_noLD, value != 1)
+df_var_popmajor_test_stoc_noLD$group_X = var_groups[2]
+df_var_popmajor_test_stoc_1kLD <- df_var_popmajor_test %>% filter(X %in% group_stoc_1kLD, value != 1)
+df_var_popmajor_test_stoc_1kLD$group_X = var_groups[3]
+df_var_popmajor_test_rand_indiv <- df_var_popmajor_test %>% filter(X %in% group_rand_indiv, value != 1)
+df_var_popmajor_test_rand_indiv$group_X = var_groups[4]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_major, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+# add group labels corresponding to variable
+df_var_popmajor_test_major <- df_var_popmajor_test %>% filter(variable %in% group_major, value != 1)
+df_var_popmajor_test_major$group_var = var_groups[1]
+df_var_popmajor_test_stoc_noLD <- df_var_popmajor_test %>% filter(variable %in% group_stoc_noLD, value != 1)
+df_var_popmajor_test_stoc_noLD$group_var = var_groups[2]
+df_var_popmajor_test_stoc_1kLD <- df_var_popmajor_test %>% filter(variable %in% group_stoc_1kLD, value != 1)
+df_var_popmajor_test_stoc_1kLD$group_var = var_groups[3]
+df_var_popmajor_test_rand_indiv <- df_var_popmajor_test %>% filter(variable %in% group_rand_indiv, value != 1)
+df_var_popmajor_test_rand_indiv$group_var = var_groups[4]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_major, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+# add ethnicity labels corresponding to variable
+df_var_popmajor_test_global <- df_var_popmajor_test %>% filter(variable %in% group_global, value != 1)
+df_var_popmajor_test_global$ethnicity = ethnicity_groups[1]
+df_var_popmajor_test_AFR <- df_var_popmajor_test %>% filter(variable %in% group_AFR, value != 1)
+df_var_popmajor_test_AFR$ethnicity = ethnicity_groups[2]
+df_var_popmajor_test_AMR <- df_var_popmajor_test %>% filter(variable %in% group_AMR, value != 1)
+df_var_popmajor_test_AMR$ethnicity = ethnicity_groups[3]
+df_var_popmajor_test_EUR <- df_var_popmajor_test %>% filter(variable %in% group_EUR, value != 1)
+df_var_popmajor_test_EUR$ethnicity = ethnicity_groups[4]
+df_var_popmajor_test_EAS <- df_var_popmajor_test %>% filter(variable %in% group_EAS, value != 1)
+df_var_popmajor_test_EAS$ethnicity = ethnicity_groups[5]
+df_var_popmajor_test_SAS <- df_var_popmajor_test %>% filter(variable %in% group_SAS, value != 1)
+df_var_popmajor_test_SAS$ethnicity = ethnicity_groups[6]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_global, df_var_popmajor_test_AFR, df_var_popmajor_test_AMR, df_var_popmajor_test_EUR, df_var_popmajor_test_EAS, df_var_popmajor_test_SAS)
+
+# df_var_popmajor_test$num_X <- as.numeric(df_var_popmajor_test$X)
+# df_var_popmajor_test$num_var <- as.numeric(df_var_popmajor_test$variable)
+
+df_var_popmajor_test$group_X <- factor(df_var_popmajor_test$group_X, levels = var_groups)
+df_var_popmajor_test$group_var <- factor(df_var_popmajor_test$group_var, levels = var_groups)
+
+p <- ggplot(df_var_popmajor_test, aes(x=group_X, y=value, color=group_var, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+p
+```
+```{r test_var_scatter_split_major}
+df_var_popmajor_test <- df_var_all
+group_major_global <- c("major")
+group_major_pop <- c("AFR_major", "AMR_major", "EUR_major", "EAS_major", "SAS_major")
+group_stoc_noLD <- c("AFR_stochastic_no_LD", "AMR_stochastic_no_LD", "EUR_stochastic_no_LD", "EAS_stochastic_no_LD", "SAS_stochastic_no_LD")
+group_stoc_1kLD <- c("AFR_stochastic_LD1000", "AMR_stochastic_LD1000", "EUR_stochastic_LD1000", "EAS_stochastic_LD1000", "SAS_stochastic_LD1000")
+group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660")
+# group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660", "NA12878")
+group_global <- c("major")
+group_AFR <- c("AFR_major", "AFR_stochastic_no_LD", "AFR_stochastic_LD1000", "HG03028")
+group_AMR <- c("AMR_major", "AMR_stochastic_no_LD", "AMR_stochastic_LD1000", "HG01072")
+group_EUR <- c("EUR_major", "EUR_stochastic_no_LD", "EUR_stochastic_LD1000", "NA20528")
+group_EAS <- c("EAS_major", "EAS_stochastic_no_LD", "EAS_stochastic_LD1000", "NA18631")
+group_SAS <- c("SAS_major", "SAS_stochastic_no_LD", "SAS_stochastic_LD1000", "HG02660")
+
+var_groups <- c("Global Major", "Pop-specific Major", "Stoc. noLD", "Stoc. 1kLD", "Individuals")
+ethnicity_groups <- c("Global", "AFR", "AMR", "EUR", "EAS", "SAS")
+
+# add group labels corresponding to X
+df_var_popmajor_test_major_global <- df_var_popmajor_test %>% filter(X %in% group_major_global, value != 1)
+df_var_popmajor_test_major_global$group_X = var_groups[1]
+df_var_popmajor_test_major_pop <- df_var_popmajor_test %>% filter(X %in% group_major_pop, value != 1)
+df_var_popmajor_test_major_pop$group_X = var_groups[2]
+df_var_popmajor_test_stoc_noLD <- df_var_popmajor_test %>% filter(X %in% group_stoc_noLD, value != 1)
+df_var_popmajor_test_stoc_noLD$group_X = var_groups[3]
+df_var_popmajor_test_stoc_1kLD <- df_var_popmajor_test %>% filter(X %in% group_stoc_1kLD, value != 1)
+df_var_popmajor_test_stoc_1kLD$group_X = var_groups[4]
+df_var_popmajor_test_rand_indiv <- df_var_popmajor_test %>% filter(X %in% group_rand_indiv, value != 1)
+df_var_popmajor_test_rand_indiv$group_X = var_groups[5]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_major_global, df_var_popmajor_test_major_pop, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+# add group labels corresponding to variable
+df_var_popmajor_test_major_global <- df_var_popmajor_test %>% filter(variable %in% group_major_global, value != 1)
+df_var_popmajor_test_major_global$group_var = var_groups[1]
+df_var_popmajor_test_major_pop <- df_var_popmajor_test %>% filter(variable %in% group_major_pop, value != 1)
+df_var_popmajor_test_major_pop$group_var = var_groups[2]
+df_var_popmajor_test_stoc_noLD <- df_var_popmajor_test %>% filter(variable %in% group_stoc_noLD, value != 1)
+df_var_popmajor_test_stoc_noLD$group_var = var_groups[3]
+df_var_popmajor_test_stoc_1kLD <- df_var_popmajor_test %>% filter(variable %in% group_stoc_1kLD, value != 1)
+df_var_popmajor_test_stoc_1kLD$group_var = var_groups[4]
+df_var_popmajor_test_rand_indiv <- df_var_popmajor_test %>% filter(variable %in% group_rand_indiv, value != 1)
+df_var_popmajor_test_rand_indiv$group_var = var_groups[5]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_major_global, df_var_popmajor_test_major_pop, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+# add ethnicity labels corresponding to variable
+df_var_popmajor_test_global <- df_var_popmajor_test %>% filter(variable %in% group_global, value != 1)
+df_var_popmajor_test_global$ethnicity = ethnicity_groups[1]
+df_var_popmajor_test_AFR <- df_var_popmajor_test %>% filter(variable %in% group_AFR, value != 1)
+df_var_popmajor_test_AFR$ethnicity = ethnicity_groups[2]
+df_var_popmajor_test_AMR <- df_var_popmajor_test %>% filter(variable %in% group_AMR, value != 1)
+df_var_popmajor_test_AMR$ethnicity = ethnicity_groups[3]
+df_var_popmajor_test_EUR <- df_var_popmajor_test %>% filter(variable %in% group_EUR, value != 1)
+df_var_popmajor_test_EUR$ethnicity = ethnicity_groups[4]
+df_var_popmajor_test_EAS <- df_var_popmajor_test %>% filter(variable %in% group_EAS, value != 1)
+df_var_popmajor_test_EAS$ethnicity = ethnicity_groups[5]
+df_var_popmajor_test_SAS <- df_var_popmajor_test %>% filter(variable %in% group_SAS, value != 1)
+df_var_popmajor_test_SAS$ethnicity = ethnicity_groups[6]
+df_var_popmajor_test <- rbind(df_var_popmajor_test_global, df_var_popmajor_test_AFR, df_var_popmajor_test_AMR, df_var_popmajor_test_EUR, df_var_popmajor_test_EAS, df_var_popmajor_test_SAS)
+
+# df_var_popmajor_test$num_X <- as.numeric(df_var_popmajor_test$X)
+# df_var_popmajor_test$num_var <- as.numeric(df_var_popmajor_test$variable)
+
+df_var_popmajor_test$group_X <- factor(df_var_popmajor_test$group_X, levels = var_groups)
+df_var_popmajor_test$group_var <- factor(df_var_popmajor_test$group_var, levels = var_groups)
+
+p <- ggplot(df_var_popmajor_test, aes(x=group_X, y=value, color=group_var, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+p
 ```
 
-# ```{r plot_mapq_cutoff_exps}
+```{r plot_var_bedtools}
+df_var_bedtools <- read.delim("variant_sets/bedtools_jaccard.tsv", header = T, sep = "\t")
+
+group_major_global <- c("21_h37maj")
+group_major_pop <- c("21_superpop_AFR_thrds0.5_S0_b1_ld0", "21_superpop_AMR_thrds0.5_S0_b1_ld0", "21_superpop_EUR_thrds0.5_S0_b1_ld0", "21_superpop_EAS_thrds0.5_S0_b1_ld0", "21_superpop_SAS_thrds0.5_S0_b1_ld0")
+group_stoc_noLD <- c("21_superpop_AFR_thrds0_S1_b1_ld0", "21_superpop_AMR_thrds0_S1_b1_ld0", "21_superpop_EUR_thrds0_S1_b1_ld0", "21_superpop_EAS_thrds0_S1_b1_ld0", "21_superpop_SAS_thrds0_S1_b1_ld0")
+group_stoc_1kLD <- c("21_superpop_AFR_thrds0_S1_b1000_ld1", "21_superpop_AMR_thrds0_S1_b1000_ld1", "21_superpop_EUR_thrds0_S1_b1000_ld1", "21_superpop_EAS_thrds0_S1_b1000_ld1", "21_superpop_SAS_thrds0_S1_b1000_ld1")
+group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660")
+# group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660", "NA12878")
+group_global <- c("21_h37maj")
+group_AFR <- c("21_superpop_AFR_thrds0.5_S0_b1_ld0", "21_superpop_AFR_thrds0_S1_b1_ld0", "21_superpop_AFR_thrds0_S1_b1000_ld1", "HG03028")
+group_AMR <- c("21_superpop_AMR_thrds0.5_S0_b1_ld0", "21_superpop_AMR_thrds0_S1_b1_ld0", "21_superpop_AMR_thrds0_S1_b1000_ld1", "HG01072")
+group_EUR <- c("21_superpop_EUR_thrds0.5_S0_b1_ld0", "21_superpop_EUR_thrds0_S1_b1_ld0", "21_superpop_EUR_thrds0_S1_b1000_ld1", "NA20528")
+group_EAS <- c("21_superpop_EAS_thrds0.5_S0_b1_ld0", "21_superpop_EAS_thrds0_S1_b1_ld0", "21_superpop_EAS_thrds0_S1_b1000_ld1", "NA18631")
+group_SAS <- c("21_superpop_SAS_thrds0.5_S0_b1_ld0", "21_superpop_SAS_thrds0_S1_b1_ld0", "21_superpop_SAS_thrds0_S1_b1000_ld1", "HG02660")
+
+var_groups <- c("Global Major", "Pop-specific Major", "Stoc. noLD", "Stoc. 1kLD", "Individuals")
+ethnicity_groups <- c("Global", "AFR", "AMR", "EUR", "EAS", "SAS")
+
+#: fill the entire matrix, make it symmetric
+df_var_bedtools2 <- df_var_bedtools
+df_var_bedtools2$x <- df_var_bedtools$y
+df_var_bedtools2$y <- df_var_bedtools$x
+df_var_all <- rbind(df_var_bedtools, df_var_bedtools2)
+# df_var_all$x <- factor(df_var_all$x, levels = variant_lvl)
+# df_var_all$variable <- factor(df_var_all$variable, levels = variant_lvl)
+
+#: add group labels corresponding to x
+df_var_popmajor_test_major_global <- df_var_all %>% filter(x %in% group_major_global, jaccard != 1)
+df_var_popmajor_test_major_global$group_x = var_groups[1]
+df_var_popmajor_test_major_pop <- df_var_all %>% filter(x %in% group_major_pop, jaccard != 1)
+df_var_popmajor_test_major_pop$group_x = var_groups[2]
+df_var_popmajor_test_stoc_noLD <- df_var_all %>% filter(x %in% group_stoc_noLD, jaccard != 1)
+df_var_popmajor_test_stoc_noLD$group_x = var_groups[3]
+df_var_popmajor_test_stoc_1kLD <- df_var_all %>% filter(x %in% group_stoc_1kLD, jaccard != 1)
+df_var_popmajor_test_stoc_1kLD$group_x = var_groups[4]
+df_var_popmajor_test_rand_indiv <- df_var_all %>% filter(x %in% group_rand_indiv, jaccard != 1)
+df_var_popmajor_test_rand_indiv$group_x = var_groups[5]
+df_var_all <- rbind(df_var_popmajor_test_major_global, df_var_popmajor_test_major_pop, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+#: add group labels corresponding to y
+df_var_popmajor_test_major_global <- df_var_all %>% filter(y %in% group_major_global, jaccard != 1)
+df_var_popmajor_test_major_global$group_y = var_groups[1]
+df_var_popmajor_test_major_pop <- df_var_all %>% filter(y %in% group_major_pop, jaccard != 1)
+df_var_popmajor_test_major_pop$group_y = var_groups[2]
+df_var_popmajor_test_stoc_noLD <- df_var_all %>% filter(y %in% group_stoc_noLD, jaccard != 1)
+df_var_popmajor_test_stoc_noLD$group_y = var_groups[3]
+df_var_popmajor_test_stoc_1kLD <- df_var_all %>% filter(y %in% group_stoc_1kLD, jaccard != 1)
+df_var_popmajor_test_stoc_1kLD$group_y = var_groups[4]
+df_var_popmajor_test_rand_indiv <- df_var_all %>% filter(y %in% group_rand_indiv, jaccard != 1)
+df_var_popmajor_test_rand_indiv$group_y = var_groups[5]
+df_var_all <- rbind(df_var_popmajor_test_major_global, df_var_popmajor_test_major_pop, df_var_popmajor_test_stoc_noLD, df_var_popmajor_test_stoc_1kLD, df_var_popmajor_test_rand_indiv)
+
+#: add ethnicity labels corresponding to y
+df_var_popmajor_test_global <- df_var_all %>% filter(y %in% group_global, jaccard != 1)
+df_var_popmajor_test_global$ethnicity = ethnicity_groups[1]
+df_var_popmajor_test_AFR <- df_var_all %>% filter(y %in% group_AFR, jaccard != 1)
+df_var_popmajor_test_AFR$ethnicity = ethnicity_groups[2]
+df_var_popmajor_test_AMR <- df_var_all %>% filter(y %in% group_AMR, jaccard != 1)
+df_var_popmajor_test_AMR$ethnicity = ethnicity_groups[3]
+df_var_popmajor_test_EUR <- df_var_all %>% filter(y %in% group_EUR, jaccard != 1)
+df_var_popmajor_test_EUR$ethnicity = ethnicity_groups[4]
+df_var_popmajor_test_EAS <- df_var_all %>% filter(y %in% group_EAS, jaccard != 1)
+df_var_popmajor_test_EAS$ethnicity = ethnicity_groups[5]
+df_var_popmajor_test_SAS <- df_var_all %>% filter(y %in% group_SAS, jaccard != 1)
+df_var_popmajor_test_SAS$ethnicity = ethnicity_groups[6]
+df_var_all <- rbind(df_var_popmajor_test_global, df_var_popmajor_test_AFR, df_var_popmajor_test_AMR, df_var_popmajor_test_EUR, df_var_popmajor_test_EAS, df_var_popmajor_test_SAS)
+
+df_var_all$group_x <- factor(df_var_all$group_x, levels = var_groups)
+df_var_all$group_y <- factor(df_var_all$group_y, levels = var_groups)
+
+fig_var_bedtools_jaccard <- ggplot(df_var_all, aes(x=group_x, y=jaccard, color=group_y, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+fig_var_bedtools_jaccard
+
+fig_var_bedtools_union <- ggplot(df_var_all, aes(x=group_x, y=union, color=group_y, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Union") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+fig_var_bedtools_union
+
+df_var_all <- df_var_all %>% filter(!y %in% group_major_pop, jaccard != 1)
+df_var_all <- df_var_all %>% filter(!y %in% group_rand_indiv, jaccard != 1)
+
+fig_var_bedtools_jaccard_filtered <- ggplot(df_var_all, aes(x=group_x, y=jaccard, color=group_y, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+fig_var_bedtools_jaccard_filtered
+
+fig_var_bedtools_union_filtered <- ggplot(df_var_all, aes(x=group_x, y=union, color=group_y, shape=ethnicity)) + geom_jitter() +
+  theme_bw() +
+  ylab("Union") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+fig_var_bedtools_union_filtered
+```
+
+```{r plot_mapq_cutoff_exps}
 df_mapq_cutoff_exp <- read.delim("mapq-cutoffs/combined.tsv", header = T, sep = "\t")
 df_mapq_cutoff_exp$True <- df_mapq_cutoff_exp$FP.True + df_mapq_cutoff_exp$SP.True
 df_mapq_cutoff_exp$Time <- df_mapq_cutoff_exp$FP.Time + df_mapq_cutoff_exp$SP.Time
