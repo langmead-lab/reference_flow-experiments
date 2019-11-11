@@ -7,15 +7,34 @@ import sys
 import argparse
 import random
 
-def get_mutation_type(info):
+def get_mutation_type(orig, alts):
     '''
-    Returns the value of the VT attribute from the info field
+    Compare length of REF allele and ALT allele(s) and report variant type:
+        SNP: equal in length, length == 1
+        MNP: equal in length, length > 1
+        INDEL: not equal in length
+        MULT: multiple ALT alleles
+        (assertion fails if more than one REF allele)
     '''
+    assert orig.count(',') == 0
+    if alts.count(',') == 0:
+        if len(orig) == len(alts) and len(orig) == 1:
+            return 'SNP'
+        elif len(orig) == len(alts) and len(orig) != 1:
+            return 'MNP'
+        elif len(orig) != len(alts):
+            return 'INDEL'
+    return 'MULT'
+        
+# def get_mutation_type(info):
+#     '''
+#     Returns the value of the VT attribute from the info field
+#     '''
 
-    attrs = info.split(';')
-    for a in attrs:
-        if a[:3] == 'VT=':
-            return a[3:]
+#     attrs = info.split(';')
+#     for a in attrs:
+#         if a[:3] == 'VT=':
+#             return a[3:]
 
 def get_allele_freq(info, num_haps):
     '''
@@ -160,9 +179,10 @@ def update_genome(
                     exit()
             continue
         row = line.rstrip().split('\t')
-        type = get_mutation_type(row[7])
+        # type = get_mutation_type(row[7])
+        type = get_mutation_type(row[3], row[4])
 
-        if row[0] != chrom:
+        if row[0] != chrom and row[0] != 'chr' + chrom:
             continue
         loc = int(row[1])
 
@@ -198,15 +218,17 @@ def update_genome(
                         break
 
         #: supports tri-allelic
-        if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
+        # if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
+        if type == 'SNP' or (indels and type in ['INDEL', 'MULT']):
             orig = row[3]
             alts = row[4].split(',')
 
-            alleles = row[col].split('|')
             if is_ld:
+                alleles = row[col].split('|')
                 alleleA = int(alleles[ld_hap])
                 alleleB = 0
             elif indiv != None:
+                alleles = row[col].split('|')
                 alleleA = int(alleles[0])
                 alleleB = int(alleles[1])
             else:
