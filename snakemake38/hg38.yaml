@@ -1,0 +1,50 @@
+CHROM : '21'
+# CHROM : '9'
+INDIV : ['NA12878']
+# INDIV : ['HG03028', 'NA20528', 'HG01939', 'HG02660', 'NA20281', 'NA19461']
+# INDIV : ['HG00632', 'NA20534', 'HG00331', 'HG04180', 'NA18617']
+# INDIV : ['HG03028', 'NA20528', 'HG01939', 'HG02660', 'NA20281', 'HG00704', 'HG00551', 'HG02025', 'HG02151', 'HG02128', 'NA19774', 'HG01177', 'HG00097', 'HG04189', 'HG01918', 'HG03499', 'HG02224', 'NA19235', 'NA19118', 'NA19661', 'HG01198', 'NA12003', 'HG03096', 'HG02727', 'HG01979', 'HG01619', 'NA21127', 'HG03741', 'NA20802', 'HG02079', 'HG01951', 'NA18637', 'HG02771', 'HG03898', 'HG02122', 'HG03757', 'HG03950', 'HG02635', 'NA18602', 'NA18517', 'HG00671', 'NA12830', 'NA19904', 'NA19149', 'HG04153', 'HG03081', 'NA20758', 'HG01094', 'NA18915', 'NA20801', 'NA21135', 'HG00266', 'NA18631', 'HG03895', 'NA20274', 'NA20525', 'HG02407', 'HG01920', 'HG00533', 'HG02105', 'NA19663', 'HG03162', 'HG01495', 'HG02813', 'HG03202', 'NA19308', 'NA18559', 'NA19350', 'NA19461', 'HG01072', 'HG03965', 'HG01519', 'HG02703', 'NA19723', 'HG02521', 'NA20775', 'HG03796', 'HG02322', 'HG00154', 'NA12546', 'HG00155', 'HG02819', 'NA18858', 'HG01869', 'NA19005', 'NA19320', 'HG04063', 'HG01600', 'HG03391', 'HG00336', 'HG02282', 'HG03925', 'NA12751', 'NA20518', 'HG03449', 'HG04219', 'NA12340', 'HG00240', 'NA18623', 'NA18582']
+GROUP : ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
+NUM_SIM_READS : 1000000
+ALN_MAPQ_THRSD : '10'
+
+POP_THRSD : 0
+POP_STOCHASTIC : 1
+POP_BLOCK_SIZE : 1
+POP_USE_LD : 0
+
+# POP_THRSD : 0.5
+# POP_STOCHASTIC : 0
+# POP_BLOCK_SIZE : 1
+# POP_USE_LD : 0
+
+BIAS_MIN_READ_COUNT : 2
+#: A HET site with
+#: "ref/(ref+alt) >= 0.5 + BIAS_TAIL_THRDS" /
+#: "ref/(ref+alt) <= 0.5 - BIAS_TAIL_THRDS"
+#: will be defined as strongly biased toward ref/alt
+BIAS_TAIL_THRDS : 0.3
+
+DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38'
+GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38/chr21.fa'
+UNPHASED_VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/gnomad_v3/gnomad.genomes.r3.0.sites.chr21.vcf.bgz'
+PHASED_VCF : '/scratch/groups/blangme2/naechyun/1kg_hg38/ALL.chr21.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz'
+FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
+SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
+
+BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
+MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
+LIFTOVER : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/liftover/liftover'
+PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
+DIR_SCRIPTS : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/scripts'
+# DIR_SCRIPTS : '/scratch/groups/blangme2/naechyun/relaxing/scripts'
+
+### graph aligner related
+# ALLELE_FREQ_FOR_VG : 0.01
+ALLELE_FREQ_FOR_VG : 0.1
+VG : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/vg/vg'
+
+TIME : '/home-1/cnaechy1@jhu.edu/bin/time-1.9'
+THREADS : 16
+MAX_SYSTEM_THREADS : 48
+RAND_SEED : 0
