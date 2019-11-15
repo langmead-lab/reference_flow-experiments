@@ -36,24 +36,33 @@ def get_mutation_type(orig, alts):
 #         if a[:3] == 'VT=':
 #             return a[3:]
 
-def get_allele_freq(info, num_haps):
+def get_allele_freq(info, num_haps, data_source, gnomad_af_field):
     '''
     Returns allele frequency for a variant.
     Not using the "AF" attribute because it's calculated
     based on the entire 1KG population.
     '''
     attrs = info.split(';')
-    for a in attrs:
-        if a[:3] == 'AC=':
-            try:
-                count = int(a[3:])
-            #: when there are multiple alleles,
-            #: use the highest frequency
-            except:
-                a = a[3:].split(',')
-                inta = [int(i) for i in a]
-                count = max(inta)
-    return float(count) / num_haps
+    #: for 1kg data, calculate allele frequency using phasing information
+    if data_source == '1kg':
+        for a in attrs:
+            if a[:3] == 'AC=':
+                try:
+                    count = int(a[3:])
+                #: when there are multiple alleles,
+                #: use the highest frequency
+                except:
+                    a = a[3:].split(',')
+                    inta = [int(i) for i in a]
+                    count = max(inta)
+        return float(count) / num_haps
+    #: for genomad data, use pre-calculated allele frequency
+    elif data_source == 'gnomad':
+        for a in attrs:
+            field = a.split('=')[0]
+            if field == gnomad_af_field:
+                return float(a.split('=')[1])
+    return -1
 
 def update_allele(
     orig,
@@ -111,11 +120,21 @@ def update_genome(
     is_stochastic,
     block_size,
     is_ld,
-    exclude_list
+    exclude_list,
+    data_source,
+    gnomad_af_field
 ):
     #: assertions
     if is_ld:
         assert indiv == None
+
+    #: currently only supports 1000 Genomes ('1kg') and GnomAD ('gnomad') datasets
+    assert data_source in ['1kg', 'gnomad']
+    if data_source == 'gnomad':
+        #: GnomAD has no phasing information
+        assert indiv == None
+        assert is_ld == False
+        assert exclude_list == ''
 
     '''
     ##fileformat=VCFv4.1
@@ -176,7 +195,7 @@ def update_genome(
                         col = i
                 if not col:
                     print('Error! Couldn\'t find individual %s in VCF' % indiv)
-                    exit()
+                    exit(1)
             continue
         row = line.rstrip().split('\t')
         # type = get_mutation_type(row[7])
@@ -186,36 +205,43 @@ def update_genome(
             continue
         loc = int(row[1])
 
-        if is_stochastic:
-            if is_ld == False:
-                freq = get_allele_freq(row[7], num_haps)
-                #: only updates the random number when exceeding current block
-                if loc >= current_block_pos + block_size:
-                    # print ('--update block--')
-                    # print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
-                    rr = random.random()
-                    current_block_pos = int(loc / block_size) * block_size
-                    # print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+        #: no LD stochastic update for 1kg and gnomad
+        if is_stochastic and is_ld == False:
+            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_af_field)
+            # print ('freq', freq)
+            if freq < 0:
+                # print ('Warning! gnomad_af_field ({}) is not found'.format(gnomad_af_field))
+                # print (line)
+                continue
+            #: only updates the random number when exceeding current block
+            if loc >= current_block_pos + block_size:
+                # print ('--update block--')
+                # print ('prev rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
+                rr = random.random()
+                current_block_pos = int(loc / block_size) * block_size
+                # print ('updt rr = {0}, block_pos = {1}'.format(rr, current_block_pos))
 
-                if rr > freq:
-                    continue
-                # print ('selected, rr = {}'.format(rr), row[:2], freq)
-            else:
-                if loc >= current_block_pos + block_size:
-                    while 1:
-                        ld_indiv = random.choice(labels[9:])
-                        ld_hap = random.choice([0,1])
-                        if ld_indiv in exclude_list:
-                            print ('exclude {0}: {1}-{2}'.format(current_block_pos, ld_indiv, ld_hap))
-                            continue
-                        current_block_pos = int(loc / block_size) * block_size
-                        for i in range(9, len(labels)):
-                            if labels[i] == ld_indiv:
-                                col = i
-                        if not col:
-                            print('Error! Couldn\'t find individual %s in VCF' % indiv)
-                            exit()    
-                        break
+            if rr > freq:
+                continue
+            # print ('selected, rr = {}'.format(rr), row[:2], freq)
+
+        #: LD-preserving stochastic update for 1kg, this mode is not supported when using gnomad data
+        if is_stochastic and is_ld and data_source == '1kg':
+            if loc >= current_block_pos + block_size:
+                while 1:
+                    ld_indiv = random.choice(labels[9:])
+                    ld_hap = random.choice([0,1])
+                    if ld_indiv in exclude_list:
+                        print ('exclude {0}: {1}-{2}'.format(current_block_pos, ld_indiv, ld_hap))
+                        continue
+                    current_block_pos = int(loc / block_size) * block_size
+                    for i in range(9, len(labels)):
+                        if labels[i] == ld_indiv:
+                            col = i
+                    if not col:
+                        print('Error! Couldn\'t find individual %s in VCF' % indiv)
+                        exit()    
+                    break    
 
         #: supports tri-allelic
         # if type == 'SNP' or (indels and type in ['INDEL', 'SNP,INDEL']):
@@ -386,7 +412,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '-ex', '--exclude-name', type=str, default='', help="Name of individuals in VCF to exclude; separate by comma ['']"
     )
-
+    parser.add_argument(
+        '-d', '--data-source', type=str, default='1kg', help="Source of population genomic data, currently support '1kg' and 'gnomad' ['1kg']"
+    )
+    parser.add_argument(
+        '--gnomad-af-field', type=str, default='AF',
+        help="GnomAD allele frequency field; activated only in stochastic mode; \
+            can be changed depending on popultion of interest ['AF']"
+    )
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -412,5 +445,7 @@ if __name__ == '__main__':
         is_stochastic = args.stochastic,
         block_size = args.block_size,
         is_ld = args.ld,
-        exclude_list = args.exclude_name
+        exclude_list = args.exclude_name,
+        data_source = args.data_source,
+        gnomad_af_field = args.gnomad_af_field
     )
