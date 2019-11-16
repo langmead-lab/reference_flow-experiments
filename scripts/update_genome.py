@@ -36,7 +36,7 @@ def get_mutation_type(orig, alts):
 #         if a[:3] == 'VT=':
 #             return a[3:]
 
-def get_allele_freq(info, num_haps, data_source, gnomad_af_field):
+def get_allele_freq(info, num_haps, data_source, gnomad_ac_field):
     '''
     Returns allele frequency for a variant.
     Not using the "AF" attribute because it's calculated
@@ -60,8 +60,8 @@ def get_allele_freq(info, num_haps, data_source, gnomad_af_field):
     elif data_source == 'gnomad':
         for a in attrs:
             field = a.split('=')[0]
-            if field == gnomad_af_field:
-                return float(a.split('=')[1])
+            if field == gnomad_ac_field:
+                return float(a.split('=')[1]) / num_haps
     return -1
 
 def update_allele(
@@ -122,7 +122,8 @@ def update_genome(
     is_ld,
     exclude_list,
     data_source,
-    gnomad_af_field,
+    gnomad_ac_field,
+    gnomad_pop_count,
     gnomad_af_th
 ):
     #: assertions
@@ -173,7 +174,10 @@ def update_genome(
     offsetB = 0
     headA = 0
     headB = 0
-    num_haps = 0
+    if data_source == 'gnomad':
+        num_haps = gnomad_pop_count
+    else:
+        num_haps = 0
 
     current_block_pos = 0
     rr = 0 # initial number for random.random()
@@ -208,16 +212,16 @@ def update_genome(
 
         #: filter based on gnomad_af_th if it is set (gnomad only)
         if (not is_stochastic) and data_source == 'gnomad':
-            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_af_field)
+            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_ac_field)
             if freq < gnomad_af_th:
                 continue
 
         #: no LD stochastic update for 1kg and gnomad
         if is_stochastic and is_ld == False:
-            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_af_field)
+            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_ac_field)
             # print ('freq', freq)
             if freq < 0:
-                # print ('Warning! gnomad_af_field ({}) is not found'.format(gnomad_af_field))
+                # print ('Warning! gnomad_ac_field ({}) is not found'.format(gnomad_ac_field))
                 # print (line)
                 continue
             #: only updates the random number when exceeding current block
@@ -423,9 +427,12 @@ if __name__ == '__main__':
         '-d', '--data-source', type=str, default='1kg', help="Source of population genomic data, currently support '1kg' and 'gnomad' ['1kg']"
     )
     parser.add_argument(
-        '--gnomad-af-field', type=str, default='AF',
-        help="GnomAD allele frequency field; activated only in stochastic mode; \
-            can be changed depending on popultion of interest ['AF']"
+        '--gnomad-ac-field', type=str, default='AF',
+        help="GnomAD allele count field; activated only in stochastic mode; \
+            can be changed depending on popultion of interest ['AC']"
+    )
+    parser.add_argument(
+        '--gnomad-pop-count', type=int, help="Size of GnomAD population [INT]"
     )
     parser.add_argument(
         '--gnomad-af-th', type=float, default=0,
@@ -459,6 +466,7 @@ if __name__ == '__main__':
         is_ld = args.ld,
         exclude_list = args.exclude_name,
         data_source = args.data_source,
-        gnomad_af_field = args.gnomad_af_field,
+        gnomad_ac_field = args.gnomad_ac_field,
+        gnomad_pop_count = args.gnomad_pop_count,
         gnomad_af_th = args.gnomad_af_th
     )
