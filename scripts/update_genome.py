@@ -122,7 +122,8 @@ def update_genome(
     is_ld,
     exclude_list,
     data_source,
-    gnomad_af_field
+    gnomad_af_field,
+    gnomad_af_th
 ):
     #: assertions
     if is_ld:
@@ -204,6 +205,12 @@ def update_genome(
         if row[0] != chrom and row[0] != 'chr' + chrom:
             continue
         loc = int(row[1])
+
+        #: filter based on gnomad_af_th if it is set (gnomad only)
+        if (not is_stochastic) and data_source == 'gnomad':
+            freq = get_allele_freq(row[7], num_haps, data_source, gnomad_af_field)
+            if freq < gnomad_af_th:
+                continue
 
         #: no LD stochastic update for 1kg and gnomad
         if is_stochastic and is_ld == False:
@@ -420,6 +427,11 @@ if __name__ == '__main__':
         help="GnomAD allele frequency field; activated only in stochastic mode; \
             can be changed depending on popultion of interest ['AF']"
     )
+    parser.add_argument(
+        '--gnomad-af-th', type=float, default=0,
+        help="GnomAD allele frequency threshold. Variants with frequency lower than this value \
+            will not be updated [0]"
+    )
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -447,5 +459,6 @@ if __name__ == '__main__':
         is_ld = args.ld,
         exclude_list = args.exclude_name,
         data_source = args.data_source,
-        gnomad_af_field = args.gnomad_af_field
+        gnomad_af_field = args.gnomad_af_field,
+        gnomad_af_th = args.gnomad_af_th
     )
