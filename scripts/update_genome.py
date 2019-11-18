@@ -191,7 +191,8 @@ def update_genome(
         if line[0] == '#':
             f_vcf.write(line)
             labels = line.rstrip().split('\t')
-            num_haps = 2 * (len(labels) - 9)
+            if data_source == '1kg':
+                num_haps = 2 * (len(labels) - 9)
             #: if "indiv" is set, select corresponding columns
             if indiv != None:
                 col = None
@@ -213,7 +214,7 @@ def update_genome(
         #: filter based on gnomad_af_th if it is set (gnomad only)
         if (not is_stochastic) and data_source == 'gnomad':
             freq = get_allele_freq(row[7], num_haps, data_source, gnomad_ac_field)
-            if freq < gnomad_af_th:
+            if freq <= gnomad_af_th:
                 continue
 
         #: no LD stochastic update for 1kg and gnomad
