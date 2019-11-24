@@ -3,12 +3,12 @@ Calculate mapping accuracy for all settings
 '''
 rule calc_grc_accuracy:
     input:
-        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-grc.sam'),
+        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-grc.sam'.format(CHROM)),
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
     output:
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-grc.acc_log'),
-        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-grc.acc')
+        acc_log = os.path.join(DIR_FIRST_PASS, 'chr{}-grc.acc_log'.format(CHROM)),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-grc.acc'.format(CHROM))
     run:
         shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
         -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
@@ -18,8 +18,6 @@ rule calc_grc_accuracy:
 rule calc_major_accuracy_gnomad:
     input:
         sam = os.path.join(DIR_FIRST_PASS, 'chr{}-major-gnomad-liftover-sorted.sam'.format(CHROM)),
-        # sam = os.path.join(DIR_FIRST_PASS, CHROM + '-major.sam'),
-        # var_genome = PREFIX_MAJOR + '.var',
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
     output:
@@ -34,8 +32,6 @@ rule calc_major_accuracy_gnomad:
 rule calc_major_accuracy_onekg:
     input:
         sam = os.path.join(DIR_FIRST_PASS, 'chr{}-major-1kg-liftover-sorted.sam'.format(CHROM)),
-        # sam = os.path.join(DIR_FIRST_PASS, CHROM + '-major.sam'),
-        # var_genome = PREFIX_MAJOR + '.var',
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
     output:
@@ -52,10 +48,10 @@ rule calc_per_accuracy:
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
         sam = os.path.join(DIR_FIRST_PASS,
-            '{}-per-merged-liftover-sorted.sam'.format(CHROM))
+            'chr{}-per-merged-liftover-sorted.sam'.format(CHROM))
     output:
-        acc_log = os.path.join(DIR_FIRST_PASS, CHROM + '-per.acc_log'),
-        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc')
+        acc_log = os.path.join(DIR_FIRST_PASS, 'chr{}-per.acc_log'.format(CHROM)),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-per.acc'.format(CHROM))
     run:
         shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
         -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
@@ -120,11 +116,11 @@ rule check_standard_accuracy:
             os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-major-1kg.acc'.format(CHROM)),
             INDIV = INDIV),
         expand(
-            os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-grc.acc'),
+            os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-grc.acc'.format(CHROM)),
             INDIV = INDIV),
-        # expand(
-        #     os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per.acc'),
-        #     INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-per.acc'.format(CHROM)),
+            INDIV = INDIV),
         # expand(
         #     os.path.join(DIR_RESULTS, '{INDIV}-' + CHROM + '-per_h2h.acc'),
         #     INDIV = INDIV),

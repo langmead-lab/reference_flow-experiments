@@ -2,9 +2,8 @@
 import os
 import pandas as pd
 
-# configfile: "config.yaml"
-configfile: "hg38.yaml"
-# configfile: "deep_100.yaml"
+configfile: "hg38_deep.yaml"
+# configfile: "hg38.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
@@ -12,6 +11,7 @@ INDIV = config['INDIV']
 GROUP = config['GROUP']
 NUM_SIM_READS = config['NUM_SIM_READS']
 ALN_MAPQ_THRSD = config['ALN_MAPQ_THRSD']
+# EXP_TYPES = config['EXP_TYPES']
 POP_THRSD = config['POP_THRSD']
 POP_STOCHASTIC = config['POP_STOCHASTIC']
 POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
@@ -53,7 +53,7 @@ DIR_GRC_IDX = os.path.join(DIR, 'grc/indexes/')
 
 DIR_PER = os.path.join(DIR, 'simulation/{INDIV}/')
 DIR_PER_IDX = os.path.join(DIR, 'simulation/{INDIV}/indexes/')
-PREFIX_PER = os.path.join(DIR, 'simulation/{INDIV}/' + CHROM + '-per')
+PREFIX_PER = os.path.join(DIR, 'simulation/{INDIV}/' + 'chr{}-per'.format(CHROM))
 
 DIR_VG = os.path.join(DIR, 'vg/')
 DIR_VG_TMP = os.path.join(DIR, 'vg/tmp/')
@@ -84,6 +84,7 @@ include: 'shared/functions.Snakefile'
 
 #: Build major allele ref and its indexes
 #:      check: 'major.done', 'grc.done', 'personalization.done'
+#:      check: 'prepare.done'
 include: 'shared/prepare_major_grc.Snakefile'
 
 #: Build personalized genomes and their indexes
@@ -126,18 +127,15 @@ include: 'shared/analysis.Snakefile'
 
 rule all:
     input:
-        #: major allele ref index
-        major = os.path.join(DIR, 'major.done'),
-        grc = os.path.join(DIR, 'grc.done'),
-        #: personalized genomes
-        per = os.path.join(DIR, 'personalization.done'),
+        #: indexes for grc, major allele ref and personlized genomes
+        prep = os.path.join(DIR, 'prepare.done'),
         #: simulation profile
         sim = os.path.join(DIR, 'simulation.done'),
-        #: indivs in populations
+        #: pop-specific genomes and indexes
         popg = os.path.join(DIR, 'prepare_pop_genome.done'),
-        #: first pass alignment
+        #: one pass alignment for grc, major and personalized
         std_onepass = os.path.join(DIR, 'standard_onepass.done'),
-        #: second pass alignment
+        #: second pass alignment (refflow)
         secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
         #: liftover and sorting
         lft = os.path.join(DIR, 'liftover.done'),
@@ -146,10 +144,10 @@ rule all:
         # # g_index = os.path.join(DIR, 'vg_index.done'),
         # # g_map = os.path.join(DIR, 'vg_map.done'),
         # # g_acc = os.path.join(DIR, 'vg_acc.done'),
-        # #: refbias
-        # # refbias = os.path.join(DIR, 'refbias.done'),
+        #: refbias
+        refbias = os.path.join(DIR, 'refbias.done'),
         # # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
-        # #: accuracy
+        #: accuracy
         acc = os.path.join(DIR, 'accuracy.done'),
         tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
         #: analysis

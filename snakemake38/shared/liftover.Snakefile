@@ -16,6 +16,8 @@ def convert_chrom(fn_grc, fn_samA, fn_samB, fn_outA, fn_outB):
                 line = line.split()
                 if line[2] == CHROM + 'A':
                     line[2] = CHROM
+                elif line[2] == 'chr{}A'.format(CHROM):
+                    line[2] = 'chr{}'.format(CHROM)
                 fA_out.write('\t'.join(line) + '\n')
     fB_out = open(fn_outB, 'w')
     with open(fn_samB, 'r') as fB:
@@ -28,6 +30,8 @@ def convert_chrom(fn_grc, fn_samA, fn_samB, fn_outA, fn_outB):
                 line = line.split()
                 if line[2] == CHROM + 'B':
                     line[2] = CHROM
+                elif line[2] == 'chr{}B'.format(CHROM):
+                    line[2] = 'chr{}'.format(CHROM)
                 fB_out.write('\t'.join(line) + '\n')
 
 ''' Prepare lft files '''
@@ -57,11 +61,11 @@ rule liftover_serialize_per:
         vcf = PHASED_VCF_F,
         chr_map = os.path.join(DIR, 'GRCh38.length_map')
     output:
-        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
-        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft')
+        lftA = os.path.join(DIR_PER, 'chr{}-perA.lft'.format(CHROM)),
+        lftB = os.path.join(DIR_PER, 'chr{}-perB.lft'.format(CHROM))
     params:
-        A = os.path.join(DIR_PER, CHROM + '-perA'),
-        B = os.path.join(DIR_PER, CHROM + '-perB')
+        A = os.path.join(DIR_PER, 'chr{}-perA'.format(CHROM)),
+        B = os.path.join(DIR_PER, 'chr{}-perB'.format(CHROM))
     shell:
         '{LIFTOVER} serialize -k {input.chr_map} -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV};'
         '{LIFTOVER} serialize -k {input.chr_map} -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV};'
@@ -111,58 +115,58 @@ rule liftover_lift_major_onekg:
 
 rule convert_chrom_for_per:
     input:
-        sam_grc = os.path.join(DIR_FIRST_PASS, '{}-grc.sam'.format(CHROM)),
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM))
+        sam_grc = os.path.join(DIR_FIRST_PASS, 'chr{}-grc.sam'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB.sam'.format(CHROM))
     output:
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-converted.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-converted.sam'.format(CHROM))
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-converted.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-converted.sam'.format(CHROM))
     run:
         convert_chrom(input.sam_grc, input.samA, input.samB, output.samA, output.samB)
 
 rule liftover_lift_per:
     input:
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-converted.sam'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-converted.sam'.format(CHROM)),
         # samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
-        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-converted.sam'.format(CHROM)),
+        lftA = os.path.join(DIR_PER, 'chr{}-perA.lft'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-converted.sam'.format(CHROM)),
         # samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM)),
-        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft'),
+        lftB = os.path.join(DIR_PER, 'chr{}-perB.lft'.format(CHROM)),
         vcf = PHASED_VCF_F
     output:
-        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
-        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-liftover.sam'.format(CHROM))
     params:
-        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover'.format(CHROM)),
-        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-liftover'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-liftover'.format(CHROM))
     run:
         shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
         shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
 
 rule convert_chrom_for_per_haploid_setting:
     input:
-        sam_grc = os.path.join(DIR_FIRST_PASS, '{}-grc.sam'.format(CHROM)),
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid.sam'.format(CHROM))
+        sam_grc = os.path.join(DIR_FIRST_PASS, 'chr{}-grc.sam'.format(CHROM)),
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid.sam'.format(CHROM))
     output:
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-converted.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-converted.sam'.format(CHROM))
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-converted.sam'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-converted.sam'.format(CHROM))
     run:
         convert_chrom(input.sam_grc, input.samA, input.samB, output.samA, output.samB)
 
 rule liftover_lift_per_haploid_setting:
     input:
-        samA = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-converted.sam'.format(CHROM)),
-        lftA = os.path.join(DIR_PER, CHROM + '-perA.lft'),
-        samB = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-converted.sam'.format(CHROM)),
-        lftB = os.path.join(DIR_PER, CHROM + '-perB.lft'),
+        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-converted.sam'.format(CHROM)),
+        lftA = os.path.join(DIR_PER, 'chr{}-perA.lft'.format(CHROM)),
+        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-converted.sam'.format(CHROM)),
+        lftB = os.path.join(DIR_PER, 'chr{}-perB.lft'.format(CHROM)),
         vcf = PHASED_VCF_F
     output:
-        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
-        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover.sam'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-liftover.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-liftover.sam'.format(CHROM))
     params:
-        A = os.path.join(DIR_FIRST_PASS, '{}-per_hapA_haploid-liftover'.format(CHROM)),
-        B = os.path.join(DIR_FIRST_PASS, '{}-per_hapB_haploid-liftover'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-liftover'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-liftover'.format(CHROM))
     run:
         shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
         shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
@@ -331,10 +335,10 @@ rule liftover_refflow_onepass:
 
 rule merge_per_allinone:
     input:
-        A = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA-liftover.sam'.format(CHROM)),
-        B = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB-liftover.sam'.format(CHROM))
+        A = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-liftover.sam'.format(CHROM)),
+        B = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-liftover.sam'.format(CHROM))
     output:
-        os.path.join(DIR_FIRST_PASS, '{}-per-merged-liftover.sam'.format(CHROM))
+        os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-liftover.sam'.format(CHROM))
     shell:
         'cp {input.A} {output};'
         'grep -hv "^@" {input.B} >> {output}'
@@ -370,9 +374,9 @@ rule sort_lifted_major_onekg:
 
 rule sort_lifted_per:
     input:
-        os.path.join(DIR_FIRST_PASS, '{}-per-merged-liftover.sam'.format(CHROM))
+        os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-liftover.sam'.format(CHROM))
     output:
-        os.path.join(DIR_FIRST_PASS, '{}-per-merged-liftover-sorted.sam'.format(CHROM))
+        os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-liftover-sorted.sam'.format(CHROM))
     threads: 2
     shell:
         'samtools sort -@ {threads} -o {output} {input};'
@@ -388,12 +392,12 @@ rule sort_lifted_per_haploid_setting:
 
 rule sort_grc:
     input:
-        os.path.join(DIR_FIRST_PASS, '{}-grc.sam'.format(CHROM))
+        os.path.join(DIR_FIRST_PASS, 'chr{}-grc.sam'.format(CHROM))
     output:
-        os.path.join(DIR_FIRST_PASS, '{}-grc-sorted.sam'.format(CHROM))
+        os.path.join(DIR_FIRST_PASS, 'chr{}-grc-sorted.sam'.format(CHROM))
     threads: THREADS
     shell:
-        'samtools sort -@ {THREADS} -o {output} {input}'
+        'samtools sort -@ {threads} -o {output} {input}'
 
 rule sort_refflow_allinone_gnomad:
     input:
@@ -424,7 +428,7 @@ rule check_liftover:
             INDIV = INDIV),
         per = expand(
             os.path.join(DIR_FIRST_PASS,
-            '{}-per-merged-liftover.sam'.format(CHROM)),
+            'chr{}-per-merged-liftover.sam'.format(CHROM)),
             INDIV = INDIV
             ),
         # per_h2h = expand(
@@ -458,7 +462,7 @@ rule check_sort:
         #: per
         per = expand(
             os.path.join(DIR_FIRST_PASS,
-            '{}-per-merged-liftover-sorted.sam'.format(CHROM)),
+            'chr{}-per-merged-liftover-sorted.sam'.format(CHROM)),
             INDIV = INDIV
             ),
         # per_h2h = expand(
@@ -467,7 +471,7 @@ rule check_sort:
         #     INDIV = INDIV),
         #: grc
         grc = expand(os.path.join(DIR_FIRST_PASS,
-            '{}-grc-sorted.sam'.format(CHROM)),
+            'chr{}-grc-sorted.sam'.format(CHROM)),
             INDIV = INDIV),
         #: refflow
         refflow_gnomad = expand(
