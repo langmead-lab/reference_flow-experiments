@@ -20,10 +20,10 @@ rule simulate_reads:
     shell:
         #: marcc specific
         'module load gcc/5.5.0;'
-        '{MASON2} --num-threads {THREADS} -ir {input.hapA} -n {params.num} '
+        '{MASON2} --num-threads {threads} -ir {input.hapA} -n {params.num} '
         '-o {params.prefix}_hapA_1.fq -or {params.prefix}_hapA_2.fq '
         '-oa {params.prefix}_hapA.sam --read-name-prefix "{params.prefix}_hapA_simulated.";'
-        '{MASON2} --num-threads {THREADS} -ir {input.hapB} -n {params.num} '
+        '{MASON2} --num-threads {threads} -ir {input.hapB} -n {params.num} '
         '-o {params.prefix}_hapB_1.fq -or {params.prefix}_hapB_2.fq '
         '-oa {params.prefix}_hapB.sam --read-name-prefix "{params.prefix}_hapB_simulated.";'
 
