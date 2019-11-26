@@ -15,7 +15,8 @@ rule prepare_pop_indiv:
 
 rule build_pop_vcf:
     input:
-        vcf = UNPHASED_VCF_F,
+        vcf = PHASED_VCF_F,
+        # vcf = UNPHASED_VCF_F,
         indiv_group = os.path.join(
             DIR,
             '1KG_indivs/sample_superpop_{GROUP}.txt'
@@ -61,48 +62,52 @@ rule filter_pop_vcf:
         shell('{BCFTOOLS} view -i "{filt}" \
             -v snps,indels {input.vcf_gz} > {output.vcf};')
 
-# rule build_pop_genome:
-#     input:
-#         vcf = os.path.join(
-#             DIR_POP_GENOME,
-#             CHROM + '_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
-#         )
-#     output:
-#         os.path.join(
-#             DIR_POP_GENOME_BLOCK,
-#             CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.fa'
-#         ),
-#         os.path.join(
-#             DIR_POP_GENOME_BLOCK,
-#             CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.var'
-#         ),
-#         os.path.join(
-#             DIR_POP_GENOME_BLOCK,
-#             CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'
-#         )
-#     params:
-#         prefix = os.path.join(
-#             DIR_POP_GENOME_BLOCK,
-#             CHROM + '_superpop_{GROUP}_' + POP_DIRNAME
-#         )
-#     run:
-#         if POP_STOCHASTIC == 1 and POP_USE_LD == 1:
-#             shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
-#                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
-#                 --out-prefix {params.prefix} \
-#                 --include-indels --stochastic -rs {RAND_SEED} \
-#                 --block-size {POP_BLOCK_SIZE} --ld')
-#         elif POP_STOCHASTIC == 1:
-#             shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
-#                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
-#                 --out-prefix {params.prefix} \
-#                 --include-indels --stochastic -rs {RAND_SEED} \
-#                 --block-size {POP_BLOCK_SIZE}')
-#         else:
-#             shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
-#                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
-#                 --out-prefix {params.prefix} \
-#                 --include-indels')
+rule build_pop_genome:
+    input:
+        vcf = os.path.join(
+            DIR_POP_GENOME,
+            CHROM + '_superpop_{GROUP}_t' + str(POP_THRSD) + '.vcf'
+        )
+    output:
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            POP_GENOME_SUFFIX + '.fa'
+            # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.fa'
+        ),
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            POP_GENOME_SUFFIX + '.var'
+            # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.var'
+        ),
+        os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            POP_GENOME_SUFFIX + '.vcf'
+            # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'
+        )
+    params:
+        prefix = os.path.join(
+            DIR_POP_GENOME_BLOCK,
+            POP_GENOME_SUFFIX
+            # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME
+        )
+    run:
+        if POP_STOCHASTIC == 1 and POP_USE_LD == 1:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE} --ld')
+        elif POP_STOCHASTIC == 1:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels --stochastic -rs {RAND_SEED} \
+                --block-size {POP_BLOCK_SIZE}')
+        else:
+            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+                --out-prefix {params.prefix} \
+                --include-indels')
 
 rule build_pop_genome_index:
     input:
@@ -121,57 +126,64 @@ rule build_pop_genome_index:
     shell:
         'bowtie2-build --threads {threads} {input.genome} {params.prefix};'
 
-# rule check_pop_genome:
-#     input:
-#         expand(
-#             DIR_POP_GENOME_BLOCK_IDX + POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
-#             GROUP = GROUP, IDX_ITEMS = IDX_ITEMS
-#         )
-#     output:
-#         touch(temp(os.path.join(DIR, 'prepare_pop_genome.done')))
-
 
 ''' Build pop genomes using gnomad data '''
-rule build_pop_genome_gnomad:
-    input:
-        vcf = UNPHASED_VCF_F
-    output:
-        os.path.join(
-            DIR_POP_GENOME_BLOCK,
-            POP_GENOME_SUFFIX + '.fa'
-            # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.fa'
-        ),
-        os.path.join(
-            DIR_POP_GENOME_BLOCK,
-            POP_GENOME_SUFFIX + '.var'
-            # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.var'
-        ),
-        os.path.join(
-            DIR_POP_GENOME_BLOCK,
-            POP_GENOME_SUFFIX + '.vcf'
-            # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'
-        )
-    params:
-        prefix = os.path.join(
-            DIR_POP_GENOME_BLOCK,
-            POP_GENOME_SUFFIX
-            # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME
-        )
-    run:
-        if POP_STOCHASTIC == 1:
-            pop_count = DICT_GNOMAD_POP_SIZE[wildcards.GROUP]
-            shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
-                --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
-                --out-prefix {params.prefix} \
-                --include-indels --stochastic -rs {RAND_SEED} \
-                --block-size {POP_BLOCK_SIZE} \
-                -d gnomad --gnomad-ac-field AC_{wildcards.GROUP} \
-                --gnomad-pop-count {pop_count}')
-        # else:
-        #     shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
-        #         --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
-        #         --out-prefix {params.prefix} \
-        #         --include-indels')
+# rule build_pop_vcf_gnomad:
+#     input:
+#         # vcf = PHASED_VCF_F,
+#         vcf = UNPHASED_VCF_F,
+#         indiv_group = os.path.join(
+#             DIR,
+#             '1KG_indivs/sample_superpop_{GROUP}.txt'
+#         )
+#     output:
+#         vcf_gz = os.path.join(DIR_POP_GENOME,
+#             CHROM + '_superpop_{GROUP}.vcf.gz')
+#     shell:
+#         '{BCFTOOLS} view -S {input.indiv_group} '
+#         '--force-samples {input.vcf} -V mnps,other -m2 -M2 | '
+#         'bgzip > {output.vcf_gz}'
+# 
+# rule build_pop_genome_gnomad:
+#     input:
+#         vcf = UNPHASED_VCF_F
+#     output:
+#         os.path.join(
+#             DIR_POP_GENOME_BLOCK,
+#             POP_GENOME_SUFFIX + '.fa'
+#             # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.fa'
+#         ),
+#         os.path.join(
+#             DIR_POP_GENOME_BLOCK,
+#             POP_GENOME_SUFFIX + '.var'
+#             # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.var'
+#         ),
+#         os.path.join(
+#             DIR_POP_GENOME_BLOCK,
+#             POP_GENOME_SUFFIX + '.vcf'
+#             # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'
+#         )
+#     params:
+#         prefix = os.path.join(
+#             DIR_POP_GENOME_BLOCK,
+#             POP_GENOME_SUFFIX
+#             # 'chr' + CHROM + '_superpop_{GROUP}_' + POP_DIRNAME
+#         )
+#     run:
+#         if POP_STOCHASTIC == 1:
+#             pop_count = DICT_GNOMAD_POP_SIZE[wildcards.GROUP]
+#             shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+#                 --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+#                 --out-prefix {params.prefix} \
+#                 --include-indels --stochastic -rs {RAND_SEED} \
+#                 --block-size {POP_BLOCK_SIZE} \
+#                 -d gnomad --gnomad-ac-field AC_{wildcards.GROUP} \
+#                 --gnomad-pop-count {pop_count}')
+#         # else:
+#         #     shell('{PYTHON} {DIR_SCRIPTS}/update_genome.py \
+#         #         --ref {GENOME} --chrom {CHROM} --vcf {input.vcf} \
+#         #         --out-prefix {params.prefix} \
+#         #         --include-indels')
 
 rule check_pop_genome:
     input:
