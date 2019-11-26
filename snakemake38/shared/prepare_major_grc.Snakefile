@@ -165,8 +165,8 @@ rule check_prepare:
             idx_item = IDX_ITEMS),
         expand(PREFIX_MAJOR_IDX + '-1kg.{idx_item}.bt2',
             idx_item = IDX_ITEMS),
-        expand(PREFIX_MAJOR_IDX + '-gnomad.{idx_item}.bt2',
-            idx_item = IDX_ITEMS),
+        # expand(PREFIX_MAJOR_IDX + '-gnomad.{idx_item}.bt2',
+        #     idx_item = IDX_ITEMS),
         expand(
             DIR_PER_IDX + 'chr{}'.format(CHROM) + '-per_hapA.{idx_item}.bt2',
             idx_item = IDX_ITEMS,

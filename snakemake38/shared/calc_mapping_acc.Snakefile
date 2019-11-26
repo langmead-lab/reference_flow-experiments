@@ -109,9 +109,9 @@ rule calc_refflow_accuracy_onekg:
 
 rule check_standard_accuracy:
     input:
-        expand(
-            os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-major-gnomad.acc'.format(CHROM)),
-            INDIV = INDIV),
+        # expand(
+        #     os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-major-gnomad.acc'.format(CHROM)),
+        #     INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS, '{INDIV}-' + 'chr{}-major-1kg.acc'.format(CHROM)),
             INDIV = INDIV),
@@ -129,9 +129,9 @@ rule check_standard_accuracy:
 
 rule check_refflow_accuracy:
     input:
-        gnomad = expand(os.path.join(DIR_RESULTS,
-            '{INDIV}' + '-chr{0}-major-{1}-{2}-gnomad.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV),
+        # gnomad = expand(os.path.join(DIR_RESULTS,
+        #     '{INDIV}' + '-chr{0}-major-{1}-{2}-gnomad.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        #     INDIV = INDIV),
         onekg = expand(os.path.join(DIR_RESULTS,
             '{INDIV}' + '-chr{0}-major-{1}-{2}-1kg.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
             INDIV = INDIV),

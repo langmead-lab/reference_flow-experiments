@@ -111,9 +111,9 @@ rule merge_per:
 
 rule check_standard_onepass:
     input:
-        maj_gnomad = expand(
-            os.path.join(DIR_FIRST_PASS, 'chr{}-major-gnomad.sam'.format(CHROM)),
-            INDIV = INDIV),
+        # maj_gnomad = expand(
+        #     os.path.join(DIR_FIRST_PASS, 'chr{}-major-gnomad.sam'.format(CHROM)),
+        #     INDIV = INDIV),
         maj_1kg = expand(
             os.path.join(DIR_FIRST_PASS, 'chr{}-major-1kg.sam'.format(CHROM)),
             INDIV = INDIV),

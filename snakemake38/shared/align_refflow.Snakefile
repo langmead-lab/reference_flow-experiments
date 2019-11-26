@@ -159,10 +159,10 @@ rule check_secondpass:
         #     os.path.join(DIR_SECOND_PASS, '{0}-major-{1}-{2}.paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
         #     INDIV = INDIV, GROUP = GROUP
         # ),
-        gnomad = expand(
-            os.path.join(DIR_SECOND_PASS, 'chr{0}-major-{1}-{2}-gnomad.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV, GROUP = GROUP
-        ),
+        # gnomad = expand(
+        #     os.path.join(DIR_SECOND_PASS, 'chr{0}-major-{1}-{2}-gnomad.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        #     INDIV = INDIV, GROUP = GROUP
+        # ),
         onekg = expand(
             os.path.join(DIR_SECOND_PASS, 'chr{0}-major-{1}-{2}-1kg.merge_paths'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
             INDIV = INDIV, GROUP = GROUP

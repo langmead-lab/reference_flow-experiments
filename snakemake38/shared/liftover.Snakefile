@@ -73,8 +73,9 @@ rule liftover_serialize_per:
 rule liftover_serialize_pop_genome:
     input:
         vcf = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/' +
-            POP_GENOME_SUFFIX + '.vcf')
+            POP_GENOME_SUFFIX + '.vcf'),
             # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME  + '.vcf')
+        chr_map = os.path.join(DIR, 'GRCh38.length_map')
     output:
         lft = os.path.join(
             DIR_POP_GENOME, POP_DIRNAME + '/' +
@@ -86,7 +87,7 @@ rule liftover_serialize_pop_genome:
             POP_GENOME_SUFFIX)
             # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME)
     run:
-        shell('{LIFTOVER} serialize -v {input.vcf} -p {params}')
+        shell('{LIFTOVER} serialize -k {input.chr_map} -v {input.vcf} -p {params}')
 
 ''' Lifting SAMs '''
 rule liftover_lift_major_gnomad:
@@ -119,18 +120,16 @@ rule convert_chrom_for_per:
         samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA.sam'.format(CHROM)),
         samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB.sam'.format(CHROM))
     output:
-        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-converted.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-converted.sam'.format(CHROM))
+        samA = temp(os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-converted.sam'.format(CHROM))),
+        samB = temp(os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-converted.sam'.format(CHROM)))
     run:
         convert_chrom(input.sam_grc, input.samA, input.samB, output.samA, output.samB)
 
 rule liftover_lift_per:
     input:
         samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-converted.sam'.format(CHROM)),
-        # samA = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapA.sam'.format(CHROM)),
         lftA = os.path.join(DIR_PER, 'chr{}-perA.lft'.format(CHROM)),
         samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapB-converted.sam'.format(CHROM)),
-        # samB = os.path.join(DIR_FIRST_PASS, '{}-per-merged-hapB.sam'.format(CHROM)),
         lftB = os.path.join(DIR_PER, 'chr{}-perB.lft'.format(CHROM)),
         vcf = PHASED_VCF_F
     output:
@@ -149,8 +148,8 @@ rule convert_chrom_for_per_haploid_setting:
         samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid.sam'.format(CHROM)),
         samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid.sam'.format(CHROM))
     output:
-        samA = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-converted.sam'.format(CHROM)),
-        samB = os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-converted.sam'.format(CHROM))
+        samA = temp(os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapA_haploid-converted.sam'.format(CHROM))),
+        samB = temp(os.path.join(DIR_FIRST_PASS, 'chr{}-per_hapB_haploid-converted.sam'.format(CHROM)))
     run:
         convert_chrom(input.sam_grc, input.samA, input.samB, output.samA, output.samB)
 
@@ -420,9 +419,9 @@ rule sort_refflow_allinone_onekg:
 ''' Check points '''
 rule check_liftover:
     input:
-        major_genomad = expand(
-            os.path.join(DIR_FIRST_PASS, 'chr{}-major-gnomad-liftover.sam'.format(CHROM)),
-            INDIV = INDIV),
+        # major_genomad = expand(
+        #     os.path.join(DIR_FIRST_PASS, 'chr{}-major-gnomad-liftover.sam'.format(CHROM)),
+        #     INDIV = INDIV),
         major_1kg = expand(
             os.path.join(DIR_FIRST_PASS, 'chr{}-major-1kg-liftover.sam'.format(CHROM)),
             INDIV = INDIV),
@@ -435,10 +434,10 @@ rule check_liftover:
         #     os.path.join(DIR_FIRST_PASS,
         #     '{}-per_h2h-merged-liftover.sam'.format(CHROM)),
         #     INDIV = INDIV),
-        refflow_gnomad = expand(
-            os.path.join(DIR_SECOND_PASS,
-            'chr{}-refflow-{}-{}-liftover-gnomad.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV),
+        # refflow_gnomad = expand(
+        #     os.path.join(DIR_SECOND_PASS,
+        #     'chr{}-refflow-{}-{}-liftover-gnomad.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        #     INDIV = INDIV),
         refflow_onekg = expand(
             os.path.join(DIR_SECOND_PASS,
             'chr{}-refflow-{}-{}-liftover-1kg.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
@@ -453,9 +452,9 @@ rule check_liftover:
 rule check_sort:
     input:
         #: major
-        maj_gnomad = expand(os.path.join(DIR_FIRST_PASS,
-            'chr{}-major-gnomad-liftover-sorted.sam'.format(CHROM)),
-            INDIV = INDIV),
+        # maj_gnomad = expand(os.path.join(DIR_FIRST_PASS,
+        #     'chr{}-major-gnomad-liftover-sorted.sam'.format(CHROM)),
+        #     INDIV = INDIV),
         maj_1kg = expand(os.path.join(DIR_FIRST_PASS,
             'chr{}-major-1kg-liftover-sorted.sam'.format(CHROM)),
             INDIV = INDIV),
@@ -474,10 +473,10 @@ rule check_sort:
             'chr{}-grc-sorted.sam'.format(CHROM)),
             INDIV = INDIV),
         #: refflow
-        refflow_gnomad = expand(
-            os.path.join(DIR_SECOND_PASS,
-            'chr{}-refflow-{}-{}-liftover-gnomad-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-            INDIV = INDIV),
+        # refflow_gnomad = expand(
+        #     os.path.join(DIR_SECOND_PASS,
+        #     'chr{}-refflow-{}-{}-liftover-gnomad-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
+        #     INDIV = INDIV),
         refflow_1kg = expand(
             os.path.join(DIR_SECOND_PASS,
             'chr{}-refflow-{}-{}-liftover-1kg-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
