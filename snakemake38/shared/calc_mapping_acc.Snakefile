@@ -3,7 +3,7 @@ Calculate mapping accuracy for all settings
 '''
 rule calc_grc_accuracy:
     input:
-        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-grc.sam'.format(CHROM)),
+        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-grc-sorted.sam'.format(CHROM)),
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
     output:
@@ -79,7 +79,8 @@ rule calc_refflow_accuracy_gnomad:
     input:
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
-        sam = os.path.join(DIR_SECOND_PASS, 'chr{}-refflow-{}-{}-liftover-gnomad-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+        sam = os.path.join(DIR_SECOND_PASS,
+            'chr{}-refflow-{}-{}-liftover-gnomad-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
         acc_log = os.path.join(DIR_FIRST_PASS, 'chr{}-refflow-{}-{}-gnomad.acc_log'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
         acc = os.path.join(DIR_RESULTS,
@@ -95,11 +96,30 @@ rule calc_refflow_accuracy_onekg:
     input:
         gold = PREFIX_PER + '_1.sam',
         var_reads = PREFIX_PER + '.var',
-        sam = os.path.join(DIR_SECOND_PASS, 'chr{}-refflow-{}-{}-liftover-1kg-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+        sam = os.path.join(DIR_SECOND_PASS,
+            'chr{}-refflow-{}-{}-liftover-1kg-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
         acc_log = os.path.join(DIR_FIRST_PASS, 'chr{}-refflow-{}-{}-1kg.acc_log'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
         acc = os.path.join(DIR_RESULTS,
             '{INDIV}' + '-chr{0}-major-{1}-{2}-1kg.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME))
+    run:
+        shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
+        -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
+        -n {input.sam} >> \
+        {output.acc_log};')
+        organize_accuracy(output.acc_log, output.acc)
+
+rule calc_popspecific_onepass_accuarcy:
+    input:
+        gold = PREFIX_PER + '_1.sam',
+        var_reads = PREFIX_PER + '.var',
+        sam = os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover-sorted.sam')
+    output:
+        acc_log = os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover-sorted.acc_log'),
+        acc = os.path.join(DIR_RESULTS,
+            '{INDIV}-' + 'chr{}'.format(CHROM) + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc'),
     run:
         shell('{PYTHON} -O {DIR_SCRIPTS}/analyze_diploid_indels.py \
         -c {CHROM} -g {input.gold} -p 0 -vr {input.var_reads} \
@@ -135,10 +155,10 @@ rule check_refflow_accuracy:
         onekg = expand(os.path.join(DIR_RESULTS,
             '{INDIV}' + '-chr{0}-major-{1}-{2}-1kg.acc'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
             INDIV = INDIV),
-        # onepass = expand(
-        #     os.path.join(DIR_RESULTS,
-        #     '{INDIV}-' + CHROM + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc'),
-        #     INDIV = INDIV, GROUP = GROUP)
+        onepass = expand(
+            os.path.join(DIR_RESULTS,
+            '{INDIV}-' + 'chr{}'.format(CHROM) + '-{GROUP}-' + POP_GENOME_SUFFIX + '.acc'),
+            INDIV = INDIV, GROUP = GROUP)
     output:
         touch(temp(os.path.join(DIR, 'refflow_acc.done')))
 

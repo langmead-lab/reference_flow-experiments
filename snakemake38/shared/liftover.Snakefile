@@ -302,36 +302,26 @@ rule liftover_lift_refflow_secondpass_and_merge_onekg:
                 #: append reads to all-in-one lifted SAM
                 shell('grep -hv "^@" {prefix}.sam >> {output.lfted_refflow_sam};')
 
-rule liftover_refflow_onepass:
+rule liftover_popspecific_onepass:
     input:
-        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'.sam'),
+        sam = os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'.sam'),
         lft = os.path.join(
-            DIR_POP_GENOME,
-            CHROM + '_superpop_{GROUP}_' + POP_DIRNAME + '.lft'),
+            DIR_POP_GENOME, POP_DIRNAME + '/' + 
+            'chr{}'.format(CHROM) + '_superpop_{GROUP}_' + POP_DIRNAME + '.lft'),
         vcf = os.path.join(
             DIR_POP_GENOME, POP_DIRNAME + '/' +
-            CHROM + '_superpop_{GROUP}_' + POP_DIRNAME  + '.vcf')
+            'chr{}'.format(CHROM) + '_superpop_{GROUP}_' + POP_DIRNAME  + '.vcf')
     output:
-        sam = os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
+        sam = temp(os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'))
     params:
-        os.path.join(DIR_FIRST_PASS, CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover')
+        os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover')
     run:
         shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
 
 ''' If there are multiple files, merge them after liftover ''' 
-# rule merge_refflow_allinone:
-#     input:
-#         maj_fp = os.path.join(DIR_FIRST_PASS, 'chr{}-major-mapqgeq{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD)),
-#         maj_sp = os.path.join(DIR_SECOND_PASS, '2ndpass-major-liftover.sam'),
-#         pop = [os.path.join(DIR_SECOND_PASS,'2ndpass-') + 
-#             g + '-liftover.sam' for g in GROUP]
-#     output:
-#         os.path.join(DIR_SECOND_PASS, '{}-refflow-{}-{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
-#     shell:
-#         'cp {input.maj_fp} {output};'
-#         'grep -hv "^@" {input.maj_sp} >> {output};'
-#         'grep -hv "^@" {input.pop} >> {output};'
-
 rule merge_per_allinone:
     input:
         A = os.path.join(DIR_FIRST_PASS, 'chr{}-per-merged-hapA-liftover.sam'.format(CHROM)),
@@ -379,6 +369,15 @@ rule sort_lifted_per:
     threads: 2
     shell:
         'samtools sort -@ {threads} -o {output} {input};'
+
+rule sort_lifted_onepass_popspecific:
+    input:
+        os.path.join(DIR_FIRST_PASS, 'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
+    output:
+        os.path.join(DIR_FIRST_PASS, 'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover-sorted.sam'),
+    threads: 2
+    shell:
+        'samtools sort -@ {threads} -o {output} {input}'
 
 rule sort_lifted_per_haploid_setting:
     input:
@@ -477,6 +476,10 @@ rule check_sort:
         #     os.path.join(DIR_SECOND_PASS,
         #     'chr{}-refflow-{}-{}-liftover-gnomad-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
         #     INDIV = INDIV),
+        onepass_popgenome = expand(
+            os.path.join(DIR_FIRST_PASS,
+            'chr{}'.format(CHROM) + '-{GROUP}-' + POP_DIRNAME +'-liftover-sorted.sam'),
+        GROUP = GROUP, INDIV = INDIV),
         refflow_1kg = expand(
             os.path.join(DIR_SECOND_PASS,
             'chr{}-refflow-{}-{}-liftover-1kg-sorted.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),

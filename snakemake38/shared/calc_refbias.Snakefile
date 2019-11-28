@@ -222,9 +222,9 @@ rule check_refbias_and_write_to_tsv:
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-grc.bias'),
             INDIV = INDIV),
-        expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major-gnomad.bias'),
-            INDIV = INDIV),
+        # expand(
+        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major-gnomad.bias'),
+        #     INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major-1kg.bias'),
             INDIV = INDIV),
@@ -234,9 +234,9 @@ rule check_refbias_and_write_to_tsv:
         # expand(
         #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per_h2h.bias'),
         #     INDIV = INDIV),
-        expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '-gnomad.bias'),
-            INDIV = INDIV),
+        # expand(
+        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '-gnomad.bias'),
+        #     INDIV = INDIV),
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '-1kg.bias'),
             INDIV = INDIV),
