@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 configfile: "hg38_deep.yaml"
+# configfile: "hg38_1kg.yaml"
 # configfile: "hg38.yaml"
 
 ''' Load from config '''
@@ -18,12 +19,18 @@ POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
 POP_USE_LD = config['POP_USE_LD']
 BIAS_MIN_READ_COUNT = config['BIAS_MIN_READ_COUNT']
 BIAS_TAIL_THRDS = config['BIAS_TAIL_THRDS']
+
+#: paths
 DIR = config['DIR']
 GENOME = config['GENOME']
 PHASED_VCF = config['PHASED_VCF']
 UNPHASED_VCF = config['UNPHASED_VCF']
 FAMILY = config['FAMILY']
 SPOP = config['SPOP']
+LENGTH_MAP = config['LENGTH_MAP']
+CHROM_MAP = config['CHROM_MAP']
+
+#: path of tools used
 BCFTOOLS = config['BCFTOOLS']
 MASON2 = config['MASON2']
 LIFTOVER = config['LIFTOVER']
@@ -32,6 +39,8 @@ DIR_SCRIPTS = config['DIR_SCRIPTS']
 ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
 VG = config['VG']
 TIME = config['TIME']
+
+#: system settings
 THREADS = config['THREADS']
 MAX_SYSTEM_THREADS = config['MAX_SYSTEM_THREADS']
 RAND_SEED = config['RAND_SEED']
@@ -134,22 +143,22 @@ rule all:
         #: pop-specific genomes and indexes
         popg = os.path.join(DIR, 'prepare_pop_genome.done'),
         #: one pass alignment for grc, major and personalized
-        std_onepass = os.path.join(DIR, 'standard_onepass.done'),
+        # std_onepass = os.path.join(DIR, 'standard_onepass.done'),
         #: second pass alignment (refflow)
         secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
         #: liftover and sorting
-        lft = os.path.join(DIR, 'liftover.done'),
-        sort = os.path.join(DIR, 'sorting.done'),
-        # #: graph aligner
-        # # g_index = os.path.join(DIR, 'vg_index.done'),
-        # # g_map = os.path.join(DIR, 'vg_map.done'),
-        # # g_acc = os.path.join(DIR, 'vg_acc.done'),
+        # lft = os.path.join(DIR, 'liftover.done'),
+        # sort = os.path.join(DIR, 'sorting.done'),
+        #: graph aligner
+        g_index = os.path.join(DIR, 'vg_index.done'),
+        g_map = os.path.join(DIR, 'vg_map.done'),
+        # g_acc = os.path.join(DIR, 'vg_acc.done'),
         #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
         # # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
-        acc = os.path.join(DIR, 'accuracy.done'),
-        tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
+        # acc = os.path.join(DIR, 'accuracy.done'),
+        # tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
         #: analysis
         # analysis = os.path.join(DIR, 'analysis.done')
     run:
@@ -166,7 +175,8 @@ rule filter_unphased_vcf:
 rule filter_phased_vcf:
     input:
         vcf = PHASED_VCF,
-        chrom_map = os.path.join(DIR, 'GRCh38.chrom_map')
+        chrom_map = CHROM_MAP
+        # chrom_map = os.path.join(DIR, 'GRCh38.chrom_map')
     output:
         vcf = PHASED_VCF_F
     shell:

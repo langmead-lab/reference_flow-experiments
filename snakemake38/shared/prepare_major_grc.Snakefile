@@ -42,7 +42,8 @@ rule build_onekg_major:
     input:
         genome = GENOME,
         vcf = PHASED_VCF_F,
-        chrom_map = os.path.join(DIR, 'GRCh38.chrom_map')
+        chrom_map = CHROM_MAP
+        # chrom_map = os.path.join(DIR, 'GRCh38.chrom_map')
     output:
         # chrom_map = os.path.join(DIR_MAJOR, 'chr{}.chrom_map'.format(CHROM)),
         vcf_major = PREFIX_MAJOR_F + '-1kg.vcf',

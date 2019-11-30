@@ -48,7 +48,8 @@ rule liftover_serialize_major_gnomad:
 rule liftover_serialize_major_onekg:
     input:
         vcf = os.path.join(DIR_MAJOR, 'chr{}-major-1kg.vcf'.format(CHROM)),
-        chr_map = os.path.join(DIR, 'GRCh38.length_map')
+        chr_map = LENGTH_MAP
+        # chr_map = os.path.join(DIR, 'GRCh38.length_map')
     output:
         lft = os.path.join(DIR_MAJOR, 'chr{}-major-1kg.lft'.format(CHROM))
     params:
@@ -59,7 +60,8 @@ rule liftover_serialize_major_onekg:
 rule liftover_serialize_per:
     input:
         vcf = PHASED_VCF_F,
-        chr_map = os.path.join(DIR, 'GRCh38.length_map')
+        chr_map = LENGTH_MAP
+        # chr_map = os.path.join(DIR, 'GRCh38.length_map')
     output:
         lftA = os.path.join(DIR_PER, 'chr{}-perA.lft'.format(CHROM)),
         lftB = os.path.join(DIR_PER, 'chr{}-perB.lft'.format(CHROM))
@@ -75,7 +77,8 @@ rule liftover_serialize_pop_genome:
         vcf = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/' +
             POP_GENOME_SUFFIX + '.vcf'),
             # CHROM + '_superpop_{GROUP}_' + POP_DIRNAME  + '.vcf')
-        chr_map = os.path.join(DIR, 'GRCh38.length_map')
+        chr_map = LENGTH_MAP
+        # chr_map = os.path.join(DIR, 'GRCh38.length_map')
     output:
         lft = os.path.join(
             DIR_POP_GENOME, POP_DIRNAME + '/' +
