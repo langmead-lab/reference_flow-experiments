@@ -133,7 +133,7 @@ rule calc_refflow_bias_onekg:
 rule calc_vg_bias:
     input:
         vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
-        sam = os.path.join(DIR_FIRST_PASS, '{}-vg_{}-sorted.sam'.format(CHROM, ALLELE_FREQ_FOR_VG))
+        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-vg_{}-sorted.sam'.format(CHROM, ALLELE_FREQ_FOR_VG))
     output:
         list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(ALLELE_FREQ_FOR_VG)),
         list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(ALLELE_FREQ_FOR_VG)),
@@ -240,9 +240,9 @@ rule check_refbias_and_write_to_tsv:
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '-1kg.bias'),
             INDIV = INDIV),
-        # expand(
-        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(ALLELE_FREQ_FOR_VG)),
-        #     INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(ALLELE_FREQ_FOR_VG)),
+            INDIV = INDIV),
     output:
         tsv = os.path.join(DIR_RESULTS_BIAS, 'bias.tsv'),
         done = touch(temp(os.path.join(DIR, 'refbias.done')))
