@@ -1,26 +1,48 @@
-rule find_reads_overlapping_het_grc:
+rule filter_reads_overlapping_het_grc:
     input:
         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
         bam = os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted.bam'),
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC.sam')
+        # sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC.sam')
     output:
         sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC-{INDIV}_het_no_overlaps.sam')
     shell:
-        'module load bedtools;'
-        'grep \'^@\' {input.sam} > {output.sam};'
-        'bedtools intersect -a {input.bam} -b {input.vcf} | samtools view >> {output.sam}'
+        # 'module load bedtools;'
+        # 'grep \'^@\' {input.sam} > {output.sam};'
+        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | samtools view -h >> {output.sam}'
 
-rule find_reads_overlapping_het_major:
+rule filter_reads_overlapping_het_major:
     input:
         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
         bam = os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted.bam'),
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-major.sam')
+        # sam = os.path.join(DIR_FIRST_PASS, 'wg-major.sam')
     output:
         sam = os.path.join(DIR_FIRST_PASS, 'wg-major-{INDIV}_het_no_overlaps.sam')
     shell:
-        'module load bedtools;'
-        'grep \'^@\' {input.sam} > {output.sam};'
-        'bedtools intersect -a {input.bam} -b {input.vcf} | samtools view >> {output.sam}'
+        # 'module load bedtools;'
+        # 'grep \'^@\' {input.sam} > {output.sam};'
+        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | samtools view -h >> {output.sam}'
+
+rule filter_reads_overlapping_het_refflow:
+    input:
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        bam = os.path.join(DIR_SECOND_PASS,
+            'wg-refflow-{}-{}-liftover-sorted.bam'.format(
+                ALN_MAPQ_THRSD, POP_DIRNAME)
+            )
+    output:
+        sam = os.path.join(DIR_FIRST_PASS,
+            'wg-refflow-{ALN_MAPQ_THRSD}-{POP_DIRNAME}-{INDIV}_het_no_overlaps.sam')
+    shell:
+        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | samtools view -h >> {output.sam}'
+
+rule filter_reads_overlapping_het_per:
+    input:
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        bam = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted.bam'),
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, 'wg-per-{INDIV}_het_no_overlaps.sam')
+    shell:
+        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | samtools view -h >> {output.sam}'
 
 rule calc_major_bias:
     input:
@@ -29,95 +51,52 @@ rule calc_major_bias:
         sam = os.path.join(DIR_FIRST_PASS, 'wg-major-{INDIV}_het_no_overlaps.sam')
     output:
         list_path = os.path.join(DIR_FIRST_PASS, 'major-refbias.paths'),
-        list_id = os.path.join(DIR_FIRST_PASS, 'major-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'major-refbias.txt')
     shell:
-        'echo "major" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_grc_bias:
     input:
         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
-        # sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted.sam')
         sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC-{INDIV}_het_no_overlaps.sam')
     output:
         list_path = os.path.join(DIR_FIRST_PASS, 'grc-refbias.paths'),
-        list_id = os.path.join(DIR_FIRST_PASS, 'grc-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'grc-refbias.txt')
     shell:
-        'echo "grc" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-           -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+           -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_per_bias:
     input:
         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
-        A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover-sorted.sam'),
-        B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover-sorted.sam')
+        sam = os.path.join(DIR_FIRST_PASS, 'wg-per-{INDIV}_het_no_overlaps.sam')
+        # A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover-sorted.sam'),
+        # B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover-sorted.sam')
     output:
         list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
-        list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
         bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt')
     shell:
-        'echo "perA" > {output.list_id};'
-        'echo "perB" >> {output.list_id};'
-        'ls {input.A} > {output.list_path};'
-        'ls {input.B} >> {output.list_path};'
+        'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_reffllow_bias:
     input:
         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
-        sam = os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+        sam = os.path.join(DIR_FIRST_PASS,
+            'wg-refflow-{}-{}-{}_het_no_overlaps.sam'.format(
+            ALN_MAPQ_THRSD, POP_DIRNAME, INDIV
+        ))
     output:
-        list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
-        list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
-        bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
+        list_path = os.path.join(DIR_FIRST_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
+        bias = os.path.join(DIR_FIRST_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
     shell:
-        'echo "refflow" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
-
-# rule calc_refflow_bias:
-#     input:
-#         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
-#         maj = os.path.join(DIR_FIRST_PASS,
-#             'wg-major-mapqgeq{}-liftover-sorted.sam'.format(ALN_MAPQ_THRSD)),
-#         second_maj = os.path.join(DIR_SECOND_PASS, '2ndpass-major-liftover-sorted.sam'),
-#         second_pop = [os.path.join(DIR_SECOND_PASS,'2ndpass-') + 
-#             g + '-liftover-sorted.sam' for g in GROUP]
-#     output:
-#         list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
-#         list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
-#         bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
-#     run:
-#         #: prepare list_path and list_id
-#         second_pass_group = ['maj']
-#         for g in GROUP:
-#             second_pass_group.append(g)
-#         with open(output.list_id, 'w') as f:
-#             for g in second_pass_group:
-#                 f.write(g + '\n')
-#             f.write('maj-mapqgeq{}\n'.format(ALN_MAPQ_THRSD))
-#         list_second_pass_lifted_sam = [
-#             # os.path.join(DIR_SECOND_PASS, '2ndpass-') + g +
-#             os.path.join(DIR, 'experiments/' + wildcards.INDIV +
-#             '/' + POP_DIRNAME + '/2ndpass-') + g +
-#             '-liftover-sorted.sam' for g in second_pass_group]
-#         with open(output.list_path, 'w') as f:
-#             for s in list_second_pass_lifted_sam:
-#                 # sys.stderr.write(s + '\n')
-#                 f.write(s + '\n')
-#             f.write(input.maj + '\n')
-#         shell('cat {output.list_path};')
-#         shell('{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-#                -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}')
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule summarize_grc:
     input:
@@ -148,7 +127,7 @@ rule summarize_per:
 
 rule summarize_refflow:
     input:
-        os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
+        os.path.join(DIR_FIRST_PASS, 'refflow-{}.txt'.format(POP_DIRNAME))
     output:
         os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias')
     run:
@@ -162,18 +141,12 @@ rule check_refbias_and_write_to_tsv:
         expand(
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major.bias'),
             INDIV = INDIV),
-        # expand(
-        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
-        #     INDIV = INDIV),
-        # expand(
-        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
-        #     INDIV = INDIV)
-        # expand(
-        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
-        #     INDIV = INDIV),
-        # expand(
-        #     os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
-        #     INDIV = INDIV)
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
+            INDIV = INDIV),
+        expand(
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
+            INDIV = INDIV)
     output:
         tsv = os.path.join(DIR_RESULTS_BIAS, 'bias.tsv'),
         done = touch(temp(os.path.join(DIR, 'allelic_bias.done')))
