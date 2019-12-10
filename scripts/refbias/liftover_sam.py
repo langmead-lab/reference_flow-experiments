@@ -12,8 +12,6 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
         if not line.startswith('>'):
             reference += line.strip()
 
-
-    #file = open('/net/langmead-bigmem-ib.bluecrab.cluster/storage/sheila/21_out.vcf', 'r')#open('major_21_thousand.vcf', 'r')#open('21_out.vcf', 'r')
     file = open(fn_vcf, 'r')
     count_line = 0
     index_ref = 0
@@ -24,16 +22,12 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
     vcf_file_name = fn_output+'.chr_vcf.pickle'
     sam_file_name = fn_output+'.chr_sam.pickle'
 
-    #f = open(fn_output, 'a+')
     f = open(fn_output, 'w')
 
     count_het = 0
     if not path.exists(vcf_file_name):
         chr_vcf = {}
         for line in file:
-            # if line.startswith("##"):
-            #     f.write(line.strip())
-            #     f.write("\n")
             if not line.startswith("##") and line.startswith("#"):
                 categories = line.split()
                 index_cat = count_line
@@ -102,9 +96,7 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                 #: tag 4: unaligned
                 if tag & 4:
                     continue
-                #print(str(len(sequence)) + 'M')
                 if not cigar == (str(len(sequence))+'M') and not (tag & 4):
-                    #ref = reference[start_pos:start_pos + 102]
                     change = 0
                     start = start_pos
                     count_del = 0
@@ -144,10 +136,6 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                             print ("cigar", cigar)
                             print ("flag", tag) 
                             exit()
-                    #print("ref: ", ref)
-                    #print("mod: ", mod_sequence)
-                    
-                    # input()
                 else:
                     mod_sequence = sequence
                 if not chr_sam:
@@ -164,11 +152,6 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
     else:
         print ('Load from {}'.format(sam_file_name))
         chr_sam = pickle.load(open(sam_file_name, 'rb'))
-
-    #pickle.dump(chr_vcf, open(fn_output+'.chr_vcf.pickle', 'w'))
-    #pickle.dump(chr_sam, open(fn_output+'.chr_sam.pickle', 'w'))
-
-    #print("chr_sam: ", chr_sam[1])
 
     chr_list = list(chr_vcf.keys())
     chr_list.sort()
@@ -208,32 +191,6 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                         starting_point = i
                     reads_at_het += 1
                     
-                    '''#: to comment
-                    allele = sam_reads[i][pos - align]
-                    #if (allele not in options[count_pos][0]) and (sam_reads[i].count('N') <= 10):
-                    # if (allele not in [options[count_pos][0], options[count_pos][1]]):
-                    if (allele not in [options[count_pos][0]]):
-                        ref_a = options[count_pos][0]
-                        alt_a = options[count_pos][1]
-                        print ("ref = {0}, alt = {1} @ {2}".format(ref_a, alt_a, pos+1))
-                        print ('##########'+options[count_pos][0]+'###########')
-                        print (reference[pos-10 : pos+12])
-                        tmp_reads = '..........'+sam_reads[i]+'..........'
-                        print (sam_reads[i][pos-align-10 : pos-align+12])
-                        print (tmp_reads[pos-align : pos-align+22])
-                        print ('##########'+allele+'###########')
-                        print (chr_sam[chr][2][i], chr_sam[chr][1][i])
-                        print ("cigar", chr_sam[chr][3][i])
-                        input ()
-                    if allele in options[count_pos][0]:
-                        ref_count += 1
-                    elif allele in options[count_pos][1]:
-                        alt_count += 1
-                    elif allele == '-':
-                        gap_count += 1
-                    else:
-                        other_count += 1
-                    '''
                     try:
                         allele = sam_reads[i][pos - align]
                         if allele in options[count_pos][0]:
@@ -248,25 +205,12 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                         else:
                             other_count += 1
                             total_other_count += 1
-                            # if (pos in range(9560476-2000, 9560476+2000)):# or (pos in range(11083563-1000, 11083563+1000)):
-                            #     print ('vcf at', pos)
-                            #     print (sam_reads[i])
-                            #     print (align)
-                            #     print (chr_sam[chr][2][i])
-                            #     print (chr_sam[chr][3][i])
-                            #     print ('##########'+options[count_pos][0]+'###########')
-                            #     print (reference[pos-10 : pos+12])
-                            #     tmp_reads = '..........'+sam_reads[i]+'..........'
-                            #     print (tmp_reads[pos-align : pos-align+22])
-                            #     print ('##########'+allele+'###########')
                     except:
                         print("in here. pos is: ", pos, "   and align is: ", align)
-                        #print("vcf[pos]: ", vcf[pos])
                         print("sam[align]: ", sam_reads[i])
                 else:
                     if align > pos:
                         break
-                    # print(ref_count, alt_count)
             have_started = False
             f.write(str(chr))
             f.write("\t")
@@ -290,21 +234,8 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
             f.write("\n")
             count_pos += 1
 
-
-    #ref_string = 'Total Ref Count:' + '/t' + str(total_ref_count)
-    #alt_string = 'Total Alt Count:' + '/t' + str(total_alt_count)
-    #gap_string = 'Total Gap Count:' + '/t' + str(total_gap_count)
-    #other_string = 'Total Other Count:' + '/t' + str(total_other_count)
-
-    #f.write(ref_string)
-    #f.write("\n")
-    #f.write(alt_string)
-    #f.write("\n")
-    #f.write(gap_string)
-    #f.write("\n")
-    #f.write(other_string)
-    #f.write("\n")
     f.close()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--vcf', help='vcf file')
