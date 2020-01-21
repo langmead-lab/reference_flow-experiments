@@ -70,7 +70,7 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
         chr_vcf = pickle.load(open(vcf_file_name, "rb"))
 
     file = open(fn_sam, 'r')
-    f.write("CHR\tHET_SITE\tREFERENCE_BIAS\tREF_COUNT\tALT_COUNT\tGAP_COUNT\tOTHER_COUNT\tNUM_READS")
+    f.write("CHR\tHET_SITE\tREFERENCE_BIAS\tREF_COUNT\tALT_COUNT\tGAP_COUNT\tOTHER_COUNT\tNUM_READS\tSUM_MAPQ")
     f.write("\n")
     count_line = 0
     chr_sam = {}
@@ -89,6 +89,7 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                 # chr = spl[2][0:2]
                 # chr = int(spl[2][0:2])
                 cigar = spl[5]
+                mapq = int(spl[4])
                 start_pos = int(spl[3]) - 1 #TODO
                 sequence = spl[9]
                 mod_sequence = ''
@@ -139,13 +140,14 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
                 else:
                     mod_sequence = sequence
                 if not chr_sam:
-                    chr_sam[chr] = [[], [], [], []]
+                    chr_sam[chr] = [[], [], [], [], []]
                 elif chr not in chr_sam.keys():
-                    chr_sam[chr] = [[], [], [], []]
-                chr_sam[chr][0].append(start_pos)#position
-                chr_sam[chr][1].append(mod_sequence)#sequence
+                    chr_sam[chr] = [[], [], [], [], []]
+                chr_sam[chr][0].append(start_pos) #position
+                chr_sam[chr][1].append(mod_sequence) #sequence
                 chr_sam[chr][2].append(tag)
                 chr_sam[chr][3].append(cigar)
+                chr_sam[chr][4].append(mapq)
             count_line += 1
         pickle.dump(chr_sam, open(sam_file_name, 'wb'))
         print ('Dump to {}'.format(sam_file_name))
@@ -161,6 +163,7 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
         options = chr_vcf[chr][1]
         sam_pos = chr_sam[chr][0]
         sam_reads = chr_sam[chr][1]
+        list_mapq = chr_sam[chr][4]
 
         have_started = False
         starting_point = 0
@@ -177,20 +180,21 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
             gap_count = 0
             other_count = 0
             reads_at_het = 0
+            sum_mapq = 0
             if pos == 'N/A':
                 f.write('\n')
                 count_pos += 1
                 continue
             for i in range(starting_point, len(sam_pos)):
                 align = sam_pos[i]
-                ran = range(align, align + len(sam_reads[i]))  # should this be 101, idts
+                ran = range(align, align + len(sam_reads[i]))
                 if pos in ran:
                     #print("here, it overlaps")
                     if not have_started:
                         have_started = True
                         starting_point = i
                     reads_at_het += 1
-                    
+                    sum_mapq += list_mapq[i]
                     try:
                         allele = sam_reads[i][pos - align]
                         if allele in options[count_pos][0]:
@@ -217,21 +221,22 @@ def main(fn_vcf, fn_sam, fn_fasta, fn_output):
             f.write(str(pos + 1)) #: outputs in 1-based format
             # f.write(str(pos))
             f.write("\t")
-            if ref_count == 0 and alt_count == 0:
+            if ref_count + alt_count == 0:
                 f.write("N/A")
             else:
-                f.write(str(ref_count / float(ref_count + alt_count + gap_count + other_count)))
-            f.write("\t")
-            f.write(str(ref_count))
-            f.write("\t")
-            f.write(str(alt_count))
-            f.write("\t")
-            f.write(str(gap_count))
-            f.write("\t")
-            f.write(str(other_count))
-            f.write("\t")
-            f.write(str(reads_at_het))
-            f.write("\n")
+                f.write(str(ref_count / float(ref_count + alt_count)))
+            f.write(f'\t{ref_count}\t{alt_count}\t{gap_count}\t{other_count}\t{reads_at_het}\t{sum_mapq}\n')
+            # f.write("\t")
+            # f.write(str(ref_count))
+            # f.write("\t")
+            # f.write(str(alt_count))
+            # f.write("\t")
+            # f.write(str(gap_count))
+            # f.write("\t")
+            # f.write(str(other_count))
+            # f.write("\t")
+            # f.write(str(reads_at_het))
+            # f.write("\n")
             count_pos += 1
 
     f.close()
