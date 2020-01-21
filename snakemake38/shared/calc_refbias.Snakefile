@@ -1,31 +1,44 @@
 ''' Prepare HET sites from the 1KG VCF '''
 #: SNV-only
-rule build_individual_het:
+# rule build_individual_het:
+#     input:
+#         vcf = PHASED_VCF_F
+#     output:
+#         os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}.vcf')
+#     shell:
+#         '{BCFTOOLS} view -s {wildcards.INDIV} {input.vcf} | \
+#          {BCFTOOLS} view -i "AC>0" -v snps -g het -m2 -M2 > {output}'
+
+rule get_indiv_het:
     input:
         vcf = PHASED_VCF_F
-    output:
-        os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}.vcf')
-    shell:
-        '{BCFTOOLS} view -s {wildcards.INDIV} {input.vcf} | \
-         {BCFTOOLS} view -i "AC>0" -v snps -g het -m2 -M2 > {output}'
-
-#: HETs including SNVs and INDELs
-rule get_het_with_indel:
-    input:
-        vcf = PHASED_VCF_F
-    output:
-        het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_withindel.vcf')
-    shell:
-        '{BCFTOOLS} view -s {wildcards.INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
-
-#: Remove INDELS and SNVs overlapping INDELs
-rule get_het_with_indel_processed:
-    input:
-        het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_withindel.vcf')
     output:
         het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
     shell:
-        'cat {input.het} | python {DIR_SCRIPTS}/remove_het_overlapping_indel.py > {output.het}'
+        #: get bi-allelic sites for the individual
+        '{BCFTOOLS} view -s {wildcards.INDIV} -i "AC>0" -m2 -M2 {input.vcf} | '
+        #: remove sites overlapping indels
+        '{PYTHON} {DIR_SCRIPTS}/remove_het_overlapping_indel.py | '
+        #: only take het sites
+        '{BCFTOOLS} view -g het > {output.het}'
+
+# #: HETs including SNVs and INDELs
+# rule get_het_with_indel:
+#     input:
+#         vcf = PHASED_VCF_F
+#     output:
+#         het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_withindel.vcf')
+#     shell:
+#         '{BCFTOOLS} view -s {wildcards.INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
+# 
+# #: Remove INDELS and SNVs overlapping INDELs
+# rule get_het_with_indel_processed:
+#     input:
+#         het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_withindel.vcf')
+#     output:
+#         het = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf')
+#     shell:
+#         'cat {input.het} | python {DIR_SCRIPTS}/remove_het_overlapping_indel.py > {output.het}'
 
 ''' Allelic bias measurement '''
 rule calc_major_bias_gnomad:
@@ -40,7 +53,7 @@ rule calc_major_bias_gnomad:
         'echo "major-gnomad" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_major_bias_onekg:
     input:
@@ -54,7 +67,7 @@ rule calc_major_bias_onekg:
         'echo "major-1kg" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_grc_bias:
     input:
@@ -68,7 +81,7 @@ rule calc_grc_bias:
         'echo "grc" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-           -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_per_bias:
     input:
@@ -83,7 +96,7 @@ rule calc_per_bias:
         'echo "per" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_per_bias_haploid_setting:
     input:
@@ -98,7 +111,7 @@ rule calc_per_bias_haploid_setting:
         'echo "per_h2h" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-            -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_refflow_bias_gnomad:
     input:
@@ -113,7 +126,7 @@ rule calc_refflow_bias_gnomad:
         'echo "refflow" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-           -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_refflow_bias_onekg:
     input:
@@ -128,7 +141,7 @@ rule calc_refflow_bias_onekg:
         'echo "refflow" > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-           -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule calc_vg_bias:
     input:
@@ -144,7 +157,7 @@ rule calc_vg_bias:
         'echo {params.id} > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
         '{PYTHON} {DIR_SCRIPTS}/refbias/lift_ref_flow.py -v {input.vcf} \
-           -s {output.list_path} -n {output.list_id} -f {GENOME} -o {output.bias}'
+            -s {output.list_path} -f {GENOME} -o {output.bias}'
 
 rule summarize_grc:
     input:
@@ -290,11 +303,11 @@ rule check_refbias_and_write_to_tsv:
         df = df.sort_values('INDIV')
         df.to_csv(output.tsv, sep = '\t', index = None, float_format = '%.4f')
 
-rule find_strongly_biased_reads_refflow:
+rule find_strongly_biased_reads_refflow_onekg:
     input:
-        list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
-        list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
-        bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME)),
+        list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}-1kg.paths'.format(POP_DIRNAME)),
+        list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}-1kg.ids'.format(POP_DIRNAME)),
+        bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}-1kg.txt'.format(POP_DIRNAME)),
         vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
         vcf_complete = PREFIX_PER + '.vcf'
     output:
@@ -413,11 +426,11 @@ rule find_strongly_biased_reads_grc:
         shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
             -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
 
-rule find_strongly_biased_reads_major:
+rule find_strongly_biased_reads_major_onekg:
     input:
-        list_path = os.path.join(DIR_FIRST_PASS, 'major-refbias.paths'),
-        list_id = os.path.join(DIR_FIRST_PASS, 'major-refbias.ids'),
-        bias = os.path.join(DIR_FIRST_PASS, 'major-refbias.txt'),
+        list_path = os.path.join(DIR_FIRST_PASS, 'major-1kg-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'major-1kg-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'major-1kg-refbias.txt'),
         vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
         vcf_complete = PREFIX_PER + '.vcf'
     output:
@@ -489,12 +502,12 @@ rule check_find_reads:
                 int(100*(0.5+BIAS_TAIL_THRDS)),
                 int(100*(0.5-BIAS_TAIL_THRDS))
             )), INDIV = INDIV),
-        expand(os.path.join(
-            DIR_RESULTS_BIAS,
-            '{INDIV}-' + 'per_h2h-above{}_or_below{}.reads.tsv'.format(
-                int(100*(0.5+BIAS_TAIL_THRDS)),
-                int(100*(0.5-BIAS_TAIL_THRDS))
-            )), INDIV = INDIV),
+        # expand(os.path.join(
+        #     DIR_RESULTS_BIAS,
+        #     '{INDIV}-' + 'per_h2h-above{}_or_below{}.reads.tsv'.format(
+        #         int(100*(0.5+BIAS_TAIL_THRDS)),
+        #         int(100*(0.5-BIAS_TAIL_THRDS))
+        #     )), INDIV = INDIV),
         expand(os.path.join(
             DIR_RESULTS_BIAS,
             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads.tsv'.format(
