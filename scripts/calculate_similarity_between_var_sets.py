@@ -76,24 +76,29 @@ def list_mode(
                 break
         list_fn_base.append(base)
 
+    #: union of all
+    set_union_all = set()
     df_inter = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
     df_union = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
     df_jaccard = pd.DataFrame(columns = list_fn_base, index=list_fn_base)
     for i in range(df_inter.shape[0]):
+        set_union_all = set_union_all.union(list_set[i])
         for j in range(df_inter.shape[1]):
             if i <= j:
                 df_inter.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[0]
                 df_union.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[1]
                 df_jaccard.iloc[i,j] = calc_similarity(list_set[i], list_set[j])[2]
-
+    
     if output_prefix == None:
         print (df_inter)
         print (df_union)
         print (df_jaccard)
+        print (len(set_union_all))
     else:
         df_inter.to_csv(output_prefix + '_inter.tsv', sep='\t')
         df_union.to_csv(output_prefix + '_union.tsv', sep='\t')
         df_jaccard.to_csv(output_prefix + '_jaccard.tsv', sep='\t')
+        # df_jaccard.to_csv(output_prefix + '_jaccard.tsv', sep='\t', float_format='%.16g')
 
 if __name__ == '__main__':
     args = parse_args()
