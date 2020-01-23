@@ -51,7 +51,8 @@ if fn_set1.endswith('.fq') or fn_set1.endswith('.fastq'):
         if line.startswith('@'):
             read_name = line.split()[0][1:]
             if mason2 in [1, 12]:
-                read_name = read_name.split('/')[0]
+                read_name = '/'.join(read_name.split('/')[:-1])
+                # read_name = read_name.split('/')[:-1]
             list_set1_reads.append(read_name)
 elif fn_set1.endswith('.sam'):
     for line in f_set1:
@@ -61,13 +62,15 @@ elif fn_set1.endswith('.sam'):
 
         read_name = line.split()[0]
         if mason2 in [1, 12]:
-            read_name = read_name.split('/')[0]
+            read_name = '/'.join(read_name.split('/')[:-1])
+            # read_name = read_name.split('/')[:-1]
         list_set1_reads.append(read_name)
 elif fn_set1.endswith('.names'):
     for line in f_set1:
         read_name = line.rstrip()
         if mason2 in [1, 12]:
-            read_name = read_name.split('/')[0]
+            read_name = '/'.join(read_name.split('/')[:-1])
+            # read_name = read_name.split('/')[:-1]
         list_set1_reads.append(read_name)
 else:
     print ('Error: unrecognized file format: {}'.format(fn_set1))
@@ -81,7 +84,8 @@ if fn_set2.endswith('.fq'):
         if line.startswith('@'):
             read_name = line.split()[0][1:]
             if mason2 in [2, 12]:
-                read_name = read_name.split('/')[0]
+                read_name = '/'.join(read_name.split('/')[:-1])
+                # read_name = read_name.split('/')[:-1]
             list_set2_reads.append(read_name)
             if fn_output != None:
                 if read_name in set_set1_reads:
@@ -99,7 +103,7 @@ elif fn_set2.endswith('.sam'):
 
         read_name = line.split()[0]
         if mason2 in [2, 12]:
-            read_name = read_name.split('/')[0]
+            read_name = '/'.join(read_name.split('/')[:-1])
         list_set2_reads.append(read_name)
         if fn_output != None:
             if read_name in set_set1_reads:
