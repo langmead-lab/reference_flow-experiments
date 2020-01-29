@@ -97,14 +97,13 @@ map_median_major <- med[med$Reduced =="Major",]$True.Positive / total
 
 
 ```{r boxplot_for_summary_bias}
-# df_summary_bias <- read.delim("data/allelic_bias/1125_5indiv.bias.tsv", header = T, sep = "\t")
-# df_summary_bias <- read.delim("data/allelic_bias/1128_25indiv.bias.tsv", header = T, sep = "\t")
-df_summary_bias <- read.delim("data/allelic_bias/0127_25indiv.bias.tsv", header = T, sep = "\t")
+df_summary_bias <- read.delim("data/allelic_bias/0129_25indiv.bias.tsv", header = T, sep = "\t")
+# df_summary_bias <- read.delim("data/allelic_bias/0127_25indiv.bias.tsv", header = T, sep = "\t")
 df_summary_bias$SUM_TAIL <- df_summary_bias$NUM_REFBIAS.0.8. + df_summary_bias$NUM_ALTBIAS.0.2.
 
 df_summary_bias$Reduced <- df_summary_bias$Method
 
-bias_method_name <- c("grc", "major-1kg", "chr21-AFR-chr21_superpop_AFR_thrds0.5_S0_b1_ld0", "chr21-AMR-chr21_superpop_AMR_thrds0.5_S0_b1_ld0", "chr21-SAS-chr21_superpop_SAS_thrds0.5_S0_b1_ld0", "chr21-EAS-chr21_superpop_EAS_thrds0.5_S0_b1_ld0", "chr21-EUR-chr21_superpop_EUR_thrds0.5_S0_b1_ld0", "Matched",  "chr21-major-10-thrds0.5_S0_b1_ld0-1kg", "chr21-major-10-thrds0_S1_b1_ld0-1kg", "thrds0_S1_b1000_ld1-1kg", "vg_0.01", "per")
+bias_method_name <- c("grc", "major-1kg", "chr21-AFR-chr21_superpop_AFR_thrds0.5_S0_b1_ld0", "chr21-AMR-chr21_superpop_AMR_thrds0.5_S0_b1_ld0", "chr21-SAS-chr21_superpop_SAS_thrds0.5_S0_b1_ld0", "chr21-EAS-chr21_superpop_EAS_thrds0.5_S0_b1_ld0", "chr21-EUR-chr21_superpop_EUR_thrds0.5_S0_b1_ld0", "Matched",  "thrds0.5_S0_b1_ld0-1kg", "chr21-major-10-thrds0_S1_b1_ld0-1kg", "thrds0_S1_b1000_ld1-1kg", "vg_0.01", "per")
 bias_rmethod_name <- c("GRC", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "RefFlow (Major)", "RefFlow (1)", "RefFlow (1000)", "vg", "Personalized")
 for (i in seq(length(bias_method_name))){
   df_summary_bias$Reduced <- gsub(bias_method_name[i], bias_rmethod_name[i], df_summary_bias$Reduced)
@@ -120,7 +119,7 @@ bias_median_per <- bias_med[bias_med$Reduced =="Personalized",]$SUM_TAIL
 p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, color = Super_Population)) + 
   geom_boxplot() +
   geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
-  ylab("Num. biased sites") + xlab("Method") + labs(color="Super Population") +
+  ylab("Num. strongly biased sites") + xlab("Method") + labs(color="Super Population") +
   theme_bw() +
   scale_y_continuous(limits=c(0,NA), sec.axis = sec_axis(~(.-bias_median_grc)/(bias_median_per-bias_median_grc), name = "Gain of Personalization")) +
   theme(legend.position = "bottom")
@@ -183,6 +182,10 @@ df_maj <- filter_df(df_maj)
 df_vg <- filter_df(df_vg)
 df_rf <- filter_df(df_rf)
 df_per <- filter_df(df_per)
+
+# df_rf_maj <- read.delim("data/allelic_bias/NA12878/chr21-refflow-10-thrds0.5_S0_b1_ld0-liftover-1kg-sorted.sam_refbias.txt", header = TRUE, sep = "\t")
+# df_rf_maj <- filter_df(df_rf_maj)
+# get_bias_stats(df_rf_maj)
 ```
 
 ```{r trans}
@@ -222,7 +225,7 @@ squish_trans <- function(from, to, factor) {
 
 # Plots countour-only histograms #
 ```{r histogram_refbias_major}
-hist_step <- 0.04
+hist_step <- 0.02
 half_step <- hist_step / 2
 hist_ref <- hist(df_ref$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
 hist_ref <- c(hist_ref, hist_ref[length(hist_ref)])
@@ -238,7 +241,7 @@ hist_per <- c(hist_per, hist_per[length(hist_per)])
 adjusted_bins <- seq(0, 1+half_step, by=hist_step) - half_step
 adjusted_bins[1] <- 0
 adjusted_bins <- c(adjusted_bins, 1)
-# adjusted_bins[length(adjusted_bins)] <- 1
+adjusted_bins[length(adjusted_bins)] <- 1
 
 plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
   hist_bins <- rep(adjusted_bins, length(hist_names))
@@ -250,7 +253,7 @@ plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
     # scale_y_continuous(limits=c(0,50)) + 
     scale_y_continuous(trans = 'log10', limits=c(1,NA)) +
     theme_bw() + 
-    xlab("Bias") + ylab("Count") + labs(color='Method') + 
+    xlab("Allelic balance") + ylab("Count") + labs(color='Method') + 
     geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
     theme(legend.position = "right", aspect.ratio=NULL)
   if (save){
@@ -540,7 +543,7 @@ df_per_real <- filter_df(df_per_real)
 ```
 
 ``` {r histogram_refbias_real}
-hist_step <- 0.04
+hist_step <- 0.02
 half_step <- hist_step / 2
 hist_ref_real <- hist(df_ref_real$REFBIAS, breaks=seq(-half_step, 1+half_step, by=hist_step))$counts
 hist_ref_real <- c(hist_ref_real, hist_ref_real[length(hist_ref_real)])
@@ -566,9 +569,9 @@ plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
     # scale_x_continuous(trans = squish_trans(0.2, 0.8, 10)) +
     # scale_y_continuous(limits=c(0,30)) +
     # scale_y_continuous(limits=c(0,50)) + 
-    scale_y_continuous(trans = 'log10', limits=c(700,NA)) +
+    scale_y_continuous(trans = 'log10', limits=c(300,NA)) +
     theme_bw() + 
-    xlab("Bias") + ylab("Count") + labs(color='Method') + 
+    xlab("Allelic balance") + ylab("Count") + labs(color='Method') + 
     geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
     theme(legend.position = "bottom", aspect.ratio=NULL)
   if (save){
@@ -613,13 +616,13 @@ get_class_unsupervised <- function (df){
   df$CLASS_UNSUPER <- classes
   return (df)
 }
+
 get_group_numbers <- function (df){
   df_diag <- df[df$CLASS_UNSUPER == 1 ,]
   df_highq <- df[df$CLASS_UNSUPER == 2 ,]
   df_lowq <- df[df$CLASS_UNSUPER == 3 ,]
   return (c(nrow(df), nrow(df_diag), nrow(df_highq), nrow(df_lowq)))
 }
-
 
 unsuper_cnt_ref_wg <- get_group_numbers(get_class_unsupervised(df_ref_real))
 unsuper_cnt_maj_wg <- get_group_numbers(get_class_unsupervised(df_maj_real))
@@ -686,16 +689,16 @@ df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AMR_thrds0.5_S0_b1_
 df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EUR_thrds0.5_S0_b1_ld0" = "Major_EUR")
 df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EAS_thrds0.5_S0_b1_ld0" = "Major_EAS")
 df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_SAS_thrds0.5_S0_b1_ld0" = "Major_SAS")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AFR_thrds0_S1_b1_ld0" = "Stoc_no_phase_AFR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AMR_thrds0_S1_b1_ld0" = "Stoc_no_phase_AMR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EUR_thrds0_S1_b1_ld0" = "Stoc_no_phase_EUR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EAS_thrds0_S1_b1_ld0" = "Stoc_no_phase_EAS")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_SAS_thrds0_S1_b1_ld0" = "Stoc_no_phase_SAS")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AFR_thrds0_S1_b1000_ld1" = "Stoc_phased_AFR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AMR_thrds0_S1_b1000_ld1" = "Stoc_phased_AMR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EUR_thrds0_S1_b1000_ld1" = "Stoc_phased_EUR")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EAS_thrds0_S1_b1000_ld1" = "Stoc_phased_EAS")
-df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_SAS_thrds0_S1_b1000_ld1" = "Stoc_phased_SAS")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AFR_thrds0_S1_b1_ld0" = "Stoc1_AFR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AMR_thrds0_S1_b1_ld0" = "Stoc1_AMR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EUR_thrds0_S1_b1_ld0" = "Stoc1_EUR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EAS_thrds0_S1_b1_ld0" = "Stoc1_EAS")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_SAS_thrds0_S1_b1_ld0" = "Stoc1_SAS")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AFR_thrds0_S1_b1000_ld1" = "Stoc1000_AFR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_AMR_thrds0_S1_b1000_ld1" = "Stoc1000_AMR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EUR_thrds0_S1_b1000_ld1" = "Stoc1000_EUR")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_EAS_thrds0_S1_b1000_ld1" = "Stoc1000_EAS")
+df_var_jaccard$x <- recode(df_var_jaccard$x, "chr21_superpop_SAS_thrds0_S1_b1000_ld1" = "Stoc1000_SAS")
 
 df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21-major-1kg" = "Major")
 df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AFR_thrds0.5_S0_b1_ld0" = "Major_AFR")
@@ -703,16 +706,16 @@ df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AMR_thrds0.5_S0_b1_
 df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EUR_thrds0.5_S0_b1_ld0" = "Major_EUR")
 df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EAS_thrds0.5_S0_b1_ld0" = "Major_EAS")
 df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_SAS_thrds0.5_S0_b1_ld0" = "Major_SAS")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AFR_thrds0_S1_b1_ld0" = "Stoc_no_phase_AFR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AMR_thrds0_S1_b1_ld0" = "Stoc_no_phase_AMR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EUR_thrds0_S1_b1_ld0" = "Stoc_no_phase_EUR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EAS_thrds0_S1_b1_ld0" = "Stoc_no_phase_EAS")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_SAS_thrds0_S1_b1_ld0" = "Stoc_no_phase_SAS")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AFR_thrds0_S1_b1000_ld1" = "Stoc_phased_AFR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AMR_thrds0_S1_b1000_ld1" = "Stoc_phased_AMR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EUR_thrds0_S1_b1000_ld1" = "Stoc_phased_EUR")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EAS_thrds0_S1_b1000_ld1" = "Stoc_phased_EAS")
-df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_SAS_thrds0_S1_b1000_ld1" = "Stoc_phased_SAS")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AFR_thrds0_S1_b1_ld0" = "Stoc1_AFR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AMR_thrds0_S1_b1_ld0" = "Stoc1_AMR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EUR_thrds0_S1_b1_ld0" = "Stoc1_EUR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EAS_thrds0_S1_b1_ld0" = "Stoc1_EAS")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_SAS_thrds0_S1_b1_ld0" = "Stoc1_SAS")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AFR_thrds0_S1_b1000_ld1" = "Stoc1000_AFR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_AMR_thrds0_S1_b1000_ld1" = "Stoc1000_AMR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EUR_thrds0_S1_b1000_ld1" = "Stoc1000_EUR")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_EAS_thrds0_S1_b1000_ld1" = "Stoc1000_EAS")
+df_var_jaccard$y <- recode(df_var_jaccard$y, "chr21_superpop_SAS_thrds0_S1_b1000_ld1" = "Stoc1000_SAS")
 
 ## With individuals
 fig_var_chr21 <- ggplot(df_var_jaccard, aes(x, y)) +
@@ -755,13 +758,54 @@ fig_var_dist_chr21
 # df_var_jaccard_no_indiv <- df_var_jaccard %>% filter(!x %in% c("NA19312", "HG01974", "NA20541", "HG01863", "HG03756"))
 # df_var_jaccard_no_indiv <- df_var_jaccard_no_indiv %>% filter(!y %in% c("NA19312", "HG01974", "NA20541", "HG01863", "HG03756"))
 
-fig_var_dist_chr21_no_indiv <- ggplot(df_var_jaccard_no_indiv, aes(x, y)) +
+
+fig_var_dist_chr21_no_indiv <- ggplot(df_var_jaccard_no_indiv %>% filter(as.integer(x) > as.integer((y))), aes(x, y)) +
   geom_tile(aes(fill = distance), color='white') +
   scale_fill_gradient2(high='red', low='blue', mid='yellow', midpoint=(max(df_var_jaccard$distance))/8,
                        limits=(c(min(df_var_jaccard$distance), NA))) +
   theme_bw() + labs(fill="Edit distance", x="", y="") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 fig_var_dist_chr21_no_indiv
+
+# Get lower triangle of the matrix
+df_var_jaccard_no_indiv2 <- df_var_jaccard_no_indiv %>% filter(as.integer(x) > as.integer((y)))
+df_var_jaccard_no_indiv2$mixed <- df_var_jaccard_no_indiv2$dist
+df_var_jaccard_no_indiv3 <- df_var_jaccard_no_indiv %>% filter(as.integer(x) < as.integer((y)))
+df_var_jaccard_no_indiv3$mixed <- df_var_jaccard_no_indiv3$jaccard
+df_var_jaccard_dist_no_indiv <- rbind(df_var_jaccard_no_indiv2, df_var_jaccard_no_indiv3)
+
+# https://www.royfrancis.com/a-guide-to-elegant-tiled-heatmaps-in-r-2019/
+m4 <- df_var_jaccard_dist_no_indiv %>%
+      # create a new variable from count
+      mutate(countfactor=cut(mixed,breaks=c(-1,0.3,0.35,0.4,0.5,0.7,1,10000,30000,35000,45000,max(mixed,na.rm=T)),
+                             labels=c("<0.3","0.3-0.35","0.35-0.4","0.4-0.5","0.5-0.7","0.7-1","1-10000","10000-30000","30000-35000","35000-45000",">45000")))
+
+textcol <- "black"# "grey40"
+
+fig_var_dist_jaccard_chr21_no_indiv <- ggplot(m4,aes(x=x,y=y,fill=countfactor))+
+  geom_tile(colour="white",size=0.2)+
+  guides(fill=guide_legend(title="Jaccard similarity / Edit distance"))+
+  labs(x="",y="",title="")+
+  scale_y_discrete(expand=c(0,0))+
+  scale_x_discrete(expand=c(0,0))+
+  scale_fill_manual(values=c("#92203d","#d12e41","#df6d7a","#f46d43","#f78e6e","#fdae61","#fee08b","#e6f598","#b1dda2","#86cf7d","#429537"),na.value = "grey90")+
+  #coord_fixed()+
+  theme_grey(base_size=10)+
+  theme(legend.position="right",legend.direction="vertical",
+        legend.title=element_text(colour=textcol),
+        legend.margin=margin(grid::unit(0,"cm")),
+        legend.text=element_text(colour=textcol,size=7,face="bold"),
+        legend.key.height=grid::unit(0.8,"cm"),
+        legend.key.width=grid::unit(0.2,"cm"),
+        axis.text.x=element_text(colour=textcol, angle = 45, hjust = 1),
+        axis.text.y=element_text(vjust=0.2,colour=textcol),
+        axis.ticks=element_line(size=0.4),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"),
+        plot.title=element_text(colour=textcol,hjust=0,size=14,face="bold"))
+fig_var_dist_jaccard_chr21_no_indiv
+
 
 ```
 
@@ -833,16 +877,19 @@ fig_twopass_combined_three_rows <- grid_arrange_shared_legend(
   p_summary_r2a + labs(tag = "(c)")
 )
 if (save == T)
-  ggsave("figures/fig_twopass_combined_three_rows.pdf", width = 12, height = 9, plot=fig_twopass_combined_three_rows)
+  ggsave("figures/boxplot3_sensitivity_and_bias.pdf", width = 12, height = 9, plot=fig_twopass_combined_three_rows)
+  # ggsave("figures/fig_twopass_combined_three_rows.pdf", width = 12, height = 9, plot=fig_twopass_combined_three_rows)
 
 #### Real WGS experiment
 p_refbias_real
 if (save == T)
-  ggsave("figures/fig_real_wgs_histogram.pdf", width = 8, height = 6, plot=p_refbias_real)
+  ggsave("figures/histogram_real_wgs.pdf", width = 8, height = 6, plot=p_refbias_real)
+  # ggsave("figures/fig_real_wgs_histogram.pdf", width = 8, height = 6, plot=p_refbias_real)
 
 
 #### Scatter plots
-plot_both_tails(fn = "figures/fig_scatter_21.pdf")
+# plot_both_tails(fn = "figures/fig_scatter_21.pdf")
+plot_both_tails(fn = "figures/scatterplot_NA12878_chr21.pdf")
 
 ### Reduction of bias
 # fig_trend_combined <- grid_arrange_shared_legend(
@@ -859,20 +906,23 @@ fig_trend_combined <- grid.arrange(
   layout_matrix = rbind(c(1,2), c(3), c(3))
 )
 if (save)
-  ggsave("figures/fig_barplot_reduce_bias.pdf", fig_trend_combined, width = 12, height = 7)
+  ggsave("figures/barplot_reduce_bias.pdf", fig_trend_combined, width = 12, height = 7)
+  # ggsave("figures/fig_barplot_reduce_bias.pdf", fig_trend_combined, width = 12, height = 7)
 
 
 
 #### Histograms using chr21 simulated data: five methods
 # p_refbias_sim21_refflow
 if (save == T)
-  ggsave("figures/hist_contour_sim21_refflow.pdf", width = 12, height = 6.5, plot=p_refbias_sim21_refflow)
+  ggsave("figures/histogram_sim21.pdf", width = 8, height = 6, plot=p_refbias_sim21_refflow)
+  # ggsave("figures/hist_contour_sim21_refflow.pdf", width = 12, height = 6.5, plot=p_refbias_sim21_refflow)
 
 #### Variant analysis
 # fig_var_chr21_no_indiv
 # fig_var_chr21
 if (save == T){
   ggsave("figures/heatmap_chr21_genomes_distance.pdf", width = 8, height = 6, plot=fig_var_dist_chr21_no_indiv)
+  ggsave("figures/heatmap_chr21_genomes_jaccard_distance.pdf", width = 8, height = 6, plot=fig_var_dist_jaccard_chr21_no_indiv)
   # ggsave("figures/heatmap_chr21_genomes_with_individuals.pdf", width = 8, height = 6, plot=fig_var_chr21)
   # ggsave("figures/heatmap_chr21_genomes.pdf", width = 8, height = 6, plot=fig_var_chr21_no_indiv)
 }
