@@ -28,13 +28,13 @@ BIAS_MIN_READ_COUNT : 2
 BIAS_TAIL_THRDS : 0.3
 
 DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38_100'
-GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38/chr21.fa'
+GENOME : 'chr21.fa'
 UNPHASED_VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/gnomad_v3/gnomad.genomes.r3.0.sites.chr21.vcf.bgz'
 PHASED_VCF : 'ALL.chr21.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'
 FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
 SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
-LENGTH_MAP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake38/GRCh38.length_map'
-CHROM_MAP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake38/GRCh38.chrom_map'
+LENGTH_MAP : 'GRCh38.length_map'
+CHROM_MAP : 'GRCh38.chrom_map'
 
 BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'

@@ -30,15 +30,11 @@ BIAS_MIN_READ_COUNT : 15
 #: will be defined as strongly biased toward ref/alt
 BIAS_TAIL_THRDS : 0.3
 
-# DIR : '/net/langmead-bigmem-ib/storage2/naechyun/refflow/chr21/pipeline2'
-# DIR : '/scratch/groups/blangme2/naechyun/relaxing/sn_pipeline2'
-# DIR: '/storage2/naechyun/refflow/chr21/pipeline_100'
-# DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/include_mapq'
 DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/deep100'
 GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/chr21.fa'
 VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
-FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
-SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
+FAMILY : '../../experiments/20130606_g1k.ped'
+SPOP : '../../experiments/1kg.superpopulation'
 
 BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'

@@ -19,9 +19,8 @@ GENOME : '/scratch/groups/blangme2/indexes/hg19.fa'
 
 INDIV : 'NA12878'
 READS1 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/1000Genomes/SRR622457/fastq/SRR622457_1.fastq'
-# VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/chr21/21.vcf'
-FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
-SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
+FAMILY : '../../experiments/20130606_g1k.ped'
+SPOP : '../../experiments/1kg.superpopulation'
 
 BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 SAMTOOLS : '/home-1/cnaechy1@jhu.edu/miniconda3/envs/env_3.7_tiny/bin/samtools'
