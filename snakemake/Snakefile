@@ -2,8 +2,8 @@
 import os
 import pandas as pd
 
-configfile: "config.yaml"
-# configfile: "deep.yaml"
+# configfile: "config.yaml"
+configfile: "deep.yaml"
 # configfile: "deep_100.yaml"
 
 ''' Load from config '''
@@ -114,6 +114,10 @@ include: 'shared/calc_refbias.Snakefile'
 #:      check: 'accuracy.done'
 include: 'shared/calc_mapping_acc.Snakefile'
 
+#: Rules to analyze results, not belong to standard pipeline
+#:      check: 'analysis.done'
+include: 'shared/analysis.Snakefile'
+
 rule all:
     input:
         #: major allele ref index
@@ -130,7 +134,7 @@ rule all:
         #: second pass alignment
         secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
         #: liftover and sorting
-        lft = os.path.join(DIR, 'liftover.done'),
+        # lft = os.path.join(DIR, 'liftover.done'),
         sort = os.path.join(DIR, 'sorting.done'),
         #: graph aligner
         vg_index = os.path.join(DIR, 'vg_index.done'),
@@ -138,10 +142,12 @@ rule all:
         vg_acc = os.path.join(DIR, 'vg_acc.done'),
         #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
-        # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
+        find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
         #: accuracy
-        acc = os.path.join(DIR, 'accuracy.done'),
-        tsv = os.path.join(DIR_RESULTS, 'all.tsv')
+        # acc = os.path.join(DIR, 'accuracy.done'),
+        # tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
+        #: analysis
+        analysis = os.path.join(DIR, 'analysis.done')
     run:
         sys.stderr.write('complete\n')
 

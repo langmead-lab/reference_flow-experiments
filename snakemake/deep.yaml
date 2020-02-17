@@ -9,8 +9,13 @@ ALN_MAPQ_THRSD : '10'
 
 POP_THRSD : 0
 POP_STOCHASTIC : 1
-POP_BLOCK_SIZE : 1
-POP_USE_LD : 0
+POP_BLOCK_SIZE : 1000
+POP_USE_LD : 1
+
+# POP_THRSD : 0
+# POP_STOCHASTIC : 1
+# POP_BLOCK_SIZE : 1
+# POP_USE_LD : 0
 
 # POP_THRSD : 0.5
 # POP_STOCHASTIC : 0
@@ -41,5 +46,11 @@ PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
 DIR_SCRIPTS : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/scripts'
 # DIR_SCRIPTS : '/scratch/groups/blangme2/naechyun/relaxing/scripts'
 
+### graph aligner related
+ALLELE_FREQ_FOR_VG : 0.01
+VG : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/vg/vg'
+
+TIME : '/home-1/cnaechy1@jhu.edu/bin/time-1.9'
 THREADS : 16
+MAX_SYSTEM_THREADS : 48
 RAND_SEED : 0

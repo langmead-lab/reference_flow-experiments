@@ -379,10 +379,10 @@ rule check_liftover:
             os.path.join(DIR_SECOND_PASS,
             '{}-refflow-{}-{}-liftover.sam'.format(CHROM, ALN_MAPQ_THRSD, POP_DIRNAME)),
             INDIV = INDIV),
-        refflow_onepass = expand(
-            os.path.join(DIR_FIRST_PASS,
-            CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
-            GROUP = GROUP, INDIV = INDIV)
+        # refflow_onepass = expand(
+        #     os.path.join(DIR_FIRST_PASS,
+        #     CHROM + '-{GROUP}-' + POP_DIRNAME +'-liftover.sam'),
+        #     GROUP = GROUP, INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'liftover.done')))
 
