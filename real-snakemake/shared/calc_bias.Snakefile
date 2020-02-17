@@ -177,3 +177,191 @@ rule check_refbias_and_write_to_tsv:
         df['NUM_ALTBIAS({})'.format(0.5-BIAS_TAIL_THRDS)] = list_num_altbias
         df = df.sort_values('INDIV')
         df.to_csv(output.tsv, sep = '\t', index = None, float_format = '%.4f')
+
+rule find_strongly_biased_reads_refflow:
+    input:
+        list_path = os.path.join(DIR_SECOND_PASS, 'refflow-{}.paths'.format(POP_DIRNAME)),
+        list_id = os.path.join(DIR_SECOND_PASS, 'refflow-{}.ids'.format(POP_DIRNAME)),
+        bias = os.path.join(DIR_SECOND_PASS, 'refflow-{}.txt'.format(POP_DIRNAME)),
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + '{}-above{}_or_below{}.reads.tsv'.format(
+                POP_DIRNAME,
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + '{}-above{}_or_below{}.reads'.format(
+                POP_DIRNAME,
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            ))
+    run:
+        range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule find_unbiased_reads_per:
+    input:
+        list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt'),
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-between_45_55.reads.tsv'
+            ),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-between_45_55.reads'
+            )
+    run:
+        range_bias = '0.45-0.55'
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} --sample 0.001 -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule find_strongly_biased_reads_per:
+    input:
+        list_path = os.path.join(DIR_FIRST_PASS, 'per-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'per-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'per-refbias.txt'),
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-above{}_or_below{}.reads'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            ))
+    run:
+        range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule find_strongly_biased_reads_grc:
+    input:
+        list_path = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'grch37-refbias.txt'),
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'grch37-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'grch37-above{}_or_below{}.reads'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            ))
+    run:
+        range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule find_strongly_biased_reads_major:
+    input:
+        list_path = os.path.join(DIR_FIRST_PASS, 'major-refbias.paths'),
+        list_id = os.path.join(DIR_FIRST_PASS, 'major-refbias.ids'),
+        bias = os.path.join(DIR_FIRST_PASS, 'major-refbias.txt'),
+        vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+        vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+    output:
+        tsv = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'major-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )),
+        reads = os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'major-above{}_or_below{}.reads'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            ))
+    run:
+        range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+        shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+            -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+# rule find_strongly_biased_reads_vg:
+#     input:
+#         list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(ALLELE_FREQ_FOR_VG)),
+#         list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(ALLELE_FREQ_FOR_VG)),
+#         bias = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(ALLELE_FREQ_FOR_VG)),
+#         vcf = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'),
+#         vcf_complete = os.path.join(DIR, 'wg_filtered.vcf')
+#     output:
+#         tsv = os.path.join(
+#             DIR_RESULTS_BIAS,
+#             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads.tsv'.format(
+#                 ALLELE_FREQ_FOR_VG,
+#                 int(100*(0.5+BIAS_TAIL_THRDS)),
+#                 int(100*(0.5-BIAS_TAIL_THRDS))
+#             )),
+#         reads = os.path.join(
+#             DIR_RESULTS_BIAS,
+#             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads'.format(
+#                 ALLELE_FREQ_FOR_VG,
+#                 int(100*(0.5+BIAS_TAIL_THRDS)),
+#                 int(100*(0.5-BIAS_TAIL_THRDS))
+#             ))
+#     run:
+#         range_bias = '0-{},{}-1'.format(0.5 - BIAS_TAIL_THRDS, 0.5 + BIAS_TAIL_THRDS)
+#         shell('{PYTHON} {DIR_SCRIPTS}/refbias/find_reads_given_HET.py \
+#             -s {input.list_path} -v {input.vcf} -f {input.bias} -id {input.list_id} -m {output.reads} -r {range_bias} -vc {input.vcf_complete} -indiv {wildcards.INDIV}')
+
+rule check_find_reads:
+    input:
+        expand(os.path.join(DIR_RESULTS_BIAS,
+            '{INDIV}-' + '{}-above{}_or_below{}.reads.tsv'.format(
+            POP_DIRNAME, int(100*(0.5+BIAS_TAIL_THRDS)), int(100*(0.5-BIAS_TAIL_THRDS)))),
+            INDIV = INDIV),
+        expand(os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'grch37-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )), INDIV = INDIV),
+        expand(os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'major-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )), INDIV = INDIV),
+        expand(os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-above{}_or_below{}.reads.tsv'.format(
+                int(100*(0.5+BIAS_TAIL_THRDS)),
+                int(100*(0.5-BIAS_TAIL_THRDS))
+            )), INDIV = INDIV),
+#         expand(os.path.join(
+#             DIR_RESULTS_BIAS,
+#             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads.tsv'.format(
+#                 ALLELE_FREQ_FOR_VG,
+#                 int(100*(0.5+BIAS_TAIL_THRDS)),
+#                 int(100*(0.5-BIAS_TAIL_THRDS))
+#             )), INDIV = INDIV),
+        expand(os.path.join(
+            DIR_RESULTS_BIAS,
+            '{INDIV}-' + 'per-between_45_55.reads.tsv'
+            ), INDIV = INDIV)
+    output:
+        done = touch(temp(os.path.join(DIR, 'find_biased_reads.done')))
