@@ -121,6 +121,23 @@ rule merge_pop_genome:
                 list_fn.append(fn)
         shell('cat {list_fn} >> {output}')
 
+rule aggregate_pop_vcf:
+    input:
+        vcf = expand(os.path.join(DIR_POP_GENOME_BLOCK,
+            POP_GENOME_SUFFIX + '.vcf'),
+            CHROM = CHROM, GROUP = GROUP)
+    output:
+        vcf = os.path.join(DIR_POP_GENOME_BLOCK,
+            WG_POP_GENOME_SUFFIX + '.vcf')
+    run:
+        list_fn = []
+        for fn in input:
+            print (fn)
+            print (wildcards.GROUP)
+            if fn.count(wildcards.GROUP) > 0:
+                list_fn.append(fn)
+        shell('{BCFTOOLS} concat -o {output.vcf} {list_fn}')
+
 rule build_pop_genome_index:
     input:
         genome = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa')
