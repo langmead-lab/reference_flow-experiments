@@ -28,7 +28,7 @@ DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/h
 # DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38_deep_1kg'
 GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38/chr21.fa'
 UNPHASED_VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/gnomad_v3/gnomad.genomes.r3.0.sites.chr21.vcf.bgz'
-PHASED_VCF : '/scratch/groups/blangme2/cdarby/20190312_biallelic_SNV_and_INDEL/ALL.chr21.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'
+PHASED_VCF : 'ALL.chr21.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'
 FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
 SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
 LENGTH_MAP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake38/GRCh38.length_map'
