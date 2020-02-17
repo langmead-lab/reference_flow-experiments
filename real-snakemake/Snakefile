@@ -31,6 +31,9 @@ MASON2 = config['MASON2']
 LIFTOVER = config['LIFTOVER']
 PYTHON = config['PYTHON']
 DIR_SCRIPTS = config['DIR_SCRIPTS']
+ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
+VG = config['VG']
+TIME = config['TIME']
 THREADS = config['THREADS']
 RAND_SEED = config['RAND_SEED']
 MAX_NUM_READS_FOR_MERGING = config['MAX_NUM_READS_FOR_MERGING']
@@ -63,6 +66,9 @@ DIR_FIRST_PASS = os.path.join(DIR, 'experiments/{INDIV}/')
 DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
 PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, 'wg-h37maj-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
 
+DIR_VG = os.path.join(DIR, 'vg/')
+DIR_VG_TMP = os.path.join(DIR, 'vg/tmp/')
+
 DIR_RESULTS_BIAS = os.path.join(DIR, 'results/bias')
 
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
@@ -82,8 +88,12 @@ include: 'shared/prepare_standard_genome.Snakefile'
 include: 'shared/alignment.Snakefile'
 
 #: Calculate allelic bias
-#:      check: 'allelic_bias.done'
+#:      check: 'allelic_bias.done', 'find_biased_reads.done'
 include: 'shared/calc_bias.Snakefile'
+
+#: Graph alignment using vg
+#:      check: 'vg_index.done', 'vg_map.done'
+include: 'shared/graph_alignment.Snakefile'
 
 rule all:
     input:
@@ -91,22 +101,26 @@ rule all:
         #: Building genomes
         pop_genome = os.path.join(DIR, 'prepare_pop_genome.done'),
         standard_genome = os.path.join(DIR, 'prepare_standard_genome.done'),
-        major_sam = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj.sam'), INDIV = INDIV),
-        grch37_sam = expand(os.path.join(DIR_FIRST_PASS, 'wg-GRCh37-sorted.sam'), INDIV = INDIV),
-        # secondpass = os.path.join(DIR, 'secondpass.done'),
         #: alignment check files
         align_standard = os.path.join(DIR, 'alignment_standard.done'),
         align_refflow = os.path.join(DIR, 'alignment_refflow.done'),
+        #: vcf preparation
         het_no_overlaps = expand(os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf'), INDIV = INDIV),
-        lifted_major = expand(os.path.join(DIR_FIRST_PASS, 'wg-h37maj-liftover.sam'), INDIV = INDIV),
+        #: sort SAMs (this is after liftover)
         sorting = os.path.join(DIR, 'sorting.done'),
+        #: allelic bias
         allelic_bias = os.path.join(DIR, 'allelic_bias.done'),
+        find_reads = os.path.join(DIR, 'find_biased_reads.done'),
+        #: vg
+        # vg_index = os.path.join(DIR, 'vg_index.done'),
+        # vg_map = os.path.join(DIR, 'vg_map.done'),
         # tmp
-        pop_aggreate = expand(os.path.join(DIR_POP_GENOME_BLOCK, 'wg_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'), GROUP = GROUP)
+        # pop_aggreate = expand(os.path.join(DIR_POP_GENOME_BLOCK, 'wg_superpop_{GROUP}_' + POP_DIRNAME + '.vcf'), GROUP = GROUP)
 
 rule filter_vcf:
     input:
         vcf = os.path.join(DIR_VCF, '{CHROM}.vcf.gz')
+        # vcf = os.path.join(DIR_VCF, 'ALL.chr{CHROM}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz')
     output:
         vcf = PREFIX_VCF_F + '.vcf'
     shell:

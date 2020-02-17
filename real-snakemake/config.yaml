@@ -4,12 +4,18 @@ ALN_MAPQ_THRSD : '10'
 
 POP_THRSD : 0
 POP_STOCHASTIC : 1
-POP_BLOCK_SIZE : 1
+POP_BLOCK_SIZE : 1000
 POP_USE_LD : 1
+
+BIAS_MIN_READ_COUNT : 15
+BIAS_TAIL_THRDS : 0.3
 
 DIR: '/storage2/naechyun/refflow/wg'
 DIR_VCF: '/scratch/groups/blangme2/1kg_vcf'
 GENOME : '/scratch/groups/blangme2/indexes/hg19.fa'
+# DIR: '/storage2/naechyun/refflow/wg_hg38'
+# DIR_VCF : '/scratch/groups/blangme2/cdarby/20190312_biallelic_SNV_and_INDEL'
+# GENOME : '/scratch/groups/blangme2/igenomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa'
 
 INDIV : 'NA12878'
 READS1 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/1000Genomes/SRR622457/fastq/SRR622457_1.fastq'
@@ -20,9 +26,17 @@ SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg
 BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
 SAMTOOLS : '/home-1/cnaechy1@jhu.edu/miniconda3/envs/env_3.7_tiny/bin/samtools'
 MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
+LIFTOVER : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/liftover/liftover'
 PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
-# DIR_SCRIPTS : '/net/langmead-bigmem-ib/storage2/naechyun/genome_relaxation/scripts'
-DIR_SCRIPTS : '/scratch/groups/blangme2/naechyun/relaxing/scripts'
+DIR_SCRIPTS : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/scripts'
+# DIR_SCRIPTS : '/scratch/groups/blangme2/naechyun/relaxing/scripts'
 
+### graph aligner related
+ALLELE_FREQ_FOR_VG : 0.01
+VG : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/vg/vg'
+
+TIME : '/home-1/cnaechy1@jhu.edu/bin/time-1.9'
 THREADS : 16
+# THREADS : 40
 RAND_SEED : 0
+MAX_NUM_READS_FOR_MERGING : 100000000
