@@ -36,45 +36,20 @@ rule aggregate_major_vcf:
     input:
         vcf = expand(PREFIX_MAJOR + '.vcf', CHROM = CHROM)
     output:
-        vcf_major = os.path.join(DIR, 'major/wg-maj.vcf')
-    run:
-        for i, chrom in enumerate(CHROM):
-            if i == 0:
-                vcf = input.vcf[0]
-                shell('cp {vcf} {output.vcf_major};')
-            else:
-                vcf = input.vcf[i]
-                shell('{BCFTOOLS} view -H {vcf} >> {output.vcf_major}')
+        vcf = os.path.join(DIR, 'major/wg-maj.vcf')
+    shell:
+        '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
 
 rule aggregate_per_vcf:
     input:
-        vcf = expand(os.path.join(DIR_PER, '{INDIV}-chr{CHROM}-per.vcf'), CHROM = CHROM, INDIV = INDIV)
+        vcf = expand(
+            os.path.join(DIR_PER, '{INDIV}-chr{CHROM}-per.vcf'),
+            CHROM = CHROM, INDIV = INDIV
+        )
     output:
         vcf = os.path.join(DIR_PER, '{INDIV}-wg-per.vcf')
-    # wildcard_constraints:
-    #     CHROM="\d+"
-    run:
-        for i, chrom in enumerate(CHROM):
-            if i == 0:
-                vcf = input.vcf[0]
-                shell('cp {vcf} {output.vcf};')
-            else:
-                vcf = input.vcf[i]
-                shell('{BCFTOOLS} view -H {vcf} >> {output.vcf}')
-
-rule aggregate_vcf:
-    input:
-        vcf = expand(os.path.join(DIR, '{CHROM}_filtered.vcf'), CHROM = CHROM)
-    output:
-        vcf = os.path.join(DIR, 'wg_filtered.vcf')
-    run:
-        for i, chrom in enumerate(CHROM):
-            if i == 0:
-                vcf = input.vcf[0]
-                shell('cp {vcf} {output.vcf};')
-            else:
-                vcf = input.vcf[i]
-                shell('{BCFTOOLS} view -H {vcf} >> {output.vcf}')
+    shell:
+        '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
 
 rule build_per:
     input:
