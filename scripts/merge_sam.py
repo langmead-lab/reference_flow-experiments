@@ -17,9 +17,12 @@ from analyze_sam import SamInfo, parse_line
 
 def compare_score_and_mapq(list_info):
     order = list(range(len(list_info)))
-    list_is_unaligned = [0 if info.is_unaligned() else 1 for info in list_info]
-    list_as = [info.score for info in list_info]
-    list_mapq = [info.mapq for info in list_info]
+    # list_is_unaligned = [0 if info.is_unaligned() else 1 for info in list_info]
+    # list_as = [info.score for info in list_info]
+    # list_mapq = [info.mapq for info in list_info]
+    list_is_unaligned = [info[0] != 1 for info in list_info]
+    list_as = [info[0] for info in list_info]
+    list_mapq = [info[1] for info in list_info]
 
     #: sort order: if_aligned > AS > MAPQ
     #: so perform sorting in reversed order
@@ -44,6 +47,18 @@ def compare_score_and_mapq(list_info):
             order = order[:i]
             break
     return random.sample(order, 1)
+
+def get_name_as_mapq(line):
+    if line[0] == '@':
+        return 'header', None
+    line = line.split()
+    name = line[0]
+    mapq = int(line[4])
+    score = 1 #: represents unmapped
+    for i in line:
+        if i.startswith('AS:i'):
+            score = int(i.split(':')[-1])
+    return name, (score, mapq)
 
 def merge_sam_list(args):
     fn_sam = args.sam_list
@@ -78,8 +93,8 @@ def merge_sam_list(args):
         fn_sam = list_fn_sam[i]
         sam_prefix = fn_sam[: fn_sam.find('.sam')]
         #fn_out = sam_prefix.split('/')[-1] + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
-        fn_out = sam_prefix + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
-        # fn_out = os.getcwd() + '/' + fn_out
+        # fn_out = sam_prefix + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
+        fn_out = fn_sam + '+' + ('_').join(list_ids[0:i]+list_ids[i+1:]) + '.sam'
         if fn_log != None:
             f_log.write(fn_out + '\n')
         print (fn_out)
@@ -90,32 +105,52 @@ def merge_sam_list(args):
     list_dicts = []
     for i in range(num_sam):
         list_dicts.append({})
+        sys.stderr.write('Loading ' + str(i) + '\n')
         for line in list_f_sam[i]:
-            name, info = parse_line(line, erg=True)
+            # name, info = parse_line(line, erg=True)
+            name, info = get_name_as_mapq(line)
             if name == 'header':
                 list_f_out[i].write(line)
                 continue
-            list_dicts[i][name] = [info, line]
+            list_dicts[i][name] = info
+            # list_dicts[i][name] = [info, line]
+        sys.stderr.write('Completed ' + str(i) + '\n')
 
     #: check if lists have the same key (i.e. read names)
     list_set_dict = []
+    list_read_names = []
     for i in range(num_sam):
         list_set_dict.append(set(list_dicts[i].keys()))
+        list_read_names.append([])
         if i > 0:
             assert list_set_dict[0] == list_set_dict[i]
     
-    for read_name in list_dicts[0].keys():
-        curr = [list_dicts[i][read_name][0] for i in range(num_sam)]
-        selected_idx = compare_score_and_mapq(curr)
-        assert len(selected_idx) == 1
-        selected_idx = selected_idx[0]
-        list_f_out[selected_idx].write(list_dicts[selected_idx][read_name][1])
-
     #: close files
     for i in range(num_sam):
         list_f_sam[i].close()
-        list_f_out[i].close()
 
+    for read_name in list_dicts[0].keys():
+        curr = [list_dicts[i][read_name] for i in range(num_sam)]
+        selected_idx = compare_score_and_mapq(curr)
+        assert len(selected_idx) == 1
+        selected_idx = selected_idx[0]
+        list_read_names[selected_idx].append(read_name)
+        # list_f_out[selected_idx].write(list_dicts[selected_idx][read_name][1])
+
+    for i in range(num_sam):
+        list_read_names[i] = set(list_read_names[i])
+        sys.stderr.write(str(list_fn_sam[i]) + '\n')
+        sys.stderr.write(str(len(list_read_names[i])) + '\n')
+        with open(list_fn_sam[i], 'r') as f_sam:
+            for line in f_sam:
+                name, info = parse_line(line)
+                if name in list_read_names[i]:
+                    list_f_out[i].write(line)
+
+    #: close files
+    for i in range(num_sam):
+        # list_f_sam[i].close()
+        list_f_out[i].close()
 
 def merge_sam(args):
     sam1_fn = args.sam1
@@ -137,8 +172,12 @@ def merge_sam(args):
     sam2_prefix = sam2_fn[: sam2_fn.find('.sam')]
     # sam1_out_fn = sam1_prefix.split('/')[-1] + '-merged_' + id2 + '.sam'
     # sam2_out_fn = sam2_prefix.split('/')[-1] + '-merged_' + id1 + '.sam'
-    sam1_out_fn = sam1_prefix + '-merged_' + id2 + '.sam'
-    sam2_out_fn = sam2_prefix + '-merged_' + id1 + '.sam'
+
+    # sam1_out_fn = sam1_prefix + '-merged_' + id2 + '.sam'
+    # sam2_out_fn = sam2_prefix + '-merged_' + id1 + '.sam'
+
+    sam1_out_fn = sam1_fn + '-merged_' + id2 + '.sam'
+    sam2_out_fn = sam2_fn + '-merged_' + id1 + '.sam'
     sam1_out_f = open(sam1_out_fn, 'w')
     sam2_out_f = open(sam2_out_fn, 'w')
 
