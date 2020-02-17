@@ -143,30 +143,40 @@ rule aggregate_vcf:
     shell:
         '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
 
+# rule get_het:
+#     input:
+#         vcf = os.path.join(DIR, 'wg_filtered.vcf')
+#     output:
+#         het = os.path.join(DIR, 'wg_{INDIV}_het.vcf')
+#     shell:
+#         '{BCFTOOLS} view -s {INDIV} {input.vcf} | \
+#         {BCFTOOLS} view -i "AC>0" -v snps -g het -m2 -M2 > {output.het}'
+
 rule get_het:
     input:
         vcf = os.path.join(DIR, 'wg_filtered.vcf')
     output:
-        het = os.path.join(DIR, 'wg_{INDIV}_het.vcf')
-    shell:
-        '{BCFTOOLS} view -s {INDIV} {input.vcf} | \
-        {BCFTOOLS} view -i "AC>0" -v snps -g het -m2 -M2 > {output.het}'
-
-rule get_het_with_indel:
-    input:
-        vcf = os.path.join(DIR, 'wg_filtered.vcf')
-    output:
-        het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
-    shell:
-        '{BCFTOOLS} view -s {INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
-
-rule get_het_with_indel_processed:
-    input:
-        het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
-    output:
         het = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf')
     shell:
-        'cat {input.het} | python {DIR_SCRIPTS}/remove_het_overlapping_indel.py > {output.het}'
+        '{BCFTOOLS} view -s {INDIV} -i "AC>0" -m2 -M2 {input.vcf} |'
+        '{PYTHON} {DIR_SCRIPTS}/remove_het_overlapping_indel.py |'
+        '{BCFTOOLS} view -g het > {output.het}'
+
+# rule get_het_with_indel:
+#     input:
+#         vcf = os.path.join(DIR, 'wg_filtered.vcf')
+#     output:
+#         het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
+#     shell:
+#         '{BCFTOOLS} view -s {INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
+# 
+# rule get_het_with_indel_processed:
+#     input:
+#         het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
+#     output:
+#         het = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf')
+#     shell:
+#         'cat {input.het} | python {DIR_SCRIPTS}/remove_het_overlapping_indel.py > {output.het}'
 
 rule liftover_serialize_major:
     input:
