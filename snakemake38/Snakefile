@@ -2,7 +2,8 @@
 import os
 import pandas as pd
 
-configfile: "hg38_deep.yaml"
+configfile: "hg38_deep_NA12878.yaml"
+# configfile: "hg38_deep.yaml"
 # configfile: "hg38_1kg.yaml"
 # configfile: "hg38.yaml"
 
@@ -148,19 +149,19 @@ rule all:
         secondpass = os.path.join(DIR, 'refflow_secondpass.done'),
         #: liftover and sorting
         # lft = os.path.join(DIR, 'liftover.done'),
-        # sort = os.path.join(DIR, 'sorting.done'),
+        sort = os.path.join(DIR, 'sorting.done'),
         #: graph aligner
         g_index = os.path.join(DIR, 'vg_index.done'),
         g_map = os.path.join(DIR, 'vg_map.done'),
-        # g_acc = os.path.join(DIR, 'vg_acc.done'),
+        g_acc = os.path.join(DIR, 'vg_acc.done'),
         #: refbias
         refbias = os.path.join(DIR, 'refbias.done'),
-        # # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
-        #: accuracy
+        # find_biased_reads = os.path.join(DIR, 'find_biased_reads.done'),
+        # #: accuracy
         # acc = os.path.join(DIR, 'accuracy.done'),
         # tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
         #: analysis
-        # analysis = os.path.join(DIR, 'analysis.done')
+        analysis = os.path.join(DIR, 'analysis.done')
     run:
         sys.stderr.write('complete\n')
 

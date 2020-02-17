@@ -1,13 +1,5 @@
 CHROM : '21'
 INDIV : ['NA12878']
-# INDIV : ['NA19312']
-#: random 1 from each superpop
-# INDIV : ['NA19312', 'HG01974', 'NA20541', 'HG01863', 'HG03756']
-#: random 5 from each superpop
-# INDIV : ['NA19312', 'NA19394', 'HG02308', 'HG03049', 'HG03388', 'HG01974', 'HG02146', 'HG01253', 'NA19746', 'HG00742', 'NA20541', 'HG00384', 'HG02230', 'NA20764', 'HG00112', 'HG01863', 'HG00404', 'NA19075', 'HG02032', 'HG00452', 'HG03756', 'HG03874', 'HG03645', 'HG03895', 'HG03786']
-#: random 20 from each superpop
-# INDIV : ['NA19312', 'NA19394', 'HG02308', 'HG03049', 'HG03388', 'HG03054', 'NA19355', 'HG02667', 'HG03472', 'HG02896', 'NA18916', 'HG03196', 'HG03212', 'NA20320', 'HG02586', 'NA20332', 'NA20274', 'NA19152', 'HG03024', 'HG03559', 'HG01974', 'HG02146', 'HG01253', 'NA19746', 'HG00742', 'HG00638', 'HG02002', 'NA19789', 'HG01075', 'HG01945', 'HG01097', 'NA19658', 'HG01049', 'HG01455', 'NA19785', 'HG01363', 'HG01191', 'NA19728', 'HG01066', 'HG01173', 'NA20541', 'HG00384', 'HG02230', 'NA20764', 'HG00112', 'NA07357', 'HG00285', 'NA20815', 'HG00239', 'HG00151', 'HG00103', 'NA20786', 'NA20507', 'NA20532', 'HG00331', 'NA20818', 'HG00145', 'HG00367', 'HG01513', 'NA20765', 'HG01863', 'HG00404', 'NA19075', 'HG02032', 'HG00452', 'HG01798', 'NA18572', 'HG02137', 'HG00614', 'HG00589', 'HG00437', 'HG02072', 'NA19088', 'HG01853', 'NA18614', 'HG02138', 'HG00580', 'NA18642', 'HG00717', 'HG02035', 'HG03756', 'HG03874', 'HG03645', 'HG03895', 'HG03786', 'HG03817', 'NA20902', 'HG04060', 'HG04019', 'HG03770', 'HG03990', 'HG03686', 'HG03757', 'NA21103', 'HG03976', 'NA21135', 'HG02493', 'HG03890', 'HG03944', 'NA20875']
-
 # INDIV : ['HG03028', 'NA20528', 'HG01939', 'HG02660', 'NA20281', 'NA19461']
 # INDIV : ['HG00632', 'NA20534', 'HG00331', 'HG04180', 'NA18617']
 # INDIV : ['HG03028', 'NA20528', 'HG01939', 'HG02660', 'NA20281', 'HG00704', 'HG00551', 'HG02025', 'HG02151', 'HG02128', 'NA19774', 'HG01177', 'HG00097', 'HG04189', 'HG01918', 'HG03499', 'HG02224', 'NA19235', 'NA19118', 'NA19661', 'HG01198', 'NA12003', 'HG03096', 'HG02727', 'HG01979', 'HG01619', 'NA21127', 'HG03741', 'NA20802', 'HG02079', 'HG01951', 'NA18637', 'HG02771', 'HG03898', 'HG02122', 'HG03757', 'HG03950', 'HG02635', 'NA18602', 'NA18517', 'HG00671', 'NA12830', 'NA19904', 'NA19149', 'HG04153', 'HG03081', 'NA20758', 'HG01094', 'NA18915', 'NA20801', 'NA21135', 'HG00266', 'NA18631', 'HG03895', 'NA20274', 'NA20525', 'HG02407', 'HG01920', 'HG00533', 'HG02105', 'NA19663', 'HG03162', 'HG01495', 'HG02813', 'HG03202', 'NA19308', 'NA18559', 'NA19350', 'NA19461', 'HG01072', 'HG03965', 'HG01519', 'HG02703', 'NA19723', 'HG02521', 'NA20775', 'HG03796', 'HG02322', 'HG00154', 'NA12546', 'HG00155', 'HG02819', 'NA18858', 'HG01869', 'NA19005', 'NA19320', 'HG04063', 'HG01600', 'HG03391', 'HG00336', 'HG02282', 'HG03925', 'NA12751', 'NA20518', 'HG03449', 'HG04219', 'NA12340', 'HG00240', 'NA18623', 'NA18582']
@@ -16,10 +8,12 @@ GROUP : ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
 NUM_SIM_READS : 1000000
 ALN_MAPQ_THRSD : '10'
 
+# EXP_TYPES : ['grc', 'major-gnomad', 'major-1kg', 'per', 'rf-gnomad', 'rf-1kg']
+
 POP_THRSD : 0
 POP_STOCHASTIC : 1
-POP_BLOCK_SIZE : 1000
-POP_USE_LD : 1
+POP_BLOCK_SIZE : 1
+POP_USE_LD : 0
 
 # POP_THRSD : 0.5
 # POP_STOCHASTIC : 0
@@ -33,7 +27,7 @@ BIAS_MIN_READ_COUNT : 2
 #: will be defined as strongly biased toward ref/alt
 BIAS_TAIL_THRDS : 0.3
 
-DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38'
+DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38_100'
 GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38/chr21.fa'
 UNPHASED_VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/gnomad_v3/gnomad.genomes.r3.0.sites.chr21.vcf.bgz'
 PHASED_VCF : '/scratch/groups/blangme2/cdarby/20190312_biallelic_SNV_and_INDEL/ALL.chr21.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'
@@ -49,8 +43,8 @@ PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
 DIR_SCRIPTS : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/scripts'
 
 ### graph aligner related
-ALLELE_FREQ_FOR_VG : 0.01
-# ALLELE_FREQ_FOR_VG : 0.1
+# ALLELE_FREQ_FOR_VG : 0.01
+ALLELE_FREQ_FOR_VG : 0.1
 VG : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/vg/vg'
 
 TIME : '/home-1/cnaechy1@jhu.edu/bin/time-1.9'

@@ -1,0 +1,51 @@
+CHROM : '21'
+#: random 5 from each superpop
+INDIV : ['NA19312', 'NA19394', 'HG02308', 'HG03049', 'HG03388', 'HG01974', 'HG02146', 'HG01253', 'NA19746', 'HG00742', 'NA20541', 'HG00384', 'HG02230', 'NA20764', 'HG00112', 'HG01863', 'HG00404', 'NA19075', 'HG02032', 'HG00452', 'HG03756', 'HG03874', 'HG03645', 'HG03895', 'HG03786']
+# INDIV : ['NA12878']
+# INDIV : ['NA19312', 'NA19394']
+GROUP : ['EUR', 'AMR', 'EAS', 'SAS', 'AFR']
+NUM_SIM_READS : 10000000
+ALN_MAPQ_THRSD : '10'
+
+POP_THRSD : 0
+POP_STOCHASTIC : 1
+POP_BLOCK_SIZE : 1000
+POP_USE_LD : 1
+
+# POP_THRSD : 0.5
+# POP_STOCHASTIC : 0
+# POP_BLOCK_SIZE : 1
+# POP_USE_LD : 0
+
+BIAS_MIN_READ_COUNT : 15
+#: A HET site with
+#: "ref/(ref+alt) >= 0.5 + BIAS_TAIL_THRDS" /
+#: "ref/(ref+alt) <= 0.5 - BIAS_TAIL_THRDS"
+#: will be defined as strongly biased toward ref/alt
+BIAS_TAIL_THRDS : 0.3
+
+DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38_deep_2'
+# DIR: '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38_deep_1kg'
+GENOME : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow/chr21/hg38/chr21.fa'
+UNPHASED_VCF : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/gnomad_v3/gnomad.genomes.r3.0.sites.chr21.vcf.bgz'
+PHASED_VCF : '/scratch/groups/blangme2/cdarby/20190312_biallelic_SNV_and_INDEL/ALL.chr21.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'
+FAMILY : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/20130606_g1k.ped'
+SPOP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/relaxation/1kg.superpopulation'
+LENGTH_MAP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake38/GRCh38.length_map'
+CHROM_MAP : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/snakemake38/GRCh38.chrom_map'
+
+BCFTOOLS : '/home-1/cnaechy1@jhu.edu/bin/bcftools'
+MASON2 : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/mason_simulator'
+LIFTOVER : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/liftover/liftover' #: latest version
+PYTHON : '/home-1/cnaechy1@jhu.edu/miniconda3/bin/python3.7'
+DIR_SCRIPTS : '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/genome_relaxation/scripts'
+
+### graph aligner related
+ALLELE_FREQ_FOR_VG : 0.01
+# ALLELE_FREQ_FOR_VG : 0.1
+VG : '/net/langmead-bigmem-ib.bluecrab.cluster/storage/naechyun/software/vg/vg'
+
+TIME : '/home-1/cnaechy1@jhu.edu/bin/time-1.9'
+THREADS : 16
+MAX_SYSTEM_THREADS : 48
+RAND_SEED : 0
