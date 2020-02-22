@@ -1,4 +1,4 @@
-# Reference Flow
+# Reference Flow Experiments
 The reference flow method utilizes population genomic data to enhance alignment accuracy and reduce reference bias with high computational efficiency.
 We first aligned reads to a major-allele reference genome based on the 1000 Genomes Project GRCh38 call set.
 We assigned unmapped and ambiguous reads determined by mapping quality threshold to the "deferred" group.
