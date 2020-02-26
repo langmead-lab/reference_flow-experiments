@@ -173,25 +173,25 @@ fig_sensitivity_twopass <- ggplot(df_sensitivity %>% filter(Reduced %in% filt_se
   scale_y_continuous(sec.axis = sec_axis(~(.-map_median_grc)/(map_median_per-map_median_grc), name = "Gain of Personalization"))
 fig_sensitivity_twopass
 
-# if (save == T){
-#   ggsave("sim21_mapping_acc.pdf", p_box_sim21_twopass, width = 7, height = 5)
-#   # ggsave("sim21_mapping_acc.jpg", p_box_sim21_twopass, width = 7, height = 5)
-# }
-
 ## get stats
-map_median_major <- med[med$Reduced =="Major",]$True.Positive / total
-(map_median_major-map_median_grc) / (map_median_per-map_median_grc)
+# map_median_major <- med[med$Reduced =="Major",]$True.Positive / total
+# (map_median_major-map_median_grc) / (map_median_per-map_median_grc)
+
+sim21_mapacc <- tabular(Heading('Method') * factor(Reduced) ~
+                  Justify(r) * Heading('Sensitivity') * (I(True.Positive/total) + I(1-True.Positive/total)) * Format(sprintf("%0.6f")) * (mean + median + max + min), data=df_sensitivity)
+sim21_mapacc
+
 ```
 
 
 ```{r boxplot_for_summary_bias}
-df_summary_bias <- read.delim("data/allelic_bias/0129_25indiv.bias.tsv", header = T, sep = "\t")
-# df_summary_bias <- read.delim("data/allelic_bias/0127_25indiv.bias.tsv", header = T, sep = "\t")
+# df_summary_bias <- read.delim("data/allelic_bias/0129_25indiv.bias.tsv", header = T, sep = "\t")
+df_summary_bias <- read.delim("data/allelic_bias/0217_25indiv.bias.tsv", header = T, sep = "\t")
 df_summary_bias$SUM_TAIL <- df_summary_bias$NUM_REFBIAS.0.8. + df_summary_bias$NUM_ALTBIAS.0.2.
 
 df_summary_bias$Reduced <- df_summary_bias$Method
 
-bias_method_name <- c("grc", "major-1kg", "chr21-AFR-chr21_superpop_AFR_thrds0.5_S0_b1_ld0", "chr21-AMR-chr21_superpop_AMR_thrds0.5_S0_b1_ld0", "chr21-SAS-chr21_superpop_SAS_thrds0.5_S0_b1_ld0", "chr21-EAS-chr21_superpop_EAS_thrds0.5_S0_b1_ld0", "chr21-EUR-chr21_superpop_EUR_thrds0.5_S0_b1_ld0", "Matched",  "thrds0.5_S0_b1_ld0-1kg", "chr21-major-10-thrds0_S1_b1_ld0-1kg", "thrds0_S1_b1000_ld1-1kg", "vg_0.01", "per")
+bias_method_name <- c("grc", "major-1kg", "chr21-AFR-chr21_superpop_AFR_thrds0.5_S0_b1_ld0", "chr21-AMR-chr21_superpop_AMR_thrds0.5_S0_b1_ld0", "chr21-SAS-chr21_superpop_SAS_thrds0.5_S0_b1_ld0", "chr21-EAS-chr21_superpop_EAS_thrds0.5_S0_b1_ld0", "chr21-EUR-chr21_superpop_EUR_thrds0.5_S0_b1_ld0", "Matched",  "thrds0.5_S0_b1_ld0-1kg", "thrds0_S1_b1_ld0-1kg", "thrds0_S1_b1000_ld1-1kg", "vg_0.01", "per")
 bias_rmethod_name <- c("GRC", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "MajorFlow", "RandFlow", "RandFlow-LD", "vg", "Personalized")
 for (i in seq(length(bias_method_name))){
   df_summary_bias$Reduced <- gsub(bias_method_name[i], bias_rmethod_name[i], df_summary_bias$Reduced)
@@ -200,9 +200,12 @@ for (i in seq(length(bias_method_name))){
 lvl_bias <- bias_rmethod_name
 df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = lvl_bias)
 
-bias_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(SUM_TAIL), ~ median(., na.rm = TRUE))
+bias_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(SUM_TAIL, REF_TO_ALT), ~ median(., na.rm = TRUE))
 bias_median_grc <- bias_med[bias_med$Reduced =="GRC",]$SUM_TAIL
 bias_median_per <- bias_med[bias_med$Reduced =="Personalized",]$SUM_TAIL
+# bias_r2a_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(REF_TO_ALT), ~ median(., na.rm = TRUE))
+bias_r2a_median_grc <- bias_med[bias_med$Reduced =="GRC",]$REF_TO_ALT
+bias_r2a_median_per <- bias_med[bias_med$Reduced =="Personalized",]$REF_TO_ALT
 
 p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, color = Super_Population)) + 
   geom_boxplot() +
@@ -214,11 +217,6 @@ p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, color = Sup
   # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 p_summary_bias
 
-
-bias_r2a_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(REF_TO_ALT), ~ median(., na.rm = TRUE))
-bias_r2a_median_grc <- bias_r2a_med[bias_r2a_med$Reduced =="GRC",]$REF_TO_ALT
-bias_r2a_median_per <- bias_r2a_med[bias_r2a_med$Reduced =="Personalized",]$REF_TO_ALT
-
 p_summary_r2a <- ggplot(df_summary_bias, aes(x=Reduced, y=REF_TO_ALT, color = Super_Population)) + 
   geom_boxplot() +
   geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
@@ -229,8 +227,10 @@ p_summary_r2a <- ggplot(df_summary_bias, aes(x=Reduced, y=REF_TO_ALT, color = Su
   # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 p_summary_r2a
 
-bias_med
-bias_r2a_med
+sim21_bias <- tabular(Heading('Method') * factor(Reduced) ~
+                  Justify(r) * (REF_TO_ALT + SUM_TAIL) * (mean + median + max + min), data=df_summary_bias)
+sim21_bias
+
 ```
 
 
@@ -331,7 +331,7 @@ plot_scatter <- function(df, title="", tail){
       scale_size_identity(trans="sqrt", guide="legend", breaks=c(1,10,20,30)) +
       ylim(ylim) + xlim(xlim) +
       # ylab("") + xlab("") +
-      ylab("Read Bias") + xlab("Allelic Bias") +
+      ylab("Haplotype Balance") + xlab("Allelic Balance") +
       labs(color="Average MAPQ", size="Num. Variants", title=title) +
       stat_function(fun = diag, colour="gray", show.legend=F, alpha=0.5)
     p_biased_ref
@@ -575,6 +575,10 @@ row.names(df_NA12878_wg_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', '
 names(df_NA12878_wg_bias_summary) <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized')
 df_NA12878_wg_bias_summary
 
+# RandFlow-LD gain of personalization (SUM_BIAS)
+(df_NA12878_wg_bias_summary$`RandFlow-LD`[3] - df_NA12878_wg_bias_summary$GRC[3]) / (df_NA12878_wg_bias_summary$Personalized[3] - df_NA12878_wg_bias_summary$GRC[3])
+# RandFlow-LD gain of personalization (REF_TO_ALT)
+(df_NA12878_wg_bias_summary$`RandFlow-LD`[4] - df_NA12878_wg_bias_summary$GRC[4]) / (df_NA12878_wg_bias_summary$Personalized[4] - df_NA12878_wg_bias_summary$GRC[4])
 ```
 
 
