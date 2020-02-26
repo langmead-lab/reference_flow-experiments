@@ -123,7 +123,7 @@ if (save == T){
   ggsave("fig_hist_count_21_mapq.pdf", p_hist_21_mapq, width = 12, height = 8)
 }
 
-p_freq_21_mapq <- ggplot(df_mapq_dist, aes(V1, stat(density))) + 
+p_freq_21_mapq <- ggplot(df_mapq_dist, aes(V1)) + # , aes(V1, stat(density))) + 
   theme_bw() + geom_freqpoly(bins=43, closed="left") +
   xlab("MAPQ") + ylab("Density")
 p_freq_21_mapq

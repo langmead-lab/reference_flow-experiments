@@ -136,7 +136,7 @@ plot_contour_hist <- function (hist_targets, hist_names, save, prefix){
   return (p_hist)
 }
 
-save = T
+save = F
 
 hist_targets <- c(hist_ref, hist_maj,  hist_per)
 hist_names <- c('GRCh37', 'Major', 'Personalized')
@@ -774,10 +774,11 @@ df_var_all$variable <- factor(df_var_all$variable, levels = variant_lvl)
 ggplot(df_var_all, aes(X, variable)) +
   geom_tile(aes(fill = value), color='white') +
   # scale_fill_gradient(low='white') +
-  scale_fill_gradient2(low='white', limits=(c(min(df_var_all$value),1))) +
-  # scale_fill_gradient2(high='red', low='blue', mid='yellow', midpoint=0.5, limits=(c(min(df_var_all$value),1))) +
+  # scale_fill_gradient2(low='white', limits=(c(min(df_var_all$value),1))) +
+  scale_fill_gradient2(high='red', low='blue', mid='yellow', midpoint=(min(df_var_all$value)+0.7)/2, limits=(c(min(df_var_all$value),NA))) +
   theme_bw() + labs(fill="Jaccard similarity", x="", y="") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
 ```
 ```{r test_var_scatter}
 df_var_popmajor_test <- df_var_all
@@ -916,20 +917,25 @@ p
 ```
 
 ```{r plot_var_bedtools}
-df_var_bedtools <- read.delim("variant_sets/bedtools_jaccard.tsv", header = T, sep = "\t")
+# df_var_bedtools <- read.delim("variant_sets/bedtools_jaccard.tsv", header = T, sep = "\t")
+df_var_bedtools <- read.delim("variant_sets/bedtools_jaccard_hapindiv.tsv", header = T, sep = "\t")
 
 group_major_global <- c("21_h37maj")
 group_major_pop <- c("21_superpop_AFR_thrds0.5_S0_b1_ld0", "21_superpop_AMR_thrds0.5_S0_b1_ld0", "21_superpop_EUR_thrds0.5_S0_b1_ld0", "21_superpop_EAS_thrds0.5_S0_b1_ld0", "21_superpop_SAS_thrds0.5_S0_b1_ld0")
 group_stoc_noLD <- c("21_superpop_AFR_thrds0_S1_b1_ld0", "21_superpop_AMR_thrds0_S1_b1_ld0", "21_superpop_EUR_thrds0_S1_b1_ld0", "21_superpop_EAS_thrds0_S1_b1_ld0", "21_superpop_SAS_thrds0_S1_b1_ld0")
 group_stoc_1kLD <- c("21_superpop_AFR_thrds0_S1_b1000_ld1", "21_superpop_AMR_thrds0_S1_b1000_ld1", "21_superpop_EUR_thrds0_S1_b1000_ld1", "21_superpop_EAS_thrds0_S1_b1000_ld1", "21_superpop_SAS_thrds0_S1_b1000_ld1")
-group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660")
+# group_rand_indiv <- c("HG03028_A", "HG01072_A", "NA20528_A", "NA18631_A", "HG02660_A", "HG03028_B", "HG01072_B", "NA20528_B", "NA18631_B", "HG02660_B")
+group_rand_indiv <- c("HG03028_A", "HG01072_A", "NA20528_A", "NA18631_A", "HG02660_A")
+# group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660")
 # group_rand_indiv <- c("HG03028", "HG01072", "NA20528", "NA18631", "HG02660", "NA12878")
 group_global <- c("21_h37maj")
-group_AFR <- c("21_superpop_AFR_thrds0.5_S0_b1_ld0", "21_superpop_AFR_thrds0_S1_b1_ld0", "21_superpop_AFR_thrds0_S1_b1000_ld1", "HG03028")
-group_AMR <- c("21_superpop_AMR_thrds0.5_S0_b1_ld0", "21_superpop_AMR_thrds0_S1_b1_ld0", "21_superpop_AMR_thrds0_S1_b1000_ld1", "HG01072")
-group_EUR <- c("21_superpop_EUR_thrds0.5_S0_b1_ld0", "21_superpop_EUR_thrds0_S1_b1_ld0", "21_superpop_EUR_thrds0_S1_b1000_ld1", "NA20528")
-group_EAS <- c("21_superpop_EAS_thrds0.5_S0_b1_ld0", "21_superpop_EAS_thrds0_S1_b1_ld0", "21_superpop_EAS_thrds0_S1_b1000_ld1", "NA18631")
-group_SAS <- c("21_superpop_SAS_thrds0.5_S0_b1_ld0", "21_superpop_SAS_thrds0_S1_b1_ld0", "21_superpop_SAS_thrds0_S1_b1000_ld1", "HG02660")
+group_AFR <- c("21_superpop_AFR_thrds0.5_S0_b1_ld0", "21_superpop_AFR_thrds0_S1_b1_ld0", "21_superpop_AFR_thrds0_S1_b1000_ld1", "HG03028_A", "HG03028_B")
+group_AMR <- c("21_superpop_AMR_thrds0.5_S0_b1_ld0", "21_superpop_AMR_thrds0_S1_b1_ld0", "21_superpop_AMR_thrds0_S1_b1000_ld1", "HG01072_A", "HG01072_B")
+group_EUR <- c("21_superpop_EUR_thrds0.5_S0_b1_ld0", "21_superpop_EUR_thrds0_S1_b1_ld0", "21_superpop_EUR_thrds0_S1_b1000_ld1", "NA20528_A", "NA20528_B")
+group_EAS <- c("21_superpop_EAS_thrds0.5_S0_b1_ld0", "21_superpop_EAS_thrds0_S1_b1_ld0", "21_superpop_EAS_thrds0_S1_b1000_ld1", "NA18631_A", "NA18631_B")
+group_SAS <- c("21_superpop_SAS_thrds0.5_S0_b1_ld0", "21_superpop_SAS_thrds0_S1_b1_ld0", "21_superpop_SAS_thrds0_S1_b1000_ld1", "HG02660_A", "HG02660_B")
+
+
 
 var_groups <- c("Global Major", "Pop-specific Major", "Stoc. noLD", "Stoc. 1kLD", "Individuals")
 ethnicity_groups <- c("Global", "AFR", "AMR", "EUR", "EAS", "SAS")
@@ -939,8 +945,17 @@ df_var_bedtools2 <- df_var_bedtools
 df_var_bedtools2$x <- df_var_bedtools$y
 df_var_bedtools2$y <- df_var_bedtools$x
 df_var_all <- rbind(df_var_bedtools, df_var_bedtools2)
+
+# variant_lvl <- c(group_major_global, group_major_pop, group_stoc_noLD, group_stoc_1kLD, group_rand_indiv, "NA12878_A", "NA12878_B")
 # df_var_all$x <- factor(df_var_all$x, levels = variant_lvl)
-# df_var_all$variable <- factor(df_var_all$variable, levels = variant_lvl)
+# df_var_all$y <- factor(df_var_all$y, levels = variant_lvl)
+
+#: heatmap
+ggplot(df_var_all, aes(x, y)) +
+  geom_tile(aes(fill = jaccard), color='white') +
+  scale_fill_gradient2(high='red', low='blue', mid='yellow', midpoint=(min(df_var_all$jaccard)+0.7)/2, limits=(c(min(df_var_all$jaccard),NA))) +
+  theme_bw() + labs(fill="Jaccard similarity", x="", y="") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 #: add group labels corresponding to x
 df_var_popmajor_test_major_global <- df_var_all %>% filter(x %in% group_major_global, jaccard != 1)
@@ -996,18 +1011,18 @@ fig_var_bedtools_union <- ggplot(df_var_all, aes(x=group_x, y=union, color=group
   ylab("Union") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
 fig_var_bedtools_union
 
-df_var_all <- df_var_all %>% filter(!y %in% group_major_pop, jaccard != 1)
-df_var_all <- df_var_all %>% filter(!y %in% group_rand_indiv, jaccard != 1)
-
-fig_var_bedtools_jaccard_filtered <- ggplot(df_var_all, aes(x=group_x, y=jaccard, color=group_y, shape=ethnicity)) + geom_jitter() +
-  theme_bw() +
-  ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
-fig_var_bedtools_jaccard_filtered
-
-fig_var_bedtools_union_filtered <- ggplot(df_var_all, aes(x=group_x, y=union, color=group_y, shape=ethnicity)) + geom_jitter() +
-  theme_bw() +
-  ylab("Union") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
-fig_var_bedtools_union_filtered
+# df_var_all <- df_var_all %>% filter(!y %in% group_major_pop, jaccard != 1)
+# df_var_all <- df_var_all %>% filter(!y %in% group_rand_indiv, jaccard != 1)
+# 
+# fig_var_bedtools_jaccard_filtered <- ggplot(df_var_all, aes(x=group_x, y=jaccard, color=group_y, shape=ethnicity)) + geom_jitter() +
+#   theme_bw() +
+#   ylab("Jaccard Similarity") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+# fig_var_bedtools_jaccard_filtered
+# 
+# fig_var_bedtools_union_filtered <- ggplot(df_var_all, aes(x=group_x, y=union, color=group_y, shape=ethnicity)) + geom_jitter() +
+#   theme_bw() +
+#   ylab("Union") + xlab("Type of genome") + labs(color="Type of genome", shape="Ethnicity")
+# fig_var_bedtools_union_filtered
 ```
 
 ```{r plot_mapq_cutoff_exps}
