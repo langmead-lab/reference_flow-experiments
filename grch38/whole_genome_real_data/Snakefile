@@ -143,15 +143,7 @@ rule aggregate_vcf:
     shell:
         '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
 
-# rule get_het:
-#     input:
-#         vcf = os.path.join(DIR, 'wg_filtered.vcf')
-#     output:
-#         het = os.path.join(DIR, 'wg_{INDIV}_het.vcf')
-#     shell:
-#         '{BCFTOOLS} view -s {INDIV} {input.vcf} | \
-#         {BCFTOOLS} view -i "AC>0" -v snps -g het -m2 -M2 > {output.het}'
-
+# Get HETs for individuals
 rule get_het:
     input:
         vcf = os.path.join(DIR, 'wg_filtered.vcf')
@@ -161,22 +153,6 @@ rule get_het:
         '{BCFTOOLS} view -s {INDIV} -i "AC>0" -m2 -M2 {input.vcf} |'
         '{PYTHON} {DIR_SCRIPTS}/remove_het_overlapping_indel.py |'
         '{BCFTOOLS} view -g het > {output.het}'
-
-# rule get_het_with_indel:
-#     input:
-#         vcf = os.path.join(DIR, 'wg_filtered.vcf')
-#     output:
-#         het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
-#     shell:
-#         '{BCFTOOLS} view -s {INDIV} {input.vcf} | {BCFTOOLS} view -i "AC>0" -g het -m2 -M2 > {output.het}'
-# 
-# rule get_het_with_indel_processed:
-#     input:
-#         het = os.path.join(DIR, 'wg_{INDIV}_het_withindel.vcf')
-#     output:
-#         het = os.path.join(DIR, 'wg_{INDIV}_het_no_overlaps.vcf')
-#     shell:
-#         'cat {input.het} | python {DIR_SCRIPTS}/remove_het_overlapping_indel.py > {output.het}'
 
 rule liftover_serialize_major:
     input:
@@ -198,8 +174,9 @@ rule liftover_lift_major:
         temp(os.path.join(DIR_FIRST_PASS, 'wg-major-liftover.sam'))
     params:
         os.path.join(DIR_FIRST_PASS, 'wg-major-liftover')
+    threads: THREADS
     run:
-        shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
+        shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params} -t {threads}')
 
 rule liftover_serialize_per:
     input:
@@ -240,8 +217,9 @@ rule liftover_lift_perA:
         A = temp(os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover.sam')),
     params:
         A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover'),
+    threads: THREADS
     run:
-        shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A};')
+        shell('{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A} -t {threads}')
 
 rule liftover_lift_perB:
     input:
@@ -252,15 +230,16 @@ rule liftover_lift_perB:
         B = temp(os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover.sam'))
     params:
         B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover')
+    threads: THREADS
     run:
-        shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B};')
+        shell('{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B} -t {threads}')
 
 rule merge_per_allinone:
     input:
         A = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA-liftover.sam'),
         B = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB-liftover.sam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover.sam'.format(CHROM))
+        temp(os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover.sam'.format(CHROM)))
     shell:
         'cp {input.A} {output};'
         'grep -hv "^@" {input.B} >> {output}'
@@ -274,25 +253,9 @@ rule liftover_lift_major_highq:
         os.path.join(DIR_FIRST_PASS, 'wg-major-mapqgeq{}-liftover.sam'.format(ALN_MAPQ_THRSD))
     params:
         os.path.join(DIR_FIRST_PASS, 'wg-major-mapqgeq{}-liftover'.format(ALN_MAPQ_THRSD))
+    threads: THREADS
     run:
-        shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params}')
-
-# rule liftover_lift_refflow_seconpass_pop:
-#     input:
-#     output:
-#     run:
-# 
-# rule liftover_lift_refflow_secondpass_major:
-#     input:
-#         lft = os.path.join(DIR_MAJOR, 'wg-major.lft'),
-#         vcf = os.path.join(DIR_MAJOR, 'wg-maj.vcf')
-#         sam = 
-#     output:
-#         temp(os.path.join(DIR_SECOND_PASS, '2ndpass-maj-liftover.sam'))
-#     params:
-#         os.path.join(DIR_SECOND_PASS, '2ndpass-maj-liftover.sam')
-#     shell:
-#         '{LIFTOVER} lift -a {sam} -l {input.lft_maj} -p {params}'
+        shell('{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params} -t {threads}')
 
 #: Refflow -- second pass
 rule liftover_lift_refflow_secondpass_and_merge:
@@ -340,7 +303,7 @@ rule liftover_lift_refflow_secondpass_and_merge:
                 '/2ndpass-{}-liftover'.format(list_group[i]))
             if list_group[i] == 'maj':
                 sys.stderr.write('sam={}, lft = {}\n'.format(sam, input.lft_maj))
-                shell('{LIFTOVER} lift -a {sam} -l {input.lft_maj} -p {prefix};')
+                shell('{LIFTOVER} lift -a {sam} -l {input.lft_maj} -p {prefix} -t {threads};')
                 #: append reads to all-in-one lifted SAM
                 shell('grep -hv "^@" {prefix}.sam >> {output.lfted_refflow_sam};')
             elif list_group[i] in GROUP:
@@ -349,7 +312,7 @@ rule liftover_lift_refflow_secondpass_and_merge:
                     if lft.count(list_group[i]) > 0:
                         break
                 sys.stderr.write('sam={}, lft = {}\n'.format(sam, lft))
-                shell('{LIFTOVER} lift -a {sam} -l {lft} -p {prefix};')
+                shell('{LIFTOVER} lift -a {sam} -l {lft} -p {prefix} -t {threads};')
                 #: append reads to all-in-one lifted SAM
                 shell('grep -hv "^@" {prefix}.sam >> {output.lfted_refflow_sam};')
 
