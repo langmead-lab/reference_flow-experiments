@@ -1,0 +1,4 @@
+[submodule "reference_flow"]
+	path = reference_flow
+	url = https://github.com/langmead-lab/reference_flow
+	branch = dev
