@@ -51,15 +51,15 @@ filter_df <- function (df){
 }
 
 # Get bias stats for an allelic bias data frame
-get_bias_stats <- function(df){
+get_bias_stats <- function(df, diff=0.2){
   # print (nrow(df[df$REFBIAS >= 0.8,]))
   # print (nrow(df[df$REFBIAS <= 0.2,]))
   # print (nrow(df[df$REFBIAS <= 0.2,]) + nrow(df[df$REFBIAS >= 0.8,]))
   # print (sum(df$REF_COUNT) / sum(df$ALT_COUNT))
   return (c(
-    nrow(df[df$REFBIAS >= 0.8,]), 
-    nrow(df[df$REFBIAS <= 0.2,]), 
-    nrow(df[df$REFBIAS <= 0.2,]) + nrow(df[df$REFBIAS >= 0.8,]), 
+    nrow(df[df$REFBIAS >= 1-diff,]), 
+    nrow(df[df$REFBIAS <= diff,]), 
+    nrow(df[df$REFBIAS <= diff,]) + nrow(df[df$REFBIAS >= 1-diff,]), 
     sum(df$REF_COUNT) / sum(df$ALT_COUNT)
   ))
 }
@@ -73,18 +73,30 @@ build_hist <- function(df, hist_step){
 }
 
 # Plot contour-only histograms
-plot_contour_hist <- function (hist_targets, hist_names, prefix, ylimits){
+plot_contour_hist <- function (hist_targets, hist_names, prefix, ylimits, y_tran=F){
   hist_bins <- rep(adjusted_bins, length(hist_names))
   df_hist_onepass <- data.frame(xx = hist_targets, yy = rep(hist_names, each=length(hist_targets)/length(hist_names)))
   
-  p_hist <- ggplot() + 
-    # scale_x_continuous(trans = squish_trans(0.2, 0.8, 10)) +
-    # scale_y_continuous(limits=c(0,3000)) +
-    scale_y_continuous(trans = 'log10', limits=ylimits) +
-    theme_bw() + 
-    xlab("Allelic balance") + ylab("Count") + labs(color='Method') + 
-    geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
-    theme(legend.position = "bottom", aspect.ratio=NULL)
+  if (y_tran == T){
+    p_hist <- ggplot() + 
+      scale_x_continuous(trans = squish_trans(0.2, 0.8, 10)) +
+      # scale_y_continuous(limits=c(0,3000)) +
+      scale_y_continuous(trans = 'log10', limits=ylimits) +
+      theme_bw() + 
+      xlab("Allelic balance") + ylab("Count") + labs(color='Method') + 
+      geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
+      theme(legend.position = "bottom", aspect.ratio=NULL)
+  }
+  else{
+    p_hist <- ggplot() + 
+      # scale_x_continuous(trans = squish_trans(0.2, 0.8, 10)) +
+      # scale_y_continuous(limits=c(0,3000)) +
+      scale_y_continuous(trans = 'log10', limits=ylimits) +
+      theme_bw() + 
+      xlab("Allelic balance") + ylab("Count") + labs(color='Method') + 
+      geom_step(mapping=aes(x=hist_bins, y=df_hist_onepass$xx, colour=df_hist_onepass$yy), size=1) +
+      theme(legend.position = "bottom", aspect.ratio=NULL)
+  }
   # if (save){
   #   ggsave(paste(prefix, ".jpg", sep=""), p_hist, width = 12, height = 8)
   #   ggsave(paste(prefix, ".pdf", sep=""), p_hist, width = 12, height = 8)
@@ -557,10 +569,10 @@ adjusted_bins <- c(adjusted_bins, 1)
 
 save = F
 
+# hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_rf_real, hist_vg_real, hist_per_real, hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe, hist_per_real_pe)
+# hist_names_real <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized', 'GRC_pe', 'Major_pe', 'RandFlow-LD_pe', 'Personalized_pe')
 hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_rf_real, hist_vg_real, hist_per_real)
 hist_names_real <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized')
-# hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_per_real)
-# hist_names_real <- c('GRC', 'Major', 'Personalized')
 p_refbias_real <- plot_contour_hist(hist_targets_real, hist_names_real, "hist_wg", c(300,NA))
 p_refbias_real
 
@@ -581,6 +593,62 @@ df_NA12878_wg_bias_summary
 (df_NA12878_wg_bias_summary$`RandFlow-LD`[4] - df_NA12878_wg_bias_summary$GRC[4]) / (df_NA12878_wg_bias_summary$Personalized[4] - df_NA12878_wg_bias_summary$GRC[4])
 ```
 
+```{r paired_end_real_load}
+df_ref_real_pe <- read.delim("data/real/paired_end/wg-GRC-NA12878.allele.bias", header = TRUE, sep = "\t")
+df_maj_real_pe <- read.delim("data/real/paired_end/wg-major-NA12878.allele.bias", header = TRUE, sep = "\t")
+df_rf_real_pe <- read.delim("data/real/paired_end/wg-refflow-10-thrds0_S1_b1000_ld1--NA12878.allele.bias", header = TRUE, sep = "\t")
+df_per_real_pe <- read.delim("data/real/paired_end/wg-per-NA12878.allele.bias", header = TRUE, sep = "\t")
+
+df_ref_real_pe <- filter_df(df_ref_real_pe)
+df_maj_real_pe <- filter_df(df_maj_real_pe)
+df_rf_real_pe <- filter_df(df_rf_real_pe)
+df_per_real_pe <- filter_df(df_per_real_pe)
+```
+
+```{r paired_end_real}
+hist_step <- 0.02
+half_step <- hist_step / 2
+
+adjusted_bins <- seq(0, 1+half_step, by=hist_step) - half_step
+adjusted_bins[1] <- 0
+adjusted_bins <- c(adjusted_bins, 1)
+# adjusted_bins[length(adjusted_bins)] <- 1
+
+hist_ref_real_pe <- build_hist(df_ref_real_pe, hist_step)
+hist_maj_real_pe <- build_hist(df_maj_real_pe, hist_step)
+hist_rf_real_pe <- build_hist(df_rf_real_pe, hist_step)
+hist_per_real_pe <- build_hist(df_per_real_pe, hist_step)
+
+hist_targets_real <- c(hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe)
+hist_names_real <- c('GRC_pe', 'Major_pe', 'RandFlow-LD_pe')
+# hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_rf_real, hist_vg_real, hist_per_real, hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe, hist_per_real_pe)
+# hist_names_real <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized', 'GRC_pe', 'Major_pe', 'RandFlow-LD_pe', 'Personalized_pe')
+# hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_per_real)
+# hist_names_real <- c('GRC', 'Major', 'Personalized')
+p_refbias_real <- plot_contour_hist(
+  hist_targets = hist_targets_real, 
+  hist_names = hist_names_real, 
+  prefix= "hist_wg", 
+  ylimits = c(200,6000), 
+  y_tran = T)
+p_refbias_real
+
+# plot_contour_hist <- function (hist_targets, hist_names, prefix, ylimits, y_tran=F){
+
+df_NA12878_wg_pe_bias_summary <- data.frame(
+  get_bias_stats(df_ref_real_pe, 0.2), 
+  get_bias_stats(df_maj_real_pe, 0.2), 
+  get_bias_stats(df_rf_real_pe, 0.2)
+  )
+row.names(df_NA12878_wg_pe_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'REF2ALT')
+names(df_NA12878_wg_pe_bias_summary) <- c('GRC', 'Major', 'RandFlow-LD')
+df_NA12878_wg_pe_bias_summary
+
+# # RandFlow-LD gain of personalization (SUM_BIAS)
+# (df_NA12878_wg_pe_bias_summary$`RandFlow-LD`[3] - df_NA12878_wg_pe_bias_summary$GRC[3]) / (df_NA12878_wg_pe_bias_summary$Personalized[3] - df_NA12878_wg_pe_bias_summary$GRC[3])
+# # RandFlow-LD gain of personalization (REF_TO_ALT)
+# (df_NA12878_wg_pe_bias_summary$`RandFlow-LD`[4] - df_NA12878_wg_pe_bias_summary$GRC[4]) / (df_NA12878_wg_pe_bias_summary$Personalized[4] - df_NA12878_wg_pe_bias_summary$GRC[4])
+```
 
 ```{r get_bias_clusters_unsupervised_wg}
 get_class_unsupervised <- function (df){
