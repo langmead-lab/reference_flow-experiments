@@ -47,6 +47,7 @@ filter_df <- function (df){
   df <- df[df$NUM_READS > 15,]
   df$REFBIAS <- df$REF_COUNT / (df$REF_COUNT + df$ALT_COUNT)
   df$AVG_MAPQ <- df$SUM_MAPQ / df$NUM_READS
+  # df <- df[df$AVG_MAPQ > 15,]
   return (df)
 }
 
@@ -60,6 +61,7 @@ get_bias_stats <- function(df, diff=0.2){
     nrow(df[df$REFBIAS >= 1-diff,]), 
     nrow(df[df$REFBIAS <= diff,]), 
     nrow(df[df$REFBIAS <= diff,]) + nrow(df[df$REFBIAS >= 1-diff,]), 
+    sum(df$NUM_READS),
     sum(df$REF_COUNT) / sum(df$ALT_COUNT)
   ))
 }
@@ -303,7 +305,7 @@ p_refbias_sim21_refflow
 
 # Summarize as a data frame
 df_NA12878_chr21_bias_summary <- data.frame(get_bias_stats(df_ref), get_bias_stats(df_maj), get_bias_stats(df_rf_maj), get_bias_stats(df_rf), get_bias_stats(df_vg), get_bias_stats(df_per))
-row.names(df_NA12878_chr21_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'REF2ALT')
+row.names(df_NA12878_chr21_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'SUM_READS', 'REF2ALT')
 names(df_NA12878_chr21_bias_summary) <- c('GRC', 'Major', 'MajorFlow', 'RandFlow-LD', 'vg', 'Personalized')
 df_NA12878_chr21_bias_summary
 
@@ -583,7 +585,7 @@ df_NA12878_wg_bias_summary <- data.frame(
   get_bias_stats(df_rf_real), 
   get_bias_stats(df_vg_real), 
   get_bias_stats(df_per_real))
-row.names(df_NA12878_wg_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'REF2ALT')
+row.names(df_NA12878_wg_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'SUM_READS', 'REF2ALT')
 names(df_NA12878_wg_bias_summary) <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized')
 df_NA12878_wg_bias_summary
 
@@ -596,13 +598,17 @@ df_NA12878_wg_bias_summary
 ```{r paired_end_real_load}
 df_ref_real_pe <- read.delim("data/real/paired_end/wg-GRC-NA12878.allele.bias", header = TRUE, sep = "\t")
 df_maj_real_pe <- read.delim("data/real/paired_end/wg-major-NA12878.allele.bias", header = TRUE, sep = "\t")
-df_rf_real_pe <- read.delim("data/real/paired_end/wg-refflow-10-thrds0_S1_b1000_ld1--NA12878.allele.bias", header = TRUE, sep = "\t")
+df_rf_real_pe <- read.delim("data/real/paired_end/wg-refflow-10-thrds0_S1_b1000_ld1-NA12878.allele.bias", header = TRUE, sep = "\t")
+df_rf_real_pe_prev <- read.delim("data/real/paired_end/wg-refflow-10-thrds0_S1_b1000_ld1-NA12878-prev.allele.bias", header = TRUE, sep = "\t")
 df_per_real_pe <- read.delim("data/real/paired_end/wg-per-NA12878.allele.bias", header = TRUE, sep = "\t")
+# df_per_real_pe_prev <- read.delim("data/real/paired_end/wg-per-NA12878-prev.allele.bias", header = TRUE, sep = "\t")
 
 df_ref_real_pe <- filter_df(df_ref_real_pe)
 df_maj_real_pe <- filter_df(df_maj_real_pe)
 df_rf_real_pe <- filter_df(df_rf_real_pe)
+df_rf_real_pe_prev <- filter_df(df_rf_real_pe_prev)
 df_per_real_pe <- filter_df(df_per_real_pe)
+# df_per_real_pe_prev <- filter_df(df_per_real_pe_prev)
 ```
 
 ```{r paired_end_real}
@@ -617,20 +623,29 @@ adjusted_bins <- c(adjusted_bins, 1)
 hist_ref_real_pe <- build_hist(df_ref_real_pe, hist_step)
 hist_maj_real_pe <- build_hist(df_maj_real_pe, hist_step)
 hist_rf_real_pe <- build_hist(df_rf_real_pe, hist_step)
+hist_rf_real_pe_prev <- build_hist(df_rf_real_pe_prev, hist_step)
 hist_per_real_pe <- build_hist(df_per_real_pe, hist_step)
+# hist_per_real_pe_prev <- build_hist(df_per_real_pe_prev, hist_step)
 
-hist_targets_real <- c(hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe)
-hist_names_real <- c('GRC_pe', 'Major_pe', 'RandFlow-LD_pe')
+hist_targets_real <- c(hist_rf_real_pe, hist_maj_real_pe, hist_ref_real_pe, hist_per_real_pe)
+hist_names_real <- c('RandFlow-LD_pe', 'Major_pe', 'GRC_pe', 'Personalized_pe')
+# hist_targets_real <- c(hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe, hist_rf_real_pe_prev, hist_per_real_pe)
+# hist_names_real <- c('GRC_pe', 'Major_pe', 'RandFlow-LD_pe', 'RandFlow-LD_pe-prev', 'Personalized_pe')
 # hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_rf_real, hist_vg_real, hist_per_real, hist_ref_real_pe, hist_maj_real_pe, hist_rf_real_pe, hist_per_real_pe)
 # hist_names_real <- c('GRC', 'Major', 'RandFlow-LD', 'vg', 'Personalized', 'GRC_pe', 'Major_pe', 'RandFlow-LD_pe', 'Personalized_pe')
-# hist_targets_real <- c(hist_ref_real, hist_maj_real, hist_per_real)
-# hist_names_real <- c('GRC', 'Major', 'Personalized')
+
+# p_refbias_real <- plot_contour_hist(
+#   hist_targets = hist_targets_real, 
+#   hist_names = hist_names_real, 
+#   prefix= "hist_wg", 
+#   ylimits = c(200,6000),
+#   y_tran = T)
 p_refbias_real <- plot_contour_hist(
   hist_targets = hist_targets_real, 
   hist_names = hist_names_real, 
   prefix= "hist_wg", 
-  ylimits = c(200,6000), 
-  y_tran = T)
+  ylimits = c(300,NA),
+  y_tran = F)
 p_refbias_real
 
 # plot_contour_hist <- function (hist_targets, hist_names, prefix, ylimits, y_tran=F){
@@ -638,10 +653,12 @@ p_refbias_real
 df_NA12878_wg_pe_bias_summary <- data.frame(
   get_bias_stats(df_ref_real_pe, 0.2), 
   get_bias_stats(df_maj_real_pe, 0.2), 
-  get_bias_stats(df_rf_real_pe, 0.2)
+  get_bias_stats(df_rf_real_pe, 0.2),
+  # get_bias_stats(df_rf_real_pe_prev, 0.2),
+  get_bias_stats(df_per_real_pe, 0.2)
   )
-row.names(df_NA12878_wg_pe_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'REF2ALT')
-names(df_NA12878_wg_pe_bias_summary) <- c('GRC', 'Major', 'RandFlow-LD')
+row.names(df_NA12878_wg_pe_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'SUM_READS', 'REF2ALT')
+names(df_NA12878_wg_pe_bias_summary) <- c('GRC', 'Major', 'RandFlow-LD', 'Personalized')
 df_NA12878_wg_pe_bias_summary
 
 # # RandFlow-LD gain of personalization (SUM_BIAS)
