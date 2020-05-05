@@ -7,35 +7,35 @@ By this step we can make sure all variants are left-aligned and normalized.
 '''
 rule normalize_vcf_GRC:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC.vcf.gz')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC-norm.vcf')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-norm.vcf')
     shell:
         '{BCFTOOLS} norm -f {GENOME} -o {output} {input}'
 
 rule normalize_vcf_major:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-major.vcf.gz')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-major-norm.vcf')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-norm.vcf')
     shell:
         '{BCFTOOLS} norm -f {GENOME} -o {output} {input}'
 
 rule normalize_vcf_refflow:
     input:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-norm.vcf'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}-norm.vcf'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     shell:
         '{BCFTOOLS} norm -f {GENOME} -o {output} {input}'
 
 rule normalize_vcf_per:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-per.vcf.gz')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-norm.vcf')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-norm.vcf')
     shell:
         '{BCFTOOLS} norm -f {GENOME} -o {output} {input}'
 
@@ -44,17 +44,17 @@ rule normalize_vcf_per:
 rule check_variant_calling:
     input:
         expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-GRC.vcf.gz'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz'),
             INDIV = INDIV),
         expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-major.vcf.gz'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz'),
             INDIV = INDIV),
         expand(
             os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
+            EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
             INDIV = INDIV),
         expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-per.vcf.gz'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz'),
             INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'var_calling.done')))

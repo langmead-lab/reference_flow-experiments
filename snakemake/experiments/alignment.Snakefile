@@ -4,12 +4,12 @@ rule align_to_ref:
         reads1 = READS1,
         reads2 = READS2,
         idx = expand(
-            os.path.join(DIR, 'grc/wg.{idx}.bt2'),
+            os.path.join(DIR, 'grc/indexes/' + EXP_LABEL + '.{idx}.bt2'),
             idx = IDX_ITEMS)
     params:
-        index = os.path.join(DIR, 'grc/wg')
+        index = os.path.join(DIR, 'grc/indexes/' + EXP_LABEL)
     output:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-GRC.sam')
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.sam')
     threads: THREADS
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam}'
@@ -22,12 +22,12 @@ rule align_to_perA:
         reads1 = READS1,
         reads2 = READS2,
         idx = expand(
-            os.path.join(DIR_PER_IDX, 'wg-perA.{IDX_ITEMS}.bt2'),
+            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.{IDX_ITEMS}.bt2'),
             IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
-        index = os.path.join(DIR_PER_IDX, 'wg-perA')
+        index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA')
     output:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-per_hapA.sam')
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per_hapA.sam')
     threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam}'
@@ -38,12 +38,12 @@ rule align_to_perB:
         reads1 = READS1,
         reads2 = READS2,
         idx = expand(
-            os.path.join(DIR_PER_IDX, 'wg-perB.{IDX_ITEMS}.bt2'),
+            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.{IDX_ITEMS}.bt2'),
             IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
-        index = os.path.join(DIR_PER_IDX, 'wg-perB')
+        index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB')
     output:
-        sam = os.path.join(DIR_FIRST_PASS, 'wg-per_hapB.sam')
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per_hapB.sam')
     threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam};'
@@ -51,16 +51,16 @@ rule align_to_perB:
 
 rule merge_per:
     input:
-        samA = os.path.join(DIR_FIRST_PASS, 'wg-per_hapA.sam'),
-        samB = os.path.join(DIR_FIRST_PASS, 'wg-per_hapB.sam')
+        samA = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per_hapA.sam'),
+        samB = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per_hapB.sam')
     output:
-        path = os.path.join(DIR_FIRST_PASS, 'wg-per.paths'),
-        label = os.path.join(DIR_FIRST_PASS, 'wg-per.ids'),
-        merge_paths = os.path.join(DIR_FIRST_PASS, 'wg-per.merge_paths'),
-        samA = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA.sam'),
-        samB = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB.sam')
+        path = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.paths'),
+        label = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.ids'),
+        merge_paths = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.merge_paths'),
+        samA = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapA.sam'),
+        samB = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapB.sam')
     params:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged')
     run:
         #: prepare ids
         for h in ['hapA', 'hapB']:
@@ -76,13 +76,13 @@ rule merge_per:
 rule check_alignment_grc_and_per:
     input:
         grc = expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-GRC.sam'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.sam'),
             INDIV = INDIV),
         perA = expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapA.sam'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapA.sam'),
             INDIV = INDIV),
         perB = expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-per-merged-hapB.sam'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapB.sam'),
             INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'alignment_grc_per.done')))

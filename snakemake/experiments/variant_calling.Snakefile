@@ -14,9 +14,9 @@ RGPU = 'readgroup.pu'
 
 rule add_rg_grc:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         method = 'GRC'
@@ -25,17 +25,17 @@ rule add_rg_grc:
 
 rule index_rg_grc:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted-RG.bam.bai')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam.bai')
     shell:
         '{SAMTOOLS} index {input}'
 
 rule add_rg_major:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         method = 'Major'
@@ -44,19 +44,19 @@ rule add_rg_major:
 
 rule index_rg_major:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted-RG.bam.bai')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam.bai')
     shell:
         '{SAMTOOLS} index {input}'
 
 rule add_rg_refflow:
     input:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     params:
         tmp = os.path.join(DIR_SECOND_PASS, 'tmp'),
         method = 'refflow-{}-{}'.format(ALN_MAPQ_THRSD, POP_DIRNAME)
@@ -66,18 +66,18 @@ rule add_rg_refflow:
 rule index_rg_refflow:
     input:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
         os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     shell:
         '{SAMTOOLS} index {input}'
 
 rule add_rg_per:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         method = 'personalized'
@@ -86,9 +86,9 @@ rule add_rg_per:
 
 rule index_rg_per:
     input:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted-RG.bam.bai')
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai')
     shell:
         '{SAMTOOLS} index {input}'
 
@@ -110,11 +110,11 @@ rule build_genome_dict:
 
 rule GATK_call_grc:
     input:
-        bam = os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted-RG.bam'),
-        bai = os.path.join(DIR_FIRST_PASS, 'wg-GRC-sorted-RG.bam.bai'),
+        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam'),
+        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam.bai'),
         genome_dict = GENOME_DICT
     output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, 'wg-GRC.vcf.gz')
+        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         thread_hmm = 4
@@ -125,11 +125,11 @@ rule GATK_call_grc:
 
 rule GATK_call_major:
     input:
-        bam = os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted-RG.bam'),
-        bai = os.path.join(DIR_FIRST_PASS, 'wg-major-liftover-sorted-RG.bam.bai'),
+        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam'),
+        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam.bai'),
         genome_dict = GENOME_DICT
     output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, 'wg-major.vcf.gz')
+        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         thread_hmm = 4
@@ -141,13 +141,13 @@ rule GATK_call_major:
 rule GATK_call_refflow:
     input:
         bam = os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
         bai = os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
+            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
         genome_dict = GENOME_DICT
     output:
         vcf_gz = os.path.join(DIR_SECOND_PASS,
-            'wg-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
+            EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     params:
         tmp = os.path.join(DIR_SECOND_PASS, 'tmp'),
         thread_hmm = 4
@@ -158,11 +158,11 @@ rule GATK_call_refflow:
 
 rule GATK_call_per:
     input:
-        bam = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted-RG.bam.bai'),
-        bai = os.path.join(DIR_FIRST_PASS, 'wg-per-merged-liftover-sorted-RG.bam.bai'),
+        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai'),
+        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai'),
         genome_dict = GENOME_DICT
     output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, 'wg-per.vcf.gz')
+        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         thread_hmm = 4
@@ -174,17 +174,17 @@ rule GATK_call_per:
 rule check_variant_calling:
     input:
         expand(
-            os.path.join(DIR_FIRST_PASS, 'wg-GRC.vcf.gz'),
+            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz'),
             INDIV = INDIV),
 #         expand(
-#             os.path.join(DIR_FIRST_PASS, 'wg-major.vcf.gz'),
+#             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz'),
 #             INDIV = INDIV),
 #         expand(
 #             os.path.join(DIR_SECOND_PASS,
-#             'wg-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
+#             EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
 #             INDIV = INDIV),
 #         expand(
-#             os.path.join(DIR_FIRST_PASS, 'wg-per.vcf.gz'),
+#             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz'),
 #             INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'var_calling.done')))

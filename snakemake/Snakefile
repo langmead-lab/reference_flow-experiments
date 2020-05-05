@@ -2,13 +2,15 @@ import os
 import pandas as pd
 
 # configfile: 'test.yaml'
-configfile: 'config_local.yaml'
+# configfile: 'config_local.yaml' # local whole genome experiment using paired-end data
+configfile: 'exp_sim_local.yaml'
 # configfile: "config.yaml"
 # configfile: "config_mouse.yaml"
 
 ''' Load from config '''
 CHROM = config['CHROM']
 INDIV = config['INDIV']
+EXP_LABEL = config['EXP_LABEL']
 READS1 = config['READS1']
 READS2 = config['READS2']
 GROUP = config['GROUP']
@@ -43,10 +45,8 @@ RAND_SEED = config['RAND_SEED']
 
 #### Below args are only used in experiments
 BEDTOOLS = config['BEDTOOLS']
+DIR_SCRIPTS_EXP = config['DIR_SCRIPTS_EXP']
 ''''''
-
-# Prefixes for filtered VCFs
-PREFIX_VCF_F = os.path.join(DIR, '{CHROM}_filtered')
 
 # Bowtie 2 index extensions
 IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
@@ -64,7 +64,7 @@ POP_GENOME_SUFFIX = \
     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
     '_ld' + str(POP_USE_LD)
 WG_POP_GENOME_SUFFIX = \
-    'wg-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+    EXP_LABEL + '-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
     '_ld' + str(POP_USE_LD)
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
@@ -73,7 +73,7 @@ DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 # Prefix and directory paths for experiments
 DIR_FIRST_PASS = os.path.join(DIR, 'experiments/{INDIV}/')
 DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
-PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, 'wg-major-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
+PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, EXP_LABEL + '-major-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
 
 # Bias results directory
 DIR_RESULTS_BIAS = os.path.join(DIR, 'results/bias')
@@ -101,6 +101,7 @@ include: '../reference_flow/snakemake/shared/elevate_and_sort.Snakefile'
 
 # Experiments
 DIR_PER = os.path.join(DIR, 'personalized/{INDIV}/')
+include: 'experiments/prepare_per_and_grc.Snakefile'
 include: 'experiments/evaluate_bias.Snakefile'
 include: 'experiments/alignment.Snakefile'
 # include: 'experiments/variant_calling.Snakefile'
@@ -113,6 +114,7 @@ if SORT_SAM:
     TODO_LIST.append('sort.done')
 EXP = True
 if EXP:
+    TODO_LIST.append('prepare_per.done')
     TODO_LIST.append('bias_exp.done')
     TODO_LIST.append('alignment_grc_per.done')
 # TODO_LIST.append('var_calling.done')
@@ -121,38 +123,24 @@ if EXP:
 rule all:
     input:
         expand(os.path.join(DIR, '{task}'), task = TODO_LIST)
-        #   # Building genomes
-        #   pop_genome = os.path.join(DIR, 'prepare_pop_genome.done'),
-        #   standard_genome = os.path.join(DIR, 'prepare_standard_genome.done'),
-        #   # Align reads with reference flow
-        #   align_refflow = os.path.join(DIR, 'alignment_refflow.done'),
-        #   # Elevate alignments to standard reference genome coordinates
-        #   elevate = os.path.join(DIR, 'elevate.done'),
-        #   # Sort SAMs
-        #   sorting = os.path.join(DIR, 'sort.done'),
 
 rule filter_vcf:
     input:
         vcf = os.path.join(DIR_VCF, VCF_PREFIX + '{CHROM}' + VCF_SUFFIX),
         chrom_map = CHROM_MAP
     output:
-        vcf = temp(PREFIX_VCF_F + '.vcf')
+        vcf = temp(os.path.join(DIR, '{CHROM}_filtered.vcf'))
     shell:
-        '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS -V mnps,other {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
-        # '{BCFTOOLS} view -c 1 -f PASS -V mnps,other {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
+        # Take PASS variants
+        # Does not remove mnps, since they will be needed for constructing personalized reference genome, 
+        # and will be removed when building major and refflow references.
+        '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
+        # '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS -V mnps,other {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
 
 rule aggregate_vcf:
     input:
         vcf = expand(os.path.join(DIR, '{CHROM}_filtered.vcf'), CHROM = CHROM)
     output:
-        vcf = os.path.join(DIR, 'wg_filtered.vcf')
+        vcf = os.path.join(DIR, EXP_LABEL + '_filtered.vcf')
     shell:
         '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
-
-rule prepare_chrom_genome:
-    input:
-        genome = GENOME
-    output:
-        temp(os.path.join(DIR, 'chr{CHROM}.fa'))
-    shell:
-        '{SAMTOOLS} faidx {input.genome} {CHR_PREFIX}{wildcards.CHROM} > {output};'
