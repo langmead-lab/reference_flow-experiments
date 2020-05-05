@@ -294,21 +294,16 @@ def compare_sam_info(info, ginfo, threshold, offset = [0], ignore_chrm=False):
     # return False
     return min([abs(info.pos + off - ginfo.pos) for off in offset])
 
-def dump_golden_dic(filename, seg):
+def dump_golden_dic(filename):
     g_dic = {}
     with open(filename, 'r') as gfile:
         for line in gfile:
             name, info = parse_line(line)
             if name is 'header':
                 continue
-            if seg == 1:
-                if name in g_dic and info.is_first_seg():
-                    print ("Error: duplicated reads in golden!")
-                    info.print()
-                    g_dic[name].print()
-                    return
-                if info.is_first_seg():
-                    g_dic[name] = info
+            if name in g_dic:
+                assert g_dic[name].is_first_seg() != info.is_first_seg()
+            g_dic[name] = info
         print ("Size of database built:", len(g_dic))
     
     pkl_filename = filename + '.pkl'
@@ -318,7 +313,7 @@ def dump_golden_dic(filename, seg):
     f.close()
     return g_dic
 
-def load_golden_dic(filename, seg):
+def load_golden_dic(filename):
     pkl_filename = filename + '.pkl'
     if os.path.isfile(pkl_filename):
         f = open(pkl_filename, 'rb')
@@ -327,7 +322,7 @@ def load_golden_dic(filename, seg):
         print ('Size of database loaded:', len(g_dic))
         return g_dic
     else:
-        return dump_golden_dic(filename, seg)
+        return dump_golden_dic(filename)
 
 def analyze_sam(args):
     sam = args.sam

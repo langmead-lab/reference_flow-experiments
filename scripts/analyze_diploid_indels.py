@@ -5,7 +5,6 @@ identical in two personalized refs
 '''
 import argparse, math, sys, os
 import pandas as pd
-# import matplotlib.pyplot as plt
 from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
 from build_erg import read_var, read_genome
 import constants
@@ -104,7 +103,6 @@ def write_wrt_mapq(sam_fn, mapq_threshold):
         continue
     return
 
-# def build_index(var_list, MAIN_STRAND, ALT_STRAND):
 def build_index(var_list):
     '''
     Reads var_list and maps variants from hapA/B to the reference coordinate
@@ -228,23 +226,6 @@ def build_offset_index_ref(var_list):
             exit()
     
     return alt1_offset_index, alt2_offset_index
-
-def print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, flag):
-    '''
-    This is for debugging.
-    Prints alignment info and stops the script.
-    '''
-    print ('name', name)
-    print ('offsets on reads', reads_offsets)
-    print ('offsets on sample', sample_offsets)
-    print ('dist', dist)
-    print ('flag', flag)
-    print ('info')
-    info.print(flag=False, mapq=False, score=False)
-    print ()
-    print ('golden')
-    g_info.print(flag=False, mapq=False, score=False)
-    input()
 
 # TODO
 def print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, threshold, read_len, COMPARE_SEQ):
@@ -425,9 +406,6 @@ def diploid_compare(
         ignore_chrm=True
     )
 
-    '''if (dist < 0 or dist > threshold) and __debug__:
-        print_and_stop(name, reads_offsets, sample_offsets, dist, info, g_info, dip_flag)
-        #print_aln_within_distance(name, reads_offsets, sample_offsets, info, g_info, 1000, read_len)'''
     if (dist < 0 or dist > threshold) and COMPARE_SEQ:
         print_aln_within_distance(
             name=name,
@@ -543,7 +521,10 @@ def analyze_diploid_indels(
 
     for line in sam_f:
         #name, info = parse_line(line, erg=True)
-        name, info = parse_line(line, erg=True, mason2=True, score=COMPARE_SEQ)
+        # single-end
+        #name, info = parse_line(line, erg=True, mason2=True, score=COMPARE_SEQ)
+        # paired-end
+        name, info = parse_line(line, erg=True, mason2=False, score=COMPARE_SEQ)
         #: headers
         if name == 'header':
             continue
@@ -624,9 +605,6 @@ def analyze_diploid_indels(
             else:
                 incorrect_f.write(line)
 
-        # if __debug__ and comp == False:
-        #     print_and_stop(name, [], [], dist, info, golden_dic[name], flag)
-
     summary.show_summary(has_answer=True)
     sam_f.close()
 
@@ -634,39 +612,6 @@ def analyze_diploid_indels(
     results_df.to_pickle(sam_fn + '-stats.pkl')
 
     return results_df
-
-def plot_hist(filename, df):
-    '''
-    Plots a histogram with the distance between an alignment and its golden postion as x-axis
-    '''
-    x = df['dist']
-    x = x.replace([-3, -2, 0], [0.001, 0.01, 1])
-    upper = 1000000000
-    rr = [0.001, 0.01, 0.1, 1, 10,100,1000,10000,100000, 1000000, 10000000, 100000000, 1000000000]
-    n, bins, patches = plt.hist(x=x, bins=rr, log=True)
-    # n_upper_outliers = (x > upper).sum()
-    # patches[-1].set_height(patches[-1].get_height() + n_upper_outliers)
-    # patches[-1].set_facecolor('m')
-    # patches[-1].set_label('including longer')
-    
-    # patches[0].set_facecolor('#e00000') #: red
-    patches[0].set_facecolor('#ff9900')
-    patches[0].set_label('unaligned')
-    # patches[1].set_facecolor('#ff9900') #: orange
-    patches[1].set_facecolor('#ffdb4d')
-    patches[1].set_label('diff direction')
-    patches[3].set_facecolor('g')
-    patches[3].set_label('correct')
-    plt.ylabel('counts')
-    plt.ylim(300, 300000)
-    plt.grid(True)
-    plt.xlabel('distance')
-    plt.xscale('log')
-    plt.legend()
-    plt.title(filename.split('/')[-1])
-    plt.savefig(filename+'-hist.pdf', format='pdf')
-    print (filename+'-hist.pdf is plotted')
-    return 
 
 def print_df_stats(df, threshold, var_opt):
     print ()
@@ -856,14 +801,6 @@ if __name__ == '__main__':
     constants.set_chrom(chrm)
     constants.set_step(step)
     constants.set_read_len(read_len)
-    #: Global variables
-    # global MAIN_CHRM, ALT_CHRM, MAIN_HAP, ALT_HAP, MAIN_STRAND, ALT_STRAND
-    # MAIN_STRAND = 'A'
-    # ALT_STRAND = 'B'
-    # MAIN_HAP = 'hap' + MAIN_STRAND
-    # ALT_HAP = 'hap' + ALT_STRAND
-    # MAIN_CHRM = chrm + MAIN_STRAND
-    # ALT_CHRM = chrm + ALT_STRAND
 
     if mapq_threshold:
         write_wrt_mapq(sam_fn, int(mapq_threshold))
@@ -871,14 +808,10 @@ if __name__ == '__main__':
     
     #USE_PREV_IF_POSSIBLE = False
     USE_PREV_IF_POSSIBLE = True
-    PLOT_HIST = False
     if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl') and write_wrt_correctness == None:
         print ('Read stats from {0}-stats.pkl'.format(sam_fn))
         df = pd.read_pickle(sam_fn + '-stats.pkl')
         
-        if PLOT_HIST:
-            plot_hist(sam_fn, df)
-
         print_df_stats(df, threshold, 'all')
         exit()
 
@@ -903,7 +836,7 @@ if __name__ == '__main__':
         var_sample_fn=var_sample_fn,
         personalized=personalized
     )
-    golden_dic = load_golden_dic(golden_fn, 1)
+    golden_dic = load_golden_dic(golden_fn)
     results_df = analyze_diploid_indels(
         sam_fn=sam_fn,
         golden_dic=golden_dic,
