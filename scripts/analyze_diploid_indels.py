@@ -5,7 +5,8 @@ identical in two personalized refs
 '''
 import argparse, math, sys, os
 import pandas as pd
-from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
+# from analyze_sam import SamInfo, parse_line, load_golden_dic, Summary
+from lib_compare_sam import SamInfo, parse_line, load_golden_dic, Summary, print_df_stats
 from build_erg import read_var, read_genome
 import constants
 
@@ -36,7 +37,7 @@ def parse_args():
         help='(int) specify whether the ref seq(s) are standard (0) or personalized-diploid (2) sample [0]'
     )
     parser.add_argument(
-        '-c', '--chrm',
+        '-c', '--chrom',
         help='(str) chromosome [None]'
     )
     parser.add_argument(
@@ -61,11 +62,6 @@ def parse_args():
         help='(int) If set, writes two files recording correct/incorrect alignments respectively. The output files use target sam prefix [None].'
     )
     parser.add_argument(
-        '--write_wrt_mapq', type=int,
-        default=None,
-        help='(int) If specified, writes two files recording alignments with mapq >= t and mapq < t. This argument is the threshold. The output files use target sam prefix [None].'
-    )
-    parser.add_argument(
         '--debug_ref',
         help='reference fasta for debug purpose [None]'
     )
@@ -79,29 +75,6 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
-
-def write_wrt_mapq(sam_fn, mapq_threshold):
-    sam_f = open(sam_fn, 'r')
-    sam_prefix = sam_fn[: sam_fn.find('.')]
-    highmapq_fn = sam_prefix + '-mapqgeq' + str(mapq_threshold) + '.sam'
-    lowmapq_fn = sam_prefix + '-mapql' + str(mapq_threshold) + '.sam'
-    sys.stderr.write('Write sam files %s and %s wrt to mapq...\n' % (highmapq_fn, lowmapq_fn))
-    
-    highmapq_f = open(highmapq_fn, 'w')
-    lowmapq_f = open(lowmapq_fn, 'w')
-    for line in sam_f:
-        name, info = parse_line(line)
-        #: headers
-        if name == 'header':
-            highmapq_f.write(line)
-            lowmapq_f.write(line)
-            continue
-        if info.mapq >= mapq_threshold:
-            highmapq_f.write(line)
-        else:
-            lowmapq_f.write(line)
-        continue
-    return
 
 def build_index(var_list):
     '''
@@ -276,7 +249,7 @@ def compare_sam_info(
         threshold,
         sample_offsets=[0],
         reads_offsets=[0],
-        ignore_chrm=False
+        ignore_chrom=False
     ):
     '''
     Inputs:
@@ -286,7 +259,7 @@ def compare_sam_info(
             info from simulation profile (golden)
         offset:
             positiontal offset
-        ignore_chrm:
+        ignore_chrom:
             set True to ignore alignment against different chromosomes
     
     Output:
@@ -298,7 +271,7 @@ def compare_sam_info(
             the difference in alignment position
             0 is a perfect match
     '''
-    if (ignore_chrm is False) and (info.chrm != ginfo.chrm):
+    if (ignore_chrom is False) and (info.chrom != ginfo.chrom):
         #: diff chromosome
         if __debug__:
             print ("False: chr, mapq =", info.mapq)
@@ -347,7 +320,7 @@ def diploid_compare(
     elif dip_flag in ['same_id', 'same_var', 'diff_id', 'diff_var']:
         i_low = int(info.pos / constants.STEP)
         i_high = math.ceil(info.pos / constants.STEP)
-        if info.chrm == constants.MAIN_CHROM:
+        if info.chrom == constants.MAIN_CHROM:
             if i_low >= len(sample_main_offset_index):
                 sample_offset_low = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
@@ -356,7 +329,7 @@ def diploid_compare(
                 sample_offset_high = sample_main_offset_index[len(sample_main_offset_index) - 1]
             else:
                 sample_offset_high = sample_main_offset_index[i_high]
-        elif info.chrm == constants.ALT_CHROM:
+        elif info.chrom == constants.ALT_CHROM:
             if i_low >= len(sample_alt_offset_index):
                 sample_offset_low = sample_alt_offset_index[len(sample_alt_offset_index) - 1]
             else:
@@ -366,7 +339,7 @@ def diploid_compare(
             else:
                 sample_offset_high = sample_alt_offset_index[i_high]
         else:
-            print ('Error: invalid chrm', info.chrm, constants.MAIN_CHROM, constants.ALT_CHROM)
+            print ('Error: invalid chrom', info.chrom, constants.MAIN_CHROM, constants.ALT_CHROM)
             exit()
         sample_offsets = [sample_offset_low, sample_offset_high]
     else:
@@ -403,7 +376,7 @@ def diploid_compare(
         threshold=threshold,
         sample_offsets=sample_offsets,
         reads_offsets=reads_offsets,
-        ignore_chrm=True
+        ignore_chrom=True
     )
 
     if (dist < 0 or dist > threshold) and COMPARE_SEQ:
@@ -434,17 +407,17 @@ def count_overlapping_vars(
     '''
     num_var = 0   
     for i in range(g_info.pos, g_info.pos + constants.READ_LEN):
-        if g_info.chrm == constants.MAIN_CHROM or g_info.chrm == constants.CHROM or g_info.chrm == 'chr' + constants.MAIN_CHROM or g_info.chrm == 'chr' + constants.CHROM:
-        # if g_info.chrm == constants.MAIN_CHROM or g_info.chrm == constants.CHROM:
-        # if g_info.chrm == constants.MAIN_CHROM:
+        if g_info.chrom == constants.MAIN_CHROM or g_info.chrom == constants.CHROM or g_info.chrom == 'chr' + constants.MAIN_CHROM or g_info.chrom == 'chr' + constants.CHROM:
+        # if g_info.chrom == constants.MAIN_CHROM or g_info.chrom == constants.CHROM:
+        # if g_info.chrom == constants.MAIN_CHROM:
             if main_index.get(i) != None:
                 num_var += 1
-        elif g_info.chrm == constants.ALT_CHROM or g_info.chrm == 'chr' + constants.ALT_CHROM:
-        # elif g_info.chrm == constants.ALT_CHROM:
+        elif g_info.chrom == constants.ALT_CHROM or g_info.chrom == 'chr' + constants.ALT_CHROM:
+        # elif g_info.chrom == constants.ALT_CHROM:
             if alt_index.get(i) != None:
                 num_var += 1
         else:
-            print ('Error: unexpected chrm', info.chrm)
+            print ('Error: unexpected chrom', info.chrom)
             info.print()
             exit()
     return num_var
@@ -496,7 +469,7 @@ def analyze_diploid_indels(
     threshold,
     all_indexes,
     personalized,
-    chrm,
+    chrom,
     step,
     read_len,
     write_wrt_correctness,
@@ -530,11 +503,16 @@ def analyze_diploid_indels(
             continue
         summary.add_one()
 
+        # first segment: 0
+        # second segment: 1
+        g_info = golden_dic[name][info.is_first_seg() ^ 1]
+
         #: counts the number of overlapping variants for all aligned reads
         num_var = count_overlapping_vars(
             name=name,
             info=info,
-            g_info=golden_dic[name],
+            g_info=g_info,
+            # g_info=golden_dic[name],
             main_index=main_index,
             alt_index=alt_index
         )
@@ -545,11 +523,11 @@ def analyze_diploid_indels(
         #: alignment against personalized genomes
         elif personalized == 2:
             #: aligned to incorrect haplotype
-            name_chrm_mismatch = (
-                (name.find(constants.MAIN_HAP) > 0 and info.chrm != constants.MAIN_CHROM) or 
-                (name.find(constants.ALT_HAP) > 0 and info.chrm != constants.ALT_CHROM)
+            name_chrom_mismatch = (
+                (name.find(constants.MAIN_HAP) > 0 and info.chrom != constants.MAIN_CHROM) or 
+                (name.find(constants.ALT_HAP) > 0 and info.chrom != constants.ALT_CHROM)
             )
-            if name_chrm_mismatch:
+            if name_chrom_mismatch:
                 if num_var == 0:
                     flag = 'diff_id'
                 else:
@@ -561,7 +539,8 @@ def analyze_diploid_indels(
                     flag = 'same_var'
             dist = diploid_compare(
                 info=info, 
-                g_info=golden_dic[name],
+                # g_info=golden_dic[name],
+                g_info=g_info,
                 name=name, 
                 threshold=threshold, 
                 dip_flag=flag, 
@@ -576,7 +555,8 @@ def analyze_diploid_indels(
             flag = 'same_strand_ref'
             dist = diploid_compare(
                 info=info, 
-                g_info=golden_dic[name],
+                # g_info=golden_dic[name],
+                g_info=g_info,
                 name=name, 
                 threshold=threshold, 
                 dip_flag=flag, 
@@ -613,174 +593,6 @@ def analyze_diploid_indels(
 
     return results_df
 
-def print_df_stats(df, threshold, var_opt):
-    print ()
-    print ('--- Stats ---')
-    unaligned = (df['dist'] == -3)
-    correct = (df['dist'] >= 0) & (df['dist'] <= threshold)
-    aligned_incorrect = (df['dist'] == -1) | (df['dist'] == -2)
-
-    #: categories
-    cat_same_id = (df['category'] == 'same_id')
-    cat_same_var = (df['category'] == 'same_var')
-    cat_diff_id = (df['category'] == 'diff_id')
-    cat_diff_var = (df['category'] == 'diff_var')
-
-    sensitivity_all = df[correct].shape[0] / df.shape[0]
-    print ('sensitivity_all      = {0:.4%} ({1} / {2})'.format(sensitivity_all, df[correct].shape[0], df.shape[0]))
-    precision_all = df[correct].shape[0] / (df.shape[0] - df[unaligned].shape[0])
-    print ('precision_all        = {0:.4%} ({1} / {2})'.format(precision_all, df[correct].shape[0], df.shape[0] - df[unaligned].shape[0]))
-    fdr_all = 1 - precision_all
-    print ('fdr_all              = {0:.4%}'.format(fdr_all))
-    unaligned_rate = df[unaligned].shape[0] / df.shape[0]
-    print ('unaligned            = {0:.4%} ({1} / {2})'.format(unaligned_rate, df[unaligned].shape[0], df.shape[0]))
-    
-    print ()
-    try:
-        sensitivity_same_id = df[correct & cat_same_id].shape[0] / df[cat_same_id].shape[0]
-        print ('sensitivity_same_id  = {0:.4%} ({1} / {2})'.format(sensitivity_same_id, df[correct & cat_same_id].shape[0], df[cat_same_id].shape[0]))
-        fnr_same_id = 1 - sensitivity_same_id
-        print ('fnr_same_id          = {0:.4%} ({1} / {2})'.format(fnr_same_id, df[cat_same_id].shape[0] - df[correct & cat_same_id].shape[0], df[cat_same_id].shape[0]))
-    except:
-        print ('Warning: no element in "same_id"')
-    try:
-        sensitivity_same_var = df[correct & cat_same_var].shape[0] / df[cat_same_var].shape[0]
-        print ('sensitivity_same_var = {0:.4%} ({1} / {2})'.format(sensitivity_same_var, df[correct & cat_same_var].shape[0], df[cat_same_var].shape[0]))
-        fnr_same_var = 1 - sensitivity_same_var
-        print ('fnr_same_var         = {0:.4%} ({1} / {2})'.format(fnr_same_var, df[cat_same_var].shape[0] - df[correct & cat_same_var].shape[0], df[cat_same_var].shape[0]))
-    except:
-        print ('Warning: no element in "same_var"')
-    try:
-        sensitivity_diff_id = df[correct & cat_diff_id].shape[0] / df[cat_diff_id].shape[0]
-        print ('sensitivity_diff_id  = {0:.4%} ({1} / {2})'.format(sensitivity_diff_id, df[correct & cat_diff_id].shape[0], df[cat_diff_id].shape[0]))
-        fnr_diff_id = 1 - sensitivity_diff_id
-        print ('fnr_diff_id          = {0:.4%} ({1} / {2})'.format(fnr_diff_id, df[cat_diff_id].shape[0] - df[correct & cat_diff_id].shape[0], df[cat_diff_id].shape[0]))
-    except:
-        print ('Warning: no element in "diff_id"')
-    try:
-        sensitivity_diff_var = df[correct & cat_diff_var].shape[0] / df[cat_diff_var].shape[0]
-        print ('sensitivity_diff_var = {0:.4%} ({1} / {2})'.format(sensitivity_diff_var, df[correct & cat_diff_var].shape[0], df[cat_diff_var].shape[0]))
-        fnr_diff_var = 1 - sensitivity_diff_var
-        print ('fnr_diff_var         = {0:.4%} ({1} / {2})'.format(fnr_diff_var, df[cat_diff_var].shape[0] - df[correct & cat_diff_var].shape[0], df[cat_diff_var].shape[0]))
-    except:
-        print ('Warning: no element in "diff_var"')
-
-    #: number of overlapping variants
-    print ()
-    var_all = (df['numvar'] >= 0)
-    var0 = (df['numvar'] == 0)
-    var1 = (df['numvar'] == 1)
-    var2 = (df['numvar'] == 2)
-    var3plus = (df['numvar'] >= 3)
-    
-    if var_opt == 'all': 
-        v_filter = var_all
-    elif var_opt == '0':
-        v_filter = var0
-    elif var_opt == '1':
-        v_filter = var1
-    elif var_opt == '2':
-        v_filter = var2
-    elif var_opt == '3+':
-        v_filter = var3plus
-
-    try:
-        sensitivity_var0 = df[correct & var0].shape[0] / df[var0].shape[0]
-        print ('sensitivity_var0     = {0:.4%} ({1} / {2})'.format(sensitivity_var0, df[correct & var0].shape[0], df[var0].shape[0]))
-    except:
-        print ('Warning: no read has 0 variants')
-    try:
-        sensitivity_var1 = df[correct & var1].shape[0] / df[var1].shape[0]
-        print ('sensitivity_var1     = {0:.4%} ({1} / {2})'.format(sensitivity_var1, df[correct & var1].shape[0], df[var1].shape[0]))
-    except:
-        print ('Warning: no read has 1 variants')
-    try:
-        sensitivity_var2 = df[correct & var2].shape[0] / df[var2].shape[0]
-        print ('sensitivity_var2     = {0:.4%} ({1} / {2})'.format(sensitivity_var2, df[correct & var2].shape[0], df[var2].shape[0]))
-    except:
-        print ('Warning: no read has 2 variants')
-    try:
-        sensitivity_var3plus = df[correct & var3plus].shape[0] / df[var3plus].shape[0]
-        print ('sensitivity_var3plus = {0:.4%} ({1} / {2})'.format(sensitivity_var3plus, df[correct & var3plus].shape[0], df[var3plus].shape[0]))
-    except:
-        print ('Warning: no read has 3+ variants')
-    
-    #: mapq
-    print ()
-    mapq5plus = (df['mapq'] >= 5)
-    mapq10plus = (df['mapq'] >= 10)
-    mapq20plus = (df['mapq'] >= 20)
-    mapq30plus = (df['mapq'] >= 30)
-    mapq40plus = (df['mapq'] >= 40)
-
-    sensitivity_mapqall = df[correct & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapqall    = {0:.4%} ({1} / {2})'.format(sensitivity_mapqall, df[correct & v_filter].shape[0], df[v_filter].shape[0]))
-    sensitivity_mapq5plus = df[correct & mapq5plus & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapq5plus  = {0:.4%} ({1} / {2})'.format(sensitivity_mapq5plus, df[correct & mapq5plus & v_filter].shape[0], df[v_filter].shape[0]))
-    sensitivity_mapq10plus = df[correct & mapq10plus & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapq10plus = {0:.4%} ({1} / {2})'.format(sensitivity_mapq10plus, df[correct & mapq10plus & v_filter].shape[0], df[v_filter].shape[0]))
-    sensitivity_mapq20plus = df[correct & mapq20plus & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapq20plus = {0:.4%} ({1} / {2})'.format(sensitivity_mapq20plus, df[correct & mapq20plus & v_filter].shape[0], df[v_filter].shape[0]))
-    sensitivity_mapq30plus = df[correct & mapq30plus & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapq30plus = {0:.4%} ({1} / {2})'.format(sensitivity_mapq30plus, df[correct & mapq30plus & v_filter].shape[0], df[v_filter].shape[0]))
-    sensitivity_mapq40plus = df[correct & mapq40plus & v_filter].shape[0] / df[v_filter].shape[0]
-    print ('sensitivity_mapq40plus = {0:.4%} ({1} / {2})'.format(sensitivity_mapq40plus, df[correct & mapq40plus & v_filter].shape[0], df[v_filter].shape[0]))
-    
-    print ()
-    try:
-        precision_mapqall = df[correct & v_filter].shape[0] / df[v_filter].shape[0]
-        print ('precision_mapqall    = {0:.4%} ({1} / {2})'.format(precision_mapqall, df[correct & v_filter].shape[0], df[v_filter].shape[0]))
-        fdr_mapqall = 1 - precision_mapqall
-        print ('fdr_mapqall          = {0:.4%}'.format(fdr_mapqall))
-    except:
-        print ('Warning: no read is 0+ mapq')
-        fdr_mapqall = 1
-    try:
-        precision_mapq5plus = df[correct & mapq5plus & v_filter].shape[0] / df[mapq5plus & v_filter].shape[0]
-        print ('precision_mapq5plus  = {0:.4%} ({1} / {2})'.format(precision_mapq5plus, df[correct & mapq5plus & v_filter].shape[0], df[mapq5plus & v_filter].shape[0]))
-        fdr_mapq5plus = 1 - precision_mapq5plus
-        print ('fdr_mapq5plus        = {0:.4%}'.format(fdr_mapq5plus))
-    except:
-        print ('Warning: no read is 5+ mapq')
-        fdr_mapq5plus = 1
-    try:
-        precision_mapq10plus = df[correct & mapq10plus & v_filter].shape[0] / df[mapq10plus & v_filter].shape[0]
-        print ('precision_mapq10plus = {0:.4%} ({1} / {2})'.format(precision_mapq10plus, df[correct & mapq10plus & v_filter].shape[0], df[mapq10plus & v_filter].shape[0]))
-        fdr_mapq10plus = 1 - precision_mapq10plus
-        print ('fdr_mapq10plus       = {0:.4%}'.format(fdr_mapq10plus))
-    except:
-        print ('Warning: no read is 10+ mapq')
-        fdr_mapq10plus = 1
-    try:
-        precision_mapq20plus = df[correct & mapq20plus & v_filter].shape[0] / df[mapq20plus & v_filter].shape[0]
-        print ('precision_mapq20plus = {0:.4%} ({1} / {2})'.format(precision_mapq20plus, df[correct & mapq20plus & v_filter].shape[0], df[mapq20plus & v_filter].shape[0]))
-        fdr_mapq20plus = 1 - precision_mapq20plus
-        print ('fdr_mapq20plus       = {0:.4%}'.format(fdr_mapq20plus))
-    except:
-        print ('Warning: no read is 20+ mapq')
-        fdr_mapq20plus = 1
-    try:
-        precision_mapq30plus = df[correct & mapq30plus & v_filter].shape[0] / df[mapq30plus & v_filter].shape[0]
-        print ('precision_mapq30plus = {0:.4%} ({1} / {2})'.format(precision_mapq30plus, df[correct & mapq30plus & v_filter].shape[0], df[mapq30plus & v_filter].shape[0]))
-        fdr_mapq30plus = 1 - precision_mapq30plus
-        print ('fdr_mapq30plus       = {0:.4%}'.format(fdr_mapq30plus))
-    except:
-        print ('Warning: no read is 30+ mapq')
-        fdr_mapq30plus = 1
-    try:
-        precision_mapq40plus = df[correct & mapq40plus & v_filter].shape[0] / df[mapq40plus & v_filter].shape[0]
-        print ('precision_mapq40plus = {0:.4%} ({1} / {2})'.format(precision_mapq40plus, df[correct & mapq40plus & v_filter].shape[0], df[mapq40plus & v_filter].shape[0]))
-        fdr_mapq40plus = 1 - precision_mapq40plus
-        print ('fdr_mapq40plus       = {0:.4%}'.format(fdr_mapq40plus))
-    except:
-        print ('Warning: no read is 40+ mapq')
-        fdr_mapq40plus = 1
-    
-    x = [fdr_mapqall, fdr_mapq5plus, fdr_mapq10plus, fdr_mapq20plus, fdr_mapq30plus, fdr_mapq40plus]
-    y = [sensitivity_mapqall, sensitivity_mapq5plus, sensitivity_mapq10plus, sensitivity_mapq20plus, sensitivity_mapq30plus, sensitivity_mapq40plus]
-
-    return x, y
-
 if __name__ == '__main__':
     args = parse_args()
     sam_fn = args.sam
@@ -789,23 +601,18 @@ if __name__ == '__main__':
     var_reads_fn = args.var_reads
     var_sample_fn = args.var_sample
     personalized = args.personalized
-    chrm = args.chrm
+    chrom = args.chrom
     write_wrt_correctness = args.write_wrt_correctness
-    mapq_threshold = args.write_wrt_mapq
     step = args.step_size
     read_len = args.read_len
     fn_ref = args.debug_ref
     fn_hapA = args.debug_hapA
     fn_hapB = args.debug_hapB
     
-    constants.set_chrom(chrm)
+    constants.set_chrom(chrom)
     constants.set_step(step)
     constants.set_read_len(read_len)
 
-    if mapq_threshold:
-        write_wrt_mapq(sam_fn, int(mapq_threshold))
-        exit()
-    
     #USE_PREV_IF_POSSIBLE = False
     USE_PREV_IF_POSSIBLE = True
     if USE_PREV_IF_POSSIBLE and os.path.isfile(sam_fn + '-stats.pkl') and write_wrt_correctness == None:
@@ -843,7 +650,7 @@ if __name__ == '__main__':
         threshold=threshold,
         all_indexes=all_indexes,
         personalized=personalized,
-        chrm=chrm,
+        chrom=chrom,
         step=step,
         read_len=read_len,
         write_wrt_correctness=write_wrt_correctness,
