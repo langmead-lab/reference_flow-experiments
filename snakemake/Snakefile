@@ -2,12 +2,13 @@ import os
 import pandas as pd
 
 # configfile: 'test.yaml'
-# configfile: 'config_local.yaml' # local whole genome experiment using paired-end data
-configfile: 'exp_sim_local.yaml'
+configfile: 'config_local.yaml' # local whole genome experiment using paired-end data
+# configfile: 'exp_sim_local.yaml'
 # configfile: "config.yaml"
 # configfile: "config_mouse.yaml"
 
 ''' Load from config '''
+IF_REAL_DATA = config['IF_REAL_DATA']
 CHROM = config['CHROM']
 INDIV = config['INDIV']
 EXP_LABEL = config['EXP_LABEL']
@@ -43,9 +44,19 @@ DIR_SCRIPTS = config['DIR_SCRIPTS']
 THREADS = config['THREADS']
 RAND_SEED = config['RAND_SEED']
 
+# Experiments
+EXP = True
+# EXP = False
+
 #### Below args are only used in experiments
-BEDTOOLS = config['BEDTOOLS']
-DIR_SCRIPTS_EXP = config['DIR_SCRIPTS_EXP']
+if EXP:
+    BIAS_MIN_READ_COUNT = config['BIAS_MIN_READ_COUNT']
+    BIAS_TAIL_THRDS = config['BIAS_TAIL_THRDS']
+    BEDTOOLS = config['BEDTOOLS']
+    DIR_SCRIPTS_EXP = config['DIR_SCRIPTS_EXP']
+    ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
+    TIME = config['TIME']
+    VG = config['VG']
 ''''''
 
 # Bowtie 2 index extensions
@@ -59,14 +70,16 @@ DIR_MAJOR = os.path.join(DIR, 'major')
 # Prefixes and directory paths for population reference contruction and indexing
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_b{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
-POP_GENOME_SUFFIX = \
-    'chr{CHROM}-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
-    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
-    '_ld' + str(POP_USE_LD)
+# POP_GENOME_SUFFIX = \
+#     'chr{CHROM}-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+#     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
+#     '_ld' + str(POP_USE_LD)
+# WG_POP_GENOME_SUFFIX = \
+#     EXP_LABEL + '-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
+#     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
+#     '_ld' + str(POP_USE_LD)
 WG_POP_GENOME_SUFFIX = \
-    EXP_LABEL + '-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
-    '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
-    '_ld' + str(POP_USE_LD)
+    EXP_LABEL + '-superpop_{GROUP}_' + POP_DIRNAME
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
 DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
@@ -76,9 +89,25 @@ DIR_SECOND_PASS = os.path.join(DIR, 'experiments/{INDIV}/' + POP_DIRNAME)
 PREFIX_SECOND_PASS = os.path.join(DIR_SECOND_PASS, EXP_LABEL + '-major-' + ALN_MAPQ_THRSD + '-{GROUP}-' + POP_DIRNAME)
 
 # Bias results directory
+DIR_RESULTS = os.path.join(DIR, 'results')
 DIR_RESULTS_BIAS = os.path.join(DIR, 'results/bias')
+DIR_VG = os.path.join(DIR, 'vg/')
 
 ''' Snakemake modules '''
+if EXP:
+    DIR_PER = os.path.join(DIR, 'personalized/{INDIV}/')
+    PREFIX_PER = os.path.join(DIR_PER, EXP_LABEL)
+    if not IF_REAL_DATA:
+        READS1 = PREFIX_PER + '_1.fq'
+        READS2 = PREFIX_PER + '_2.fq'
+        include: 'experiments/calc_mapping_acc.Snakefile'
+    include: 'experiments/prepare_per_and_grc.Snakefile'
+    include: 'experiments/evaluate_bias.Snakefile'
+    include: 'experiments/alignment.Snakefile'
+    include: 'experiments/exp_shared.Snakefile'
+    # include: 'experiments/vg.Snakefile'
+    # include: 'experiments/variant_calling.Snakefile'
+
 # Functions
 include: '../reference_flow/snakemake/shared/functions.Snakefile'
 
@@ -99,30 +128,27 @@ include: '../reference_flow/snakemake/shared/alignment.Snakefile'
 #      check: 'elevate.done', 'sort.done'
 include: '../reference_flow/snakemake/shared/elevate_and_sort.Snakefile'
 
-# Experiments
-DIR_PER = os.path.join(DIR, 'personalized/{INDIV}/')
-include: 'experiments/prepare_per_and_grc.Snakefile'
-include: 'experiments/evaluate_bias.Snakefile'
-include: 'experiments/alignment.Snakefile'
-# include: 'experiments/variant_calling.Snakefile'
-
 TODO_LIST = ['alignment_refflow.done', 'elevate.done']
 if not USE_PREBUILT:
     TODO_LIST.append('prepare_pop_genome.done')
     TODO_LIST.append('prepare_standard_genome.done')
 if SORT_SAM:
     TODO_LIST.append('sort.done')
-EXP = True
+
 if EXP:
     TODO_LIST.append('prepare_per.done')
     TODO_LIST.append('bias_exp.done')
     TODO_LIST.append('alignment_grc_per.done')
+#     TODO_LIST.append('vg_index.done')
+#     TODO_LIST.append('vg_map.done')
+#     TODO_LIST.append(os.path.join(DIR_RESULTS, 'all.tsv'))
+    TODO_LIST.append('bias_exp.done')
 # TODO_LIST.append('var_calling.done')
 
 ''' Snakemake rules '''
 rule all:
     input:
-        expand(os.path.join(DIR, '{task}'), task = TODO_LIST)
+        expand(os.path.join(DIR, '{task}'), task = TODO_LIST),
 
 rule filter_vcf:
     input:
