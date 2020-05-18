@@ -417,7 +417,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapqall = df[correct & v_filter].shape[0] / df[v_filter].shape[0]
         print ('precision_mapqall    = {0:.4%} ({1} / {2})'.format(precision_mapqall, df[correct & v_filter].shape[0], df[v_filter].shape[0]))
-        # fdr_mapqall = 1 - precision_mapqall
+        fdr_mapqall = 1 - precision_mapqall
         # print ('fdr_mapqall          = {0:.4%}'.format(fdr_mapqall))
     except:
         print ('Warning: no read is 0+ mapq')
@@ -425,7 +425,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapq5plus = df[correct & mapq5plus & v_filter].shape[0] / df[mapq5plus & v_filter].shape[0]
         print ('precision_mapq5plus  = {0:.4%} ({1} / {2})'.format(precision_mapq5plus, df[correct & mapq5plus & v_filter].shape[0], df[mapq5plus & v_filter].shape[0]))
-        # fdr_mapq5plus = 1 - precision_mapq5plus
+        fdr_mapq5plus = 1 - precision_mapq5plus
         # print ('fdr_mapq5plus        = {0:.4%}'.format(fdr_mapq5plus))
     except:
         print ('Warning: no read is 5+ mapq')
@@ -433,7 +433,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapq10plus = df[correct & mapq10plus & v_filter].shape[0] / df[mapq10plus & v_filter].shape[0]
         print ('precision_mapq10plus = {0:.4%} ({1} / {2})'.format(precision_mapq10plus, df[correct & mapq10plus & v_filter].shape[0], df[mapq10plus & v_filter].shape[0]))
-        # fdr_mapq10plus = 1 - precision_mapq10plus
+        fdr_mapq10plus = 1 - precision_mapq10plus
         # print ('fdr_mapq10plus       = {0:.4%}'.format(fdr_mapq10plus))
     except:
         print ('Warning: no read is 10+ mapq')
@@ -441,7 +441,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapq20plus = df[correct & mapq20plus & v_filter].shape[0] / df[mapq20plus & v_filter].shape[0]
         print ('precision_mapq20plus = {0:.4%} ({1} / {2})'.format(precision_mapq20plus, df[correct & mapq20plus & v_filter].shape[0], df[mapq20plus & v_filter].shape[0]))
-        # fdr_mapq20plus = 1 - precision_mapq20plus
+        fdr_mapq20plus = 1 - precision_mapq20plus
         # print ('fdr_mapq20plus       = {0:.4%}'.format(fdr_mapq20plus))
     except:
         print ('Warning: no read is 20+ mapq')
@@ -449,7 +449,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapq30plus = df[correct & mapq30plus & v_filter].shape[0] / df[mapq30plus & v_filter].shape[0]
         print ('precision_mapq30plus = {0:.4%} ({1} / {2})'.format(precision_mapq30plus, df[correct & mapq30plus & v_filter].shape[0], df[mapq30plus & v_filter].shape[0]))
-        # fdr_mapq30plus = 1 - precision_mapq30plus
+        fdr_mapq30plus = 1 - precision_mapq30plus
         # print ('fdr_mapq30plus       = {0:.4%}'.format(fdr_mapq30plus))
     except:
         print ('Warning: no read is 30+ mapq')
@@ -457,7 +457,7 @@ def print_df_stats(df, threshold, var_opt):
     try:
         precision_mapq40plus = df[correct & mapq40plus & v_filter].shape[0] / df[mapq40plus & v_filter].shape[0]
         print ('precision_mapq40plus = {0:.4%} ({1} / {2})'.format(precision_mapq40plus, df[correct & mapq40plus & v_filter].shape[0], df[mapq40plus & v_filter].shape[0]))
-        # fdr_mapq40plus = 1 - precision_mapq40plus
+        fdr_mapq40plus = 1 - precision_mapq40plus
         # print ('fdr_mapq40plus       = {0:.4%}'.format(fdr_mapq40plus))
     except:
         print ('Warning: no read is 40+ mapq')
