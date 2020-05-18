@@ -6,20 +6,12 @@ to simplify the main pipeline.
 import os
 import pandas as pd
 
-configfile: 'simulation_local.yaml'
+configfile: 'sim_only_local.yaml'
 
 ''' Load from config '''
 CHROM = config['CHROM']
 INDIV = config['INDIV']
 EXP_LABEL = config['EXP_LABEL']
-READS1 = config['READS1']
-READS2 = config['READS2']
-GROUP = config['GROUP']
-ALN_MAPQ_THRSD = config['ALN_MAPQ_THRSD']
-POP_THRSD = config['POP_THRSD']
-POP_STOCHASTIC = config['POP_STOCHASTIC']
-POP_BLOCK_SIZE = config['POP_BLOCK_SIZE']
-POP_USE_LD = config['POP_USE_LD']
 
 USE_PREBUILT = config['USE_PREBUILT']
 SORT_SAM = config['SORT_SAM']
@@ -37,7 +29,6 @@ FAMILY = config['FAMILY']
 SPOP = config['SPOP']
 BCFTOOLS = config['BCFTOOLS']
 SAMTOOLS = config['SAMTOOLS']
-LIFTOVER = config['LIFTOVER']
 PYTHON = config['PYTHON']
 DIR_SCRIPTS = config['DIR_SCRIPTS']
 
@@ -62,20 +53,25 @@ rule all:
     input:
         os.path.join(DIR, 'simulation.done')
 
+rule index_raw_vcf:
+    input:
+        vcf = os.path.join(DIR_VCF, VCF_PREFIX + '{CHROM}' + VCF_SUFFIX)
+    output:
+        os.path.join(DIR_VCF, VCF_PREFIX + '{CHROM}' + VCF_SUFFIX + '.csi')
+    shell:
+        # Index VCF
+        '{BCFTOOLS} index {input.vcf}'
+
 rule filter_vcf:
     input:
         vcf = os.path.join(DIR_VCF, VCF_PREFIX + '{CHROM}' + VCF_SUFFIX),
+        vcf_idx = os.path.join(DIR_VCF, VCF_PREFIX + '{CHROM}' + VCF_SUFFIX + '.csi'),
         chrom_map = CHROM_MAP
     output:
         vcf = temp(os.path.join(DIR, '{CHROM}_filtered.vcf'))
     shell:
-        # Index VCF
-        '{BCFTOOLS} index {input.vcf};'
-        # Take PASS variants
-        # Does not remove mnps, since they will be needed for constructing personalized reference genome, 
-        # and will be removed when building major and refflow references.
+        # Take variants that haved been labelled as PASS
         '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
-        # '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS -V mnps,other {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
 
 rule aggregate_vcf:
     input:
