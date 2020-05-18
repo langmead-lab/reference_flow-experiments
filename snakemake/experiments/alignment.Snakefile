@@ -21,9 +21,15 @@ rule align_to_perA:
     input:
         reads1 = READS1,
         reads2 = READS2,
-        idx = expand(
-            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.{IDX_ITEMS}.bt2'),
-            IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
+        idx1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.1.bt2'),
+        idx2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.2.bt2'),
+        idx3 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.3.bt2'),
+        idx4 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.4.bt2'),
+        idxr1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.rev.1.bt2'),
+        idxr2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.rev.2.bt2')
+#        idx = expand(
+#            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.{IDX_ITEMS}.bt2'),
+#            IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
         index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA')
     output:
@@ -37,9 +43,15 @@ rule align_to_perB:
     input:
         reads1 = READS1,
         reads2 = READS2,
-        idx = expand(
-            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.{IDX_ITEMS}.bt2'),
-            IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
+        idx1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.1.bt2'),
+        idx2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.2.bt2'),
+        idx3 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.3.bt2'),
+        idx4 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.4.bt2'),
+        idxr1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.rev.1.bt2'),
+        idxr2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.rev.2.bt2')
+#         idx = expand(
+#             os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.{IDX_ITEMS}.bt2'),
+#             IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
         index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB')
     output:
