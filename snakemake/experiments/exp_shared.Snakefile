@@ -28,11 +28,17 @@ def summarize_allelc_bias(fn_input, fn_output):
     num_altbias = len(df_f[ref / (ref+alt) <= 0.5 - BIAS_TAIL_THRDS])
 
     with open(str(fn_output), 'w') as f:
+        # Fraction of sites passing the filter
         f.write(str(len_filtered / len_raw) + '\n')
+        # Sum of REFs
         f.write(str(sum(ref)) + '\n')
+        # Sum of ALTs
         f.write(str(sum(alt)) + '\n')
+        # REF-to-ALT
         f.write(str(ref_to_alt) + '\n')
+        # Num of REF biases
         f.write(str(num_refbias) + '\n')
+        # Num of ALT biases
         f.write(str(num_altbias) + '\n')
     return
 
