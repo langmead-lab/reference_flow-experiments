@@ -8,90 +8,82 @@ GATK = '~/miniconda3/bin/gatk'
 GATK requires reads labelled with read groups and then indexed.
 Here we use `picard AddOrReplaceReadGroups` to add read groups and `samtools index` to index the new results.
 '''
-RGID = 'readgroup.id'
-RGPL = 'illumina.HiSeq2000'
-RGPU = 'readgroup.pu'
+RGID = INDIV # '{wildcards.INDIV}'
+RGPL = 'illumina'
+RGPU = 'HFLT3DSXX' # for NYGC # 'readgroup.pu'
 
-rule add_rg_grc:
+# NYGC variant calling pipeline
+# http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/20190405_NYGC_b38_pipeline_description.pdf
+
+VARCALL_OBJECTS = [
+    EXP_LABEL + '-GRC-sorted',
+    EXP_LABEL + '-major-liftover-sorted',
+    POP_DIRNAME + '/' + EXP_LABEL + '-refflow-{}-{}-liftover-sorted'.format(ALN_MAPQ_THRSD, POP_DIRNAME),
+    EXP_LABEL + '-per-merged-liftover-sorted'
+]
+
+rule add_rg:
     input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted.bam')
+        os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG.bam')
     params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        method = 'GRC'
+        tmp = os.path.join(DIR_FIRST_PASS, 'tmp/' + INDIV),
+        label = INDIV
     shell:
-        '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.method} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'
+        '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.label} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'
 
-rule index_rg_grc:
+rule mark_dup:
     input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam')
+        os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG.bam')
     output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam.bai')
+        bam = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup.bam'),
+        metric = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '.dedup.metrics')
+    params:
+        tmp = os.path.join(DIR_FIRST_PASS, 'tmp')
+    threads: 112
+    shell:
+        '{PICARD} MarkDuplicates INPUT= {input} OUTPUT= {output.bam} METRICS_FILE= {output.metric} TMP_DIR={params.tmp}'
+    
+rule build_bqsr_table:
+    input:
+        bam = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup.bam'),
+        genome = GENOME,
+        known_vcf = DBSNP_COMMON
+    output:
+        table = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '.bqsr.table'),
+    params:
+        tmp = os.path.join(DIR_FIRST_PASS, 'tmp')
+    threads: THREADS
+    shell:
+        '{GATK} BaseRecalibrator -I {input.bam} -R {input.genome} --known-sites {input.known_vcf} -O {output.table} --java-options "-XX:ConcGCThreads={threads}"'
+
+rule apply_bqsr:
+    input:
+        bam = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup.bam'),
+        genome = GENOME,
+        table = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '.bqsr.table'),
+    output:
+        bam = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam'),
+    threads: THREADS
+    shell:
+        '{GATK} ApplyBQSR -R {input.genome} -I {input.bam} --bqsr-recal-file {input.table} -O {output.bam} --java-options "-XX:ConcGCThreads={threads}"'
+
+# rule index_rg:
+#     input:
+#         os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG.bam')
+#     output:
+#         os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG.bam.bai')
+#     shell:
+#         '{SAMTOOLS} index {input}'
+
+rule index_post_bqsr:
+    input:
+        os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam'),
+    output:
+        os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam.bai'),
     shell:
         '{SAMTOOLS} index {input}'
-
-rule add_rg_major:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted.bam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam')
-    params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        method = 'Major'
-    shell:
-        '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.method} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'
-
-rule index_rg_major:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam.bai')
-    shell:
-        '{SAMTOOLS} index {input}'
-
-rule add_rg_refflow:
-    input:
-        os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    output:
-        os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    params:
-        tmp = os.path.join(DIR_SECOND_PASS, 'tmp'),
-        method = 'refflow-{}-{}'.format(ALN_MAPQ_THRSD, POP_DIRNAME)
-    shell:
-        '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.method} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'
-
-rule index_rg_refflow:
-    input:
-        os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    output:
-        os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    shell:
-        '{SAMTOOLS} index {input}'
-
-rule add_rg_per:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted.bam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam')
-    params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        method = 'personalized'
-    shell:
-        '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.method} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'
-
-rule index_rg_per:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai')
-    shell:
-        '{SAMTOOLS} index {input}'
-
 
 '''
 Variant calling using GATK
@@ -174,8 +166,15 @@ rule GATK_call_per:
 rule check_variant_calling:
     input:
         expand(
-            os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz'),
-            INDIV = INDIV),
+            os.path.join(
+                DIR_FIRST_PASS,
+                # '{VARCALL_OBJECTS}' + '-RG-dedup.bam'),
+                '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam.bai'),
+                # '{VARCALL_OBJECTS}' + '-RG.bam.bai'),
+            INDIV = INDIV, VARCALL_OBJECTS = VARCALL_OBJECTS)
+##         expand(
+##             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz'),
+##             INDIV = INDIV),
 #         expand(
 #             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz'),
 #             INDIV = INDIV),

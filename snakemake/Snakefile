@@ -57,6 +57,9 @@ if EXP:
     ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
     TIME = config['TIME']
     VG = config['VG']
+    DBSNP_COMMON = config['DBSNP_COMMON']
+    GATK = config['GATK']
+    PICARD = config['PICARD']
 ''''''
 
 # Bowtie 2 index extensions
@@ -106,7 +109,7 @@ if EXP:
     include: 'experiments/alignment.Snakefile'
     include: 'experiments/exp_shared.Snakefile'
     # include: 'experiments/vg.Snakefile'
-    # include: 'experiments/variant_calling.Snakefile'
+    include: 'experiments/variant_calling.Snakefile'
 
 # Functions
 include: '../reference_flow/snakemake/shared/functions.Snakefile'
@@ -136,13 +139,17 @@ if SORT_SAM:
     TODO_LIST.append('sort.done')
 
 if EXP:
-    TODO_LIST.append('prepare_per.done')
-    TODO_LIST.append('bias_exp.done')
-    TODO_LIST.append('alignment_grc_per.done')
+#     TODO_LIST.append('prepare_per.done')
+#     TODO_LIST.append('bias_exp.done')
+#     TODO_LIST.append('alignment_grc_per.done')
+#     vg
 #     TODO_LIST.append('vg_index.done')
 #     TODO_LIST.append('vg_map.done')
 #     TODO_LIST.append(os.path.join(DIR_RESULTS, 'all.tsv'))
     TODO_LIST.append('bias_exp.done')
+    TODO_LIST.append('var_calling.done')
+    if not IF_REAL_DATA:
+        TODO_LIST.append('accuracy.done')
 # TODO_LIST.append('var_calling.done')
 
 ''' Snakemake rules '''
