@@ -100,61 +100,13 @@ rule build_genome_dict:
     shell:
         '{PICARD} CreateSequenceDictionary R={input} O={output}'
 
-rule GATK_call_grc:
+rule GATK_haplotypecaller:
     input:
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam'),
-        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted-RG.bam.bai'),
+        bam = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam'),
+        bai = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam.bai'),
         genome_dict = GENOME_DICT
     output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz')
-    params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        thread_hmm = 4
-    threads: THREADS
-    shell:
-        '{GATK} --java-options "-XX:ParallelGCThreads={threads}" HaplotypeCaller -R {GENOME} \
-            -I {input.bam} -O {output.vcf_gz} --tmp-dir {params.tmp} --native-pair-hmm-threads {params.thread_hmm}'
-
-rule GATK_call_major:
-    input:
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam'),
-        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted-RG.bam.bai'),
-        genome_dict = GENOME_DICT
-    output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz')
-    params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        thread_hmm = 4
-    threads: THREADS
-    shell:
-        '{GATK} --java-options "-XX:ParallelGCThreads={threads}" HaplotypeCaller -R {GENOME} \
-            -I {input.bam} -O {output.vcf_gz} --tmp-dir {params.tmp} --native-pair-hmm-threads {params.thread_hmm}'
-
-rule GATK_call_refflow:
-    input:
-        bam = os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam.bai'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-        bai = os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}-liftover-sorted-RG.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-        genome_dict = GENOME_DICT
-    output:
-        vcf_gz = os.path.join(DIR_SECOND_PASS,
-            EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
-    params:
-        tmp = os.path.join(DIR_SECOND_PASS, 'tmp'),
-        thread_hmm = 4
-    threads: THREADS
-    shell:
-        '{GATK} --java-options "-XX:ParallelGCThreads={threads}" HaplotypeCaller -R {GENOME} \
-            -I {input.bam} -O {output.vcf_gz} --tmp-dir {params.tmp} --native-pair-hmm-threads {params.thread_hmm}'
-
-rule GATK_call_per:
-    input:
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai'),
-        bai = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted-RG.bam.bai'),
-        genome_dict = GENOME_DICT
-    output:
-        vcf_gz = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz')
+        vcf_gz = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr-hapcal.vcf.gz')
     params:
         tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
         thread_hmm = 4
@@ -168,22 +120,10 @@ rule check_variant_calling:
         expand(
             os.path.join(
                 DIR_FIRST_PASS,
+                '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr-hapcal.vcf.gz'),
                 # '{VARCALL_OBJECTS}' + '-RG-dedup.bam'),
-                '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam.bai'),
+                # '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr.bam.bai'),
                 # '{VARCALL_OBJECTS}' + '-RG.bam.bai'),
             INDIV = INDIV, VARCALL_OBJECTS = VARCALL_OBJECTS)
-##         expand(
-##             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.vcf.gz'),
-##             INDIV = INDIV),
-#         expand(
-#             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.vcf.gz'),
-#             INDIV = INDIV),
-#         expand(
-#             os.path.join(DIR_SECOND_PASS,
-#             EXP_LABEL + '-refflow-{}-{}.vcf.gz'.format(ALN_MAPQ_THRSD, POP_DIRNAME)),
-#             INDIV = INDIV),
-#         expand(
-#             os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per.vcf.gz'),
-#             INDIV = INDIV)
     output:
         touch(temp(os.path.join(DIR, 'var_calling.done')))
