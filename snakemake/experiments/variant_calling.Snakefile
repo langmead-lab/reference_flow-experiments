@@ -1,3 +1,9 @@
+""" This Snakefile performs variant calling using GATK.
+
+The pipeline we used here includes (adding read-group),
+MarkDuplicates, BQSR and HaplotypeCaller. VQSR is not included.
+
+"""
 # picard AddOrReplaceReadGroups I= $SORTED_BAM  O= $SORTED_RG_BAM   RGID=HiSeq2000 RGLB= $METHOD RGPL=illumina RGSM= $SAMPLE RGPU=hg38 TMP_DIR=tmp
 # samtools index $SORTED_RG_BAM
 # ~/miniconda3/bin/gatk --java-options "-XX:ParallelGCThreads=32" HaplotypeCaller -R $GENOME -I $SORTED_RG_BAM -O $VCF_GZ --tmp-dir tmp --native-pair-hmm-threads 8
@@ -8,7 +14,7 @@ GATK = '~/miniconda3/bin/gatk'
 GATK requires reads labelled with read groups and then indexed.
 Here we use `picard AddOrReplaceReadGroups` to add read groups and `samtools index` to index the new results.
 '''
-RGID = INDIV # '{wildcards.INDIV}'
+RGID = INDIV
 RGPL = 'illumina'
 RGPU = 'HFLT3DSXX' # for NYGC # 'readgroup.pu'
 
@@ -19,8 +25,18 @@ VARCALL_OBJECTS = [
     EXP_LABEL + '-GRC-sorted',
     EXP_LABEL + '-major-liftover-sorted',
     POP_DIRNAME + '/' + EXP_LABEL + '-refflow-{}-{}-liftover-sorted'.format(ALN_MAPQ_THRSD, POP_DIRNAME),
-    EXP_LABEL + '-per-merged-liftover-sorted'
+    EXP_LABEL + '-per-merged-liftover-sorted',
+    EXP_LABEL + '-vg_0.1-pe'
 ]
+
+rule sort_vg:
+    input:
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_0.1-pe.bam')
+    output:
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_0.1-pe-sorted.bam')
+    threads: THREADS
+    shell:
+        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
 
 rule add_rg:
     input:
@@ -108,12 +124,11 @@ rule GATK_haplotypecaller:
     output:
         vcf_gz = os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG-dedup-bqsr-hapcal.vcf.gz')
     params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp'),
-        thread_hmm = 4
+        tmp = os.path.join(DIR_FIRST_PASS, 'tmp')
     threads: THREADS
     shell:
         '{GATK} --java-options "-XX:ParallelGCThreads={threads}" HaplotypeCaller -R {GENOME} \
-            -I {input.bam} -O {output.vcf_gz} --tmp-dir {params.tmp} --native-pair-hmm-threads {params.thread_hmm}'
+            -I {input.bam} -O {output.vcf_gz} --tmp-dir {params.tmp} --native-pair-hmm-threads {threads}'
 
 rule check_variant_calling:
     input:
