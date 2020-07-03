@@ -13,7 +13,6 @@ rule align_to_ref:
     threads: THREADS
     shell:
         'bowtie2 --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam}'
-        # 'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
 
 DIR_PER_IDX = os.path.join(DIR, 'personalized/{INDIV}/indexes/')
 ''' Personalized '''
@@ -27,9 +26,6 @@ rule align_to_perA:
         idx4 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.4.bt2'),
         idxr1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.rev.1.bt2'),
         idxr2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.rev.2.bt2')
-#        idx = expand(
-#            os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA.{IDX_ITEMS}.bt2'),
-#            IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
         index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perA')
     output:
@@ -37,7 +33,6 @@ rule align_to_perA:
     threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam}'
-        # 'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
 
 rule align_to_perB:
     input:
@@ -49,9 +44,6 @@ rule align_to_perB:
         idx4 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.4.bt2'),
         idxr1 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.rev.1.bt2'),
         idxr2 = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.rev.2.bt2')
-#         idx = expand(
-#             os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB.{IDX_ITEMS}.bt2'),
-#             IDX_ITEMS = IDX_ITEMS, INDIV = INDIV)
     params:
         index = os.path.join(DIR_PER_IDX, EXP_LABEL + '-perB')
     output:
@@ -59,7 +51,6 @@ rule align_to_perB:
     threads: THREADS
     shell:
         'bowtie2 --reorder --threads {THREADS} -x {params.index} -1 {input.reads1} -2 {input.reads2} -S {output.sam};'
-        # 'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam};'
 
 rule merge_per:
     input:
