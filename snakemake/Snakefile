@@ -2,16 +2,18 @@ import os
 import pandas as pd
 
 # configfile: 'test.yaml'
-configfile: 'config_local.yaml' # local whole genome experiment using paired-end data
+# configfile: 'config_local.yaml' # local wgs using paired-end data
+configfile: 'config_local_se.yaml' # local wgs using single-end data
 # configfile: 'exp_sim_local.yaml'
 # configfile: "config.yaml"
 # configfile: "config_mouse.yaml"
 
 ''' Load from config '''
-IF_REAL_DATA = config['IF_REAL_DATA']
 CHROM = config['CHROM']
 INDIV = config['INDIV']
 EXP_LABEL = config['EXP_LABEL']
+ALN_MODE = config['ALN_MODE']
+assert ALN_MODE in ['single-end', 'paired-end']
 READS1 = config['READS1']
 READS2 = config['READS2']
 GROUP = config['GROUP']
@@ -37,7 +39,7 @@ FAMILY = config['FAMILY']
 SPOP = config['SPOP']
 BCFTOOLS = config['BCFTOOLS']
 SAMTOOLS = config['SAMTOOLS']
-LIFTOVER = config['LIFTOVER']
+LEVIOSAM = config['LEVIOSAM']
 PYTHON = config['PYTHON']
 DIR_SCRIPTS = config['DIR_SCRIPTS']
 
@@ -50,6 +52,7 @@ EXP = True
 
 #### Below args are only used in experiments
 if EXP:
+    IF_REAL_DATA = config['IF_REAL_DATA']
     BIAS_MIN_READ_COUNT = config['BIAS_MIN_READ_COUNT']
     BIAS_TAIL_THRDS = config['BIAS_TAIL_THRDS']
     BEDTOOLS = config['BEDTOOLS']
@@ -73,16 +76,7 @@ DIR_MAJOR = os.path.join(DIR, 'major')
 # Prefixes and directory paths for population reference contruction and indexing
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_b{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
-# POP_GENOME_SUFFIX = \
-#     'chr{CHROM}-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
-#     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
-#     '_ld' + str(POP_USE_LD)
-# WG_POP_GENOME_SUFFIX = \
-#     EXP_LABEL + '-superpop_{GROUP}_thrds' + str(POP_THRSD) + \
-#     '_S' + str(POP_STOCHASTIC) + '_b' + str(POP_BLOCK_SIZE) + \
-#     '_ld' + str(POP_USE_LD)
-WG_POP_GENOME_SUFFIX = \
-    EXP_LABEL + '-superpop_{GROUP}_' + POP_DIRNAME
+WG_POP_GENOME_SUFFIX = EXP_LABEL + '-superpop_{GROUP}_' + POP_DIRNAME
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
 DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
@@ -106,7 +100,10 @@ if EXP:
         include: 'experiments/calc_mapping_acc.Snakefile'
     include: 'experiments/prepare_per_and_grc.Snakefile'
     include: 'experiments/evaluate_bias.Snakefile'
-    include: 'experiments/alignment.Snakefile'
+    if ALN_MODE == 'single-end':
+        include: 'experiments/exp_alignment_single_end.Snakefile'
+    else:
+        include: 'experiments/exp_alignment_paired_end.Snakefile'
     include: 'experiments/exp_shared.Snakefile'
     # include: 'experiments/vg.Snakefile'
     include: 'experiments/variant_calling.Snakefile'
@@ -125,13 +122,16 @@ if not USE_PREBUILT:
 
 # Align reads to grch major, reference flow, personalized genomes
 #      check: 'alignment_refflow.done'
-include: '../reference_flow/snakemake/shared/alignment.Snakefile'
+if ALN_MODE == 'single-end':
+    include: '../reference_flow/snakemake/shared/alignment_single_end.Snakefile'
+elif ALN_MODE == 'paired-end':
+    include: '../reference_flow/snakemake/shared/alignment_paired_end.Snakefile'
 
-# Elevate and sort reads
-#      check: 'elevate.done', 'sort.done'
-include: '../reference_flow/snakemake/shared/elevate_and_sort.Snakefile'
+# Lift and sort reads
+#      check: 'leviosam.done', 'sort.done'
+include: '../reference_flow/snakemake/shared/lift_and_sort.Snakefile'
 
-TODO_LIST = ['alignment_refflow.done', 'elevate.done']
+TODO_LIST = ['alignment_refflow.done', 'leviosam.done']
 if not USE_PREBUILT:
     TODO_LIST.append('prepare_pop_genome.done')
     TODO_LIST.append('prepare_standard_genome.done')
@@ -155,7 +155,7 @@ if EXP:
 ''' Snakemake rules '''
 rule all:
     input:
-        expand(os.path.join(DIR, '{task}'), task = TODO_LIST),
+        expand(os.path.join(DIR, '{task}'), task = TODO_LIST)
 
 rule filter_vcf:
     input:
