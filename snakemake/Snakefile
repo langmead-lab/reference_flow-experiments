@@ -164,19 +164,19 @@ rule filter_vcf:
         chrom_map = CHROM_MAP
     output:
         vcf = temp(os.path.join(DIR, '{CHROM}_filtered.vcf'))
-    shell:
+    run:
         # Take PASS variants
         # Does not remove mnps, since they will be needed for constructing personalized reference genome, 
         # and will be removed when building major and refflow references.
         if VCF_MAP_CHROM:
-            '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
+            shell('{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}')
         else:
-            '{BCFTOOLS} view -r chr{wildcards.CHROM} -c 1 -f PASS {input.vcf} -o {output.vcf}'
+            shell('{BCFTOOLS} view -r chr{wildcards.CHROM} -c 1 -f PASS {input.vcf} -o {output.vcf}')
 
 rule aggregate_vcf:
     input:
         vcf = expand(os.path.join(DIR, '{CHROM}_filtered.vcf'), CHROM = CHROM)
     output:
-        vcf = os.path.join(DIR, EXP_LABEL + '_filtered.vcf')
+        vcf = os.path.join(DIR, EXP_LABEL + '_filtered.vcf.gz')
     shell:
-        '{BCFTOOLS} concat -o {output.vcf} {input.vcf}'
+        '{BCFTOOLS} concat -O z -o {output.vcf} {input.vcf}'
