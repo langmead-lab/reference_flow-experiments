@@ -37,6 +37,10 @@ CHR_PREFIX : 'chr'
 # Directory where the 1KG VCFs are put
 DIR_VCF : '../reference_flow/resources/1kg_vcf'
 
+# Map VCF contig names from "1"-like to "chr1"-like.
+# Inactivate this flag if your callset already uses "chr1"-like format.
+VCF_MAP_CHROM : True
+
 # Set prefix and suffix for VCFs
 VCF_PREFIX : 'ALL.chr'
 VCF_SUFFIX : '.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz'

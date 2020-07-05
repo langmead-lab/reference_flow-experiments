@@ -29,6 +29,7 @@ SORT_SAM = config['SORT_SAM']
 DIR = config['DIR']
 GENOME = config['GENOME']
 DIR_VCF = config['DIR_VCF']
+VCF_MAP_CHROM = config['VCF_MAP_CHROM']
 VCF_PREFIX = config['VCF_PREFIX']
 VCF_SUFFIX = config['VCF_SUFFIX']
 CHR_PREFIX = config['CHR_PREFIX']
@@ -167,8 +168,10 @@ rule filter_vcf:
         # Take PASS variants
         # Does not remove mnps, since they will be needed for constructing personalized reference genome, 
         # and will be removed when building major and refflow references.
-        '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
-        # '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS -V mnps,other {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
+        if VCF_MAP_CHROM:
+            '{BCFTOOLS} view -r {wildcards.CHROM} -c 1 -f PASS {input.vcf} | {BCFTOOLS} annotate --rename-chrs {input.chrom_map} -o {output.vcf}'
+        else:
+            '{BCFTOOLS} view -r chr{wildcards.CHROM} -c 1 -f PASS {input.vcf} -o {output.vcf}'
 
 rule aggregate_vcf:
     input:
