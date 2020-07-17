@@ -26,17 +26,8 @@ VARCALL_OBJECTS = [
     EXP_LABEL + '-major-liftover-sorted',
     POP_DIRNAME + '/' + EXP_LABEL + '-refflow-{}-{}-liftover-sorted'.format(ALN_MAPQ_THRSD, POP_DIRNAME),
     EXP_LABEL + '-per-merged-liftover-sorted',
-    EXP_LABEL + '-vg_0.1-pe'
+#     EXP_LABEL + '-vg_0.1-pe'
 ]
-
-rule sort_vg:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_0.1-pe.bam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_0.1-pe-sorted.bam')
-    threads: THREADS
-    shell:
-        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
 
 rule add_rg:
     input:

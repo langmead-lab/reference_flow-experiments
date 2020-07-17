@@ -9,18 +9,6 @@ rule get_het:
         '{PYTHON} {DIR_SCRIPTS_EXP}/remove_het_overlapping_indel.py |'
         '{BCFTOOLS} view -g het > {output.het}'
 
-rule liftover_lift_major:
-    input:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.sam'),
-        lft = os.path.join(DIR_MAJOR, EXP_LABEL + '-major.lft')
-    output:
-        temp(os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover.sam'))
-    params:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover')
-    threads: THREADS
-    shell:
-        '{LIFTOVER} lift -a {input.sam} -l {input.lft} -p {params} -t {threads}'
-
 rule liftover_serialize_per:
     input:
         vcf = os.path.join(DIR_PER, EXP_LABEL + '-per.vcf'),
@@ -32,8 +20,20 @@ rule liftover_serialize_per:
         A = os.path.join(DIR_PER, EXP_LABEL + '-perA'),
         B = os.path.join(DIR_PER, EXP_LABEL + '-perB')
     shell:
-        '{LIFTOVER} serialize -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV} -k {input.length_map};'
-        '{LIFTOVER} serialize -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV} -k {input.length_map};'
+        '{LEVIOSAM} serialize -v {input.vcf} -p {params.A} -g 0 -s {wildcards.INDIV} -k {input.length_map};'
+        '{LEVIOSAM} serialize -v {input.vcf} -p {params.B} -g 1 -s {wildcards.INDIV} -k {input.length_map};'
+
+rule liftover_lift_major:
+    input:
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.sam'),
+        lft = os.path.join(DIR_MAJOR, EXP_LABEL + '-major.lft')
+    output:
+        temp(os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover.sam'))
+    params:
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover')
+    threads: THREADS
+    shell:
+        '{LEVIOSAM} lift -a {input.sam} -l {input.lft} -p {params} -t {threads}'
 
 rule liftover_lift_perA:
     input:
@@ -45,7 +45,7 @@ rule liftover_lift_perA:
         A = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapA-liftover'),
     threads: THREADS
     shell:
-        '{LIFTOVER} lift -a {input.samA} -l {input.lftA} -p {params.A} -t {threads}'
+        '{LEVIOSAM} lift -a {input.samA} -l {input.lftA} -p {params.A} -t {threads}'
 
 rule liftover_lift_perB:
     input:
@@ -57,7 +57,7 @@ rule liftover_lift_perB:
         B = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-hapB-liftover')
     threads: THREADS
     shell:
-        '{LIFTOVER} lift -a {input.samB} -l {input.lftB} -p {params.B} -t {threads}'
+        '{LEVIOSAM} lift -a {input.samB} -l {input.lftB} -p {params.B} -t {threads}'
 
 rule merge_per_allinone:
     input:
@@ -69,113 +69,61 @@ rule merge_per_allinone:
         'cp {input.A} {output};'
         'grep -hv "^@" {input.B} >> {output}'
 
-rule sort_grc:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC.sam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted.bam')
-    threads: THREADS
-    shell:
-        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
-
-rule sort_major:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover.sam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted.bam')
-    threads: THREADS
-    shell:
-        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
-        
-rule sort_per:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover.sam')
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted.bam')
-    threads: THREADS
-    shell:
-        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
 
 '''
-Find reads overlapping interesting regions (HETs here).
-Using bedtools improves speed.
+1.  Find reads overlapping interesting regions (HETs here).
+2.  Calculate biases.
+3.  Summarize allelic bias results
 '''
+DIR_BIAS_EVAL = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/bias_inspector/src'
+vcf_het = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
 # vcf_het = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/bias_inspector/variant_analysis/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer-norm-het_no_overlaps.vcf'
 # vcf_het = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow-exp/snakemake/SRR622457/personalized/new/compare/shared_het.vcf'
-vcf_het = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-rule filter_reads_overlapping_het_grc:
+
+BIAS_OBJECTS = [
+    EXP_LABEL + '-GRC',
+    EXP_LABEL + '-major-liftover',
+    EXP_LABEL + '-per-merged-liftover',
+    # EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG)
+]
+ruleorder: sort_refflow > sort
+rule sort:
     input:
-        # vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-sorted.bam')
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}.sam')
     output:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-{INDIV}_het_no_overlaps.sam')
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-sorted.bam')
+    threads: THREADS
     shell:
-        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | {SAMTOOLS} view -h >> {output.sam}'
-        
-rule filter_reads_overlapping_het_major:
+        '{SAMTOOLS} sort -@ {threads} -o {output} -O BAM {input}'
+
+ruleorder: filter_reads_overlapping_het_refflow > filter_reads_overlapping_het
+rule filter_reads_overlapping_het:
     input:
-        # vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
         vcf = vcf_het,
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-liftover-sorted.bam')
+        bam = os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-sorted.bam')
     output:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-{INDIV}_het_no_overlaps.sam')
+        sam = os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-{INDIV}_het_no_overlaps.sam')
     shell:
         '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | {SAMTOOLS} view -h >> {output.sam}'
 
 rule filter_reads_overlapping_het_refflow:
     input:
-        # vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
         vcf = vcf_het,
         bam = os.path.join(DIR_SECOND_PASS,
             EXP_LABEL + '-refflow-{}-{}-liftover-sorted.bam'.format(ALN_MAPQ_THRSD, POP_DIRNAME))
     output:
-        # sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-{INDIV}_het_no_overlaps.sam')
         sam = os.path.join(DIR_SECOND_PASS,
             EXP_LABEL + '-refflow-{}-{}-'.format(ALN_MAPQ_THRSD, POP_DIRNAME) + '{INDIV}_het_no_overlaps.sam')
     shell:
         '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | {SAMTOOLS} view -h >> {output.sam}'
 
-rule filter_reads_overlapping_het_vg:
+ruleorder: calc_allelic_bias_refflow > calc_allelic_bias
+rule calc_allelic_bias:
     input:
-        # vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.bam'.format(ALLELE_FREQ_FOR_VG))
-    output:
-        sam = os.path.join(
-            DIR_FIRST_PASS,
-            EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG) + '-{INDIV}_het_no_overlaps.sam')
-    shell:
-        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | {SAMTOOLS} view -h >> {output.sam}'
-
-rule filter_reads_overlapping_het_per:
-    input:
-        # vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
-        bam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-merged-liftover-sorted.bam')
-    output:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-{INDIV}_het_no_overlaps.sam')
-    shell:
-        '{BEDTOOLS} intersect -a {input.bam} -b {input.vcf} | {SAMTOOLS} view -h >> {output.sam}'
-
-DIR_BIAS_EVAL = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/bias_inspector/src'
-rule calc_allelic_bias_grc:
-    input:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-{INDIV}_het_no_overlaps.sam'),
-        #vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
+        sam = os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-{INDIV}_het_no_overlaps.sam'),
         vcf = vcf_het,
     output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-{INDIV}.allele.bias')
-    shell:
-        '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
-
-rule calc_allelic_bias_major:
-    input:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-{INDIV}_het_no_overlaps.sam'),
-        #vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-{INDIV}.allele.bias')
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-{INDIV}.allele.bias')
     shell:
         '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
 
@@ -183,71 +131,18 @@ rule calc_allelic_bias_refflow:
     input:
         sam = os.path.join(DIR_SECOND_PASS,
             EXP_LABEL + '-refflow-{}-{}-'.format(ALN_MAPQ_THRSD, POP_DIRNAME) + '{INDIV}_het_no_overlaps.sam'),
-        #vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
         vcf = vcf_het,
     output:
         os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-refflow-{}-{}'.format(ALN_MAPQ_THRSD, POP_DIRNAME) + '-{INDIV}.allele.bias')
     shell:
         '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
 
-rule calc_allelic_bias_vg:
+ruleorder: summarize_refflow > summarize
+rule summarize:
     input:
-        sam = os.path.join(
-            DIR_FIRST_PASS,
-            EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG) + '-{INDIV}_het_no_overlaps.sam'),
-        #vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-{INDIV}.allele.bias')
     output:
-        os.path.join(
-            DIR_FIRST_PASS,
-            EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG) + '-{INDIV}.allele.bias')
-    shell:
-        '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
-
-rule calc_allelic_bias_per:
-    input:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-{INDIV}_het_no_overlaps.sam'),
-        #vcf = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
-        vcf = vcf_het,
-    output:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-{INDIV}.allele.bias')
-    shell:
-        '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
-
-'''
-Summarize allelic bias results
-'''
-rule summarize_grc:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-GRC-{INDIV}.allele.bias')
-    output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-grc.bias')
-    run:
-        summarize_allelc_bias(input, output)
-
-rule summarize_major:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major-{INDIV}.allele.bias')
-    output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major.bias')
-    run:
-        summarize_allelc_bias(input, output)
-
-rule summarize_vg:
-    input:
-        os.path.join(
-            DIR_FIRST_PASS,
-            EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG) + '-{INDIV}.allele.bias')
-    output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}' + '-vg_{}.bias'.format(ALLELE_FREQ_FOR_VG))
-    run:
-        summarize_allelc_bias(input, output)
-
-rule summarize_per:
-    input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-per-{INDIV}.allele.bias')
-    output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias')
+        os.path.join(DIR_RESULTS_BIAS, '{BIAS_OBJECTS}-{INDIV}.summary.bias')
     run:
         summarize_allelc_bias(input, output)
 
@@ -255,27 +150,18 @@ rule summarize_refflow:
     input:
         os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-refflow-{}-{}'.format(ALN_MAPQ_THRSD, POP_DIRNAME) + '-{INDIV}.allele.bias')
     output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias')
+        os.path.join(DIR_RESULTS_BIAS, EXP_LABEL + '-' + POP_DIRNAME + '-{INDIV}.summary.bias')
     run:
         summarize_allelc_bias(input, output)
 
 rule check_refbias_and_write_to_tsv:
     input:
         expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-grc.bias'),
-            INDIV = INDIV),
+            os.path.join(DIR_RESULTS_BIAS, '{BIAS_OBJECTS}-{INDIV}.summary.bias'),
+            BIAS_OBJECTS = BIAS_OBJECTS, INDIV = INDIV),
         expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-major.bias'),
+           os.path.join(DIR_RESULTS_BIAS, EXP_LABEL + '-' + POP_DIRNAME + '-{INDIV}.summary.bias'),
             INDIV = INDIV),
-        expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-per.bias'),
-            INDIV = INDIV),
-        expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '.bias'),
-            INDIV = INDIV),
-#        expand(
-#            os.path.join(DIR_RESULTS_BIAS, '{INDIV}' + '-vg_{}.bias'.format(ALLELE_FREQ_FOR_VG)),
-#            INDIV = INDIV),
     output:
         tsv = os.path.join(DIR_RESULTS_BIAS, 'bias.tsv'),
         done = touch(temp(os.path.join(DIR, 'bias_exp.done')))
@@ -299,9 +185,13 @@ rule check_refbias_and_write_to_tsv:
         list_num_altbias = []
         for fn in list_fn:
             basename = os.path.basename(fn).split('-')
-            list_indiv.append(basename[0])
-            method = '-'.join(basename[1:])
-            list_method.append(method[: method.rfind('.bias')])
+            list_indiv.append(basename[-1].split('.')[0])
+            method = '-'.join(basename[:-1])
+            list_method.append(method.split('-')[1])
+            # basename = os.path.basename(fn).split('-')
+            # list_indiv.append(basename[0])
+            # method = '-'.join(basename[1:])
+            # list_method.append(method[: method.rfind('.bias')])
             # list_method.append(basename[1][:basename[1].rfind('.bias')])
             with open(fn, 'r') as f:
                 list_pass_rate.append(f.readline().rstrip())
