@@ -1,7 +1,7 @@
 '''
 Calculate mapping accuracy for all settings
 '''
-CALC_ACC_MEM_USAGE_GB = 100
+CALC_ACC_MEM_USAGE_GB = 10
 rule merge_gold_sam:
     input:
         first = PREFIX_PER + '_1.sam',
@@ -121,20 +121,20 @@ rule calc_popspecific_onepass_accuarcy:
 
 rule get_vg_sam_sorted:
     input:
-        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.bam'.format(ALLELE_FREQ_FOR_VG))
+        os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.bam'.format(GRAPH_AF_THRSD))
     output:
-        temp(os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.sam'.format(ALLELE_FREQ_FOR_VG)))
+        temp(os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.sam'.format(GRAPH_AF_THRSD)))
     shell:
         '{SAMTOOLS} view -h -o {output} {input}'
 
 rule calc_vg_accuracy:
     input:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.sam'.format(ALLELE_FREQ_FOR_VG)),
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}-sorted.sam'.format(GRAPH_AF_THRSD)),
         gold = PREFIX_PER + '.sam',
         var_reads = PREFIX_PER + '-per.var'
     output:
-        acc_log = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}.acc_log'.format(ALLELE_FREQ_FOR_VG)),
-        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + EXP_LABEL + '-vg_{}.acc'.format(ALLELE_FREQ_FOR_VG))
+        acc_log = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-vg_{}.acc_log'.format(GRAPH_AF_THRSD)),
+        acc = os.path.join(DIR_RESULTS, '{INDIV}-' + EXP_LABEL + '-vg_{}.acc'.format(GRAPH_AF_THRSD))
     resources:
         mem_gb = CALC_ACC_MEM_USAGE_GB
     run:
@@ -147,7 +147,7 @@ rule calc_vg_accuracy:
 rule check_vg_accuracy:
     input:
         expand(
-            os.path.join(DIR_RESULTS, '{INDIV}-' + EXP_LABEL + '-vg_{}.acc'.format(ALLELE_FREQ_FOR_VG)),
+            os.path.join(DIR_RESULTS, '{INDIV}-' + EXP_LABEL + '-vg_{}.acc'.format(GRAPH_AF_THRSD)),
             INDIV = INDIV),
     output:
         touch(temp(os.path.join(DIR, 'vg_acc.done')))
@@ -186,7 +186,7 @@ rule check_mapping_acc_and_write_as_tsv:
     input:
         acc_standard = os.path.join(DIR, 'standard_acc.done'),
         acc_refflow  = os.path.join(DIR, 'refflow_acc.done'),
-        acc_vg = os.path.join(DIR, 'vg_acc.done')
+        # acc_vg = os.path.join(DIR, 'vg_acc.done')
     output:
         tsv = os.path.join(DIR_RESULTS, 'all.tsv'),
         check = touch(temp(os.path.join(DIR, 'accuracy.done')))

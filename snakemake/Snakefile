@@ -58,7 +58,7 @@ if EXP:
     BIAS_TAIL_THRDS = config['BIAS_TAIL_THRDS']
     BEDTOOLS = config['BEDTOOLS']
     DIR_SCRIPTS_EXP = config['DIR_SCRIPTS_EXP']
-    ALLELE_FREQ_FOR_VG = config['ALLELE_FREQ_FOR_VG']
+    GRAPH_AF_THRSD = config['GRAPH_AF_THRSD']
     TIME = config['TIME']
     VG = config['VG']
     DBSNP_COMMON = config['DBSNP_COMMON']
@@ -107,6 +107,7 @@ if EXP:
         include: 'experiments/exp_alignment_paired_end.Snakefile'
     include: 'experiments/exp_shared.Snakefile'
     # include: 'experiments/vg.Snakefile'
+    include: 'experiments/hisat2.Snakefile'
     include: 'experiments/variant_calling.Snakefile'
 
 # Functions
@@ -132,7 +133,8 @@ elif ALN_MODE == 'paired-end':
 #      check: 'leviosam.done', 'sort.done'
 include: '../reference_flow/snakemake/shared/lift_and_sort.Snakefile'
 
-TODO_LIST = ['alignment_refflow.done', 'leviosam.done']
+# TODO_LIST = ['alignment_refflow.done', 'leviosam.done']
+TODO_LIST = ['alignment_refflow.done']
 if not USE_PREBUILT:
     TODO_LIST.append('prepare_pop_genome.done')
     TODO_LIST.append('prepare_standard_genome.done')
@@ -148,7 +150,8 @@ if EXP:
 #     TODO_LIST.append('vg_map.done')
 #     TODO_LIST.append(os.path.join(DIR_RESULTS, 'all.tsv'))
     TODO_LIST.append('bias_exp.done')
-    TODO_LIST.append('var_calling.done')
+    TODO_LIST.append('ht_align.done')
+#    TODO_LIST.append('var_calling.done')
     if not IF_REAL_DATA:
         TODO_LIST.append('accuracy.done')
 # TODO_LIST.append('var_calling.done')
@@ -180,3 +183,30 @@ rule aggregate_vcf:
         vcf = os.path.join(DIR, EXP_LABEL + '_filtered.vcf.gz')
     shell:
         '{BCFTOOLS} concat -O z -o {output.vcf} {input.vcf}'
+
+'''Get variants above an allele frequency threshold.
+
+This is needed to build indexes for graph mappers such as vg and HISAT2.
+
+Rules:
+    filter_vcf_by_freq
+    build_vcf_index
+'''
+rule filter_vcf_by_freq:
+    input:
+        vcf = os.path.join(DIR, EXP_LABEL + '_filtered.vcf')
+    output:
+        vcfgz = os.path.join(DIR, EXP_LABEL + '-{}.vcf.gz'.format(GRAPH_AF_THRSD))
+    shell:
+        '{BCFTOOLS} view -O z -m2 -M2 -V mnps,other -q {GRAPH_AF_THRSD} {input.vcf} > {output.vcfgz};'
+
+rule build_vcf_index:
+    input:
+        vcfgz = os.path.join(DIR, EXP_LABEL + '-{}.vcf.gz'.format(GRAPH_AF_THRSD))
+    output:
+        csi = os.path.join(DIR, EXP_LABEL + '-{}.vcf.gz.csi'.format(GRAPH_AF_THRSD)),
+        tbi = os.path.join(DIR, EXP_LABEL + '-{}.vcf.gz.tbi'.format(GRAPH_AF_THRSD))
+    shell:
+        'tabix -p vcf {input.vcfgz};'
+        '{BCFTOOLS} index {input.vcfgz};'
+

@@ -84,7 +84,9 @@ BIAS_OBJECTS = [
     EXP_LABEL + '-GRC',
     EXP_LABEL + '-major-liftover',
     EXP_LABEL + '-per-merged-liftover',
-    # EXP_LABEL + '-vg_{}'.format(ALLELE_FREQ_FOR_VG)
+    EXP_LABEL + '-vg-from_randflow_ld',
+    EXP_LABEL + '-ht2_{}'.format(GRAPH_AF_THRSD)
+    # EXP_LABEL + '-vg_{}'.format(GRAPH_AF_THRSD)
 ]
 ruleorder: sort_refflow > sort
 rule sort:

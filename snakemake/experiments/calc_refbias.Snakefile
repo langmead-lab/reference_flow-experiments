@@ -146,13 +146,13 @@ rule calc_refflow_bias_onekg:
 rule calc_vg_bias:
     input:
         vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
-        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-vg_{}-sorted.sam'.format(CHROM, ALLELE_FREQ_FOR_VG))
+        sam = os.path.join(DIR_FIRST_PASS, 'chr{}-vg_{}-sorted.sam'.format(CHROM, GRAPH_AF_THRSD))
     output:
-        list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(ALLELE_FREQ_FOR_VG)),
-        list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(ALLELE_FREQ_FOR_VG)),
-        bias = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(ALLELE_FREQ_FOR_VG))
+        list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(GRAPH_AF_THRSD)),
+        list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(GRAPH_AF_THRSD)),
+        bias = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(GRAPH_AF_THRSD))
     params:
-        id = 'vg_{}'.format(ALLELE_FREQ_FOR_VG)
+        id = 'vg_{}'.format(GRAPH_AF_THRSD)
     shell:
         'echo {params.id} > {output.list_id};'
         'ls {input.sam} > {output.list_path};'
@@ -224,9 +224,9 @@ rule summarize_refflow_onekg:
 
 rule summarize_vg:
     input:
-        os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(ALLELE_FREQ_FOR_VG))
+        os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(GRAPH_AF_THRSD))
     output:
-        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(ALLELE_FREQ_FOR_VG))
+        os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(GRAPH_AF_THRSD))
     run:
         summarize_allelc_bias(input, output)
 
@@ -254,7 +254,7 @@ rule check_refbias_and_write_to_tsv:
             os.path.join(DIR_RESULTS_BIAS, '{INDIV}-' + POP_DIRNAME + '-1kg.bias'),
             INDIV = INDIV),
         expand(
-            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(ALLELE_FREQ_FOR_VG)),
+            os.path.join(DIR_RESULTS_BIAS, '{INDIV}-vg_' + '{}.bias'.format(GRAPH_AF_THRSD)),
             INDIV = INDIV),
     output:
         tsv = os.path.join(DIR_RESULTS_BIAS, 'bias.tsv'),
@@ -453,23 +453,23 @@ rule find_strongly_biased_reads_major_onekg:
 
 rule find_strongly_biased_reads_vg:
     input:
-        list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(ALLELE_FREQ_FOR_VG)),
-        list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(ALLELE_FREQ_FOR_VG)),
-        bias = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(ALLELE_FREQ_FOR_VG)),
+        list_path = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.paths'.format(GRAPH_AF_THRSD)),
+        list_id = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.ids'.format(GRAPH_AF_THRSD)),
+        bias = os.path.join(DIR_FIRST_PASS, 'vg_{}-refbias.txt'.format(GRAPH_AF_THRSD)),
         vcf = os.path.join(DIR_FIRST_PASS, CHROM + '_{INDIV}_het_no_overlaps.vcf'),
         vcf_complete = PREFIX_PER + '.vcf'
     output:
         tsv = os.path.join(
             DIR_RESULTS_BIAS,
             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads.tsv'.format(
-                ALLELE_FREQ_FOR_VG,
+                GRAPH_AF_THRSD,
                 int(100*(0.5+BIAS_TAIL_THRDS)),
                 int(100*(0.5-BIAS_TAIL_THRDS))
             )),
         reads = os.path.join(
             DIR_RESULTS_BIAS,
             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads'.format(
-                ALLELE_FREQ_FOR_VG,
+                GRAPH_AF_THRSD,
                 int(100*(0.5+BIAS_TAIL_THRDS)),
                 int(100*(0.5-BIAS_TAIL_THRDS))
             ))
@@ -511,7 +511,7 @@ rule check_find_reads:
         expand(os.path.join(
             DIR_RESULTS_BIAS,
             '{INDIV}-' + 'vg_{}-above{}_or_below{}.reads.tsv'.format(
-                ALLELE_FREQ_FOR_VG,
+                GRAPH_AF_THRSD,
                 int(100*(0.5+BIAS_TAIL_THRDS)),
                 int(100*(0.5-BIAS_TAIL_THRDS))
             )), INDIV = INDIV),
