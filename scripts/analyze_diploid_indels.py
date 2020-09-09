@@ -495,9 +495,9 @@ def analyze_diploid_indels(
     for line in sam_f:
         #name, info = parse_line(line, erg=True)
         # single-end
-        #name, info = parse_line(line, erg=True, mason2=True, score=COMPARE_SEQ)
+        name, info = parse_line(line, erg=True, mason2=True, score=COMPARE_SEQ)
         # paired-end
-        name, info = parse_line(line, erg=True, mason2=False, score=COMPARE_SEQ)
+        # name, info = parse_line(line, erg=True, mason2=False, score=COMPARE_SEQ)
         #: headers
         if name == 'header':
             continue
@@ -505,14 +505,14 @@ def analyze_diploid_indels(
 
         # first segment: 0
         # second segment: 1
-        g_info = golden_dic[name][info.is_first_seg() ^ 1]
+        # g_info = golden_dic[name][info.is_first_seg() ^ 1]
+        g_info = golden_dic[name][info.is_first_seg()]
 
         #: counts the number of overlapping variants for all aligned reads
         num_var = count_overlapping_vars(
             name=name,
             info=info,
             g_info=g_info,
-            # g_info=golden_dic[name],
             main_index=main_index,
             alt_index=alt_index
         )
