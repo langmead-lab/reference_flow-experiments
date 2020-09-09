@@ -3,7 +3,8 @@ import pandas as pd
 
 # configfile: 'test.yaml'
 # configfile: 'config_local.yaml' # local wgs using paired-end data
-configfile: 'config_local_se.yaml' # local wgs using single-end data
+# configfile: 'config_local_se.yaml' # local wgs using single-end data
+configfile: 'config_local_se_pop.yaml' # local wgs using single-end data
 # configfile: 'exp_sim_local.yaml'
 # configfile: "config.yaml"
 # configfile: "config_mouse.yaml"
@@ -17,6 +18,7 @@ assert ALN_MODE in ['single-end', 'paired-end']
 READS1 = config['READS1']
 READS2 = config['READS2']
 GROUP = config['GROUP']
+POP_LEVEL = config['POP_LEVEL']
 ALN_MAPQ_THRSD = config['ALN_MAPQ_THRSD']
 POP_THRSD = config['POP_THRSD']
 POP_STOCHASTIC = config['POP_STOCHASTIC']
@@ -77,7 +79,7 @@ DIR_MAJOR = os.path.join(DIR, 'major')
 # Prefixes and directory paths for population reference contruction and indexing
 DIR_POP_GENOME = os.path.join(DIR, 'pop_genome/')
 POP_DIRNAME = 'thrds{0}_S{1}_b{2}_ld{3}'.format(POP_THRSD, POP_STOCHASTIC, POP_BLOCK_SIZE, POP_USE_LD)
-WG_POP_GENOME_SUFFIX = EXP_LABEL + '-superpop_{GROUP}_' + POP_DIRNAME
+WG_POP_GENOME_SUFFIX = EXP_LABEL + '-' + POP_LEVEL + '_{GROUP}_' + POP_DIRNAME
 DIR_POP_GENOME_BLOCK = os.path.join(DIR_POP_GENOME, POP_DIRNAME + '/')
 DIR_POP_GENOME_BLOCK_IDX = os.path.join(DIR_POP_GENOME_BLOCK, 'indexes/')
 
@@ -95,19 +97,21 @@ DIR_VG = os.path.join(DIR, 'vg/')
 if EXP:
     DIR_PER = os.path.join(DIR, 'personalized/{INDIV}/')
     PREFIX_PER = os.path.join(DIR_PER, EXP_LABEL)
+    include: 'experiments/prepare_per_and_grc.Snakefile'
+    include: 'experiments/graph_index.Snakefile'
     if not IF_REAL_DATA:
         READS1 = PREFIX_PER + '_1.fq'
         READS2 = PREFIX_PER + '_2.fq'
-        include: 'experiments/calc_mapping_acc.Snakefile'
-    include: 'experiments/prepare_per_and_grc.Snakefile'
-    include: 'experiments/evaluate_bias.Snakefile'
     if ALN_MODE == 'single-end':
         include: 'experiments/exp_alignment_single_end.Snakefile'
+        include: 'experiments/graph_alignment_single_end.Snakefile'
     else:
         include: 'experiments/exp_alignment_paired_end.Snakefile'
+        include: 'experiments/graph_alignment_paired_end.Snakefile'
+    include: 'experiments/evaluate_bias.Snakefile'
+    if not IF_REAL_DATA:
+        include: 'experiments/calc_mapping_acc.Snakefile'
     include: 'experiments/exp_shared.Snakefile'
-    # include: 'experiments/vg.Snakefile'
-    include: 'experiments/hisat2.Snakefile'
     include: 'experiments/variant_calling.Snakefile'
 
 # Functions
@@ -147,14 +151,13 @@ if EXP:
 #     TODO_LIST.append('alignment_grc_per.done')
 #     vg
 #     TODO_LIST.append('vg_index.done')
-#     TODO_LIST.append('vg_map.done')
+    TODO_LIST.append('vg_map.done')
 #     TODO_LIST.append(os.path.join(DIR_RESULTS, 'all.tsv'))
     TODO_LIST.append('bias_exp.done')
     TODO_LIST.append('ht_align.done')
 #    TODO_LIST.append('var_calling.done')
     if not IF_REAL_DATA:
         TODO_LIST.append('accuracy.done')
-# TODO_LIST.append('var_calling.done')
 
 ''' Snakemake rules '''
 rule all:
