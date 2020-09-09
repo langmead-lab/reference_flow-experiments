@@ -12,7 +12,7 @@ rule get_ht_snps:
         snp = os.path.join(DIR_HT2, EXP_LABEL + '_filtered-{}.ht2.snp'.format(GRAPH_AF_THRSD))
     shell:
         'bgzip -cd {input.vcfgz} > {output.vcf};'
-        '{PYTHON} DIR_SCRIPTS_EXP/convert_vcf_to_hisat2_snp.py -v {output.vcf} -s {output.snp}'
+        '{PYTHON} {DIR_SCRIPTS_EXP}/convert_vcf_to_hisat2_snp.py -v {output.vcf} -s {output.snp}'
 
 rule build_ht_index:
     input:

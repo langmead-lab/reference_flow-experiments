@@ -1,5 +1,4 @@
-'''Perform `vg map` in paired-end mode
-'''
+'''Perform `vg map` in paired-end mode'''
 rule vg_map:
     input:
         vg = os.path.join(DIR_VG, EXP_LABEL + '-{}.vg'.format(GRAPH_AF_THRSD)),
@@ -23,3 +22,20 @@ rule vg_map:
         '{TIME} -v -o {output.log_map} {VG} map -d {params.prefix} -f {input.reads1} -f {input.reads2} '
         '-t {threads} --surject-to bam > {output.bam}'
 
+'''Align using HISAT2'''
+rule ht_align:
+    input:
+        idx = expand(
+            os.path.join(DIR_HT2, 'indexes/ht2-{}.'.format(GRAPH_AF_THRSD) + '{idx}.ht2'),
+            idx=[1, 2, 3, 4, 5, 6, 7, 8]),
+        reads1 = READS1,
+        reads2 = READS2
+    output:
+        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-ht2_{}.sam'.format(GRAPH_AF_THRSD))
+    params:
+        os.path.join(DIR_HT2, 'indexes/ht2-{}'.format(GRAPH_AF_THRSD))
+    threads:
+        THREADS
+    shell:
+        'hisat2 -p {threads} -x {params} -1 {input.reads1} -2 {input.reads2} -k 10 --no-spliced-alignment '
+        '--no-temp-splicesite | {SAMTOOLS} view -h -F 256 > {output.sam}'
