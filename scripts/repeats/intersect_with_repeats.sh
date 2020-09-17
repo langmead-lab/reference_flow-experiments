@@ -4,7 +4,7 @@ for i in `ls *-NA12878-biased_sites.bed`; do
 done
 
 # Get fraction of biased sites overlapping different repeats.
-for j in GRC major randflow_ld vg per; do
+for j in GRC major randflow_ld randflow_ld_26 vg per; do
     echo $j
     ALL=`bedtools intersect -a $j-NA12878-biased_sites.bed -b rmsk.bed | wc -l`
     for i in `ls rmsk-*.bed`; do
