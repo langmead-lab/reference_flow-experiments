@@ -75,7 +75,6 @@ rule merge_per_allinone:
 2.  Calculate biases.
 3.  Summarize allelic bias results
 '''
-DIR_BIAS_EVAL = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/bias_inspector/src'
 vcf_het = os.path.join(DIR, EXP_LABEL + '_{INDIV}_het_no_overlaps.vcf'),
 # vcf_het = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/bias_inspector/variant_analysis/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer-norm-het_no_overlaps.vcf'
 # vcf_het = '/net/langmead-bigmem-ib.bluecrab.cluster/storage2/naechyun/refflow-exp/snakemake/SRR622457/personalized/new/compare/shared_het.vcf'
@@ -138,7 +137,7 @@ rule calc_allelic_bias:
     output:
         os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-{INDIV}.allele.bias')
     shell:
-        '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
+        '{PYTHON} {DIR_SCRIPTS_EXP}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
 
 rule calc_allelic_bias_refflow:
     input:
@@ -148,7 +147,7 @@ rule calc_allelic_bias_refflow:
     output:
         os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-refflow-{}-{}'.format(ALN_MAPQ_THRSD, POP_DIRNAME) + '-{INDIV}.allele.bias')
     shell:
-        '{PYTHON} {DIR_BIAS_EVAL}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
+        '{PYTHON} {DIR_SCRIPTS_EXP}/evaluate_allele.py -v {input.vcf} -s {input.sam} -f {GENOME} -o {output}'
 
 ruleorder: summarize_refflow > summarize
 rule summarize:
