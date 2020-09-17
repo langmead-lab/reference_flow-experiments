@@ -84,13 +84,24 @@ BIAS_OBJECTS = [
     EXP_LABEL + '-GRC',
     EXP_LABEL + '-major-liftover',
     EXP_LABEL + '-per-merged-liftover',
-    EXP_LABEL + '-vg-from_randflow_ld',
-    EXP_LABEL + '-ht2_{}'.format(GRAPH_AF_THRSD)
-    # EXP_LABEL + '-vg_{}'.format(GRAPH_AF_THRSD)
+    # EXP_LABEL + '-vg-from_randflow_ld',
+    EXP_LABEL + '-ht2_{}'.format(GRAPH_AF_THRSD),
+    EXP_LABEL + '-vg_{}'.format(GRAPH_AF_THRSD)
 ]
-ruleorder: sort_refflow > sort
+rule sam_to_bam:
+    input:
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}.sam')
+    output:
+        os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}.bam')
+    wildcard_constraints:
+        BIAS_OBJECTS='^((?!vg).)*$'
+    shell:
+        '{SAMTOOLS} view -bh -o {output} {input}'
+
+ruleorder: sort_refflow > sort > sam_to_bam
 rule sort:
     input:
+        # os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}.bam')
         os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}.sam')
     output:
         os.path.join(DIR_FIRST_PASS, '{BIAS_OBJECTS}-sorted.bam')

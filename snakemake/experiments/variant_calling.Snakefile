@@ -35,7 +35,7 @@ rule add_rg:
     output:
         os.path.join(DIR_FIRST_PASS, '{VARCALL_OBJECTS}' + '-RG.bam')
     params:
-        tmp = os.path.join(DIR_FIRST_PASS, 'tmp/' + INDIV),
+        tmp = os.path.join(DIR_FIRST_PASS, 'tmp/{INDIV}'),
         label = INDIV
     shell:
         '{PICARD} AddOrReplaceReadGroups I={input}  O={output}  RGID={RGID} RGLB={params.label} RGPL={RGPL} RGSM={wildcards.INDIV} RGPU={RGPU} TMP_DIR={params.tmp}'

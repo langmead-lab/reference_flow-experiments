@@ -154,7 +154,7 @@ if EXP:
     TODO_LIST.append('vg_map.done')
 #     TODO_LIST.append(os.path.join(DIR_RESULTS, 'all.tsv'))
     TODO_LIST.append('bias_exp.done')
-    TODO_LIST.append('ht_align.done')
+#     TODO_LIST.append('ht_align.done')
 #    TODO_LIST.append('var_calling.done')
     if not IF_REAL_DATA:
         TODO_LIST.append('accuracy.done')
