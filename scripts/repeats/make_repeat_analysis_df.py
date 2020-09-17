@@ -1,7 +1,11 @@
 import os
-import altair as alt
 import pandas as pd
 import argparse
+
+PLOT = False
+if PLOT:
+    import altair as alt
+
 
 def is_snp(fields):
     return int(fields[2]) - int(fields[1]) == 1
@@ -66,14 +70,15 @@ def summarize_repeat_classes(prefix, alignment_methods, output_class, map_method
     df_repeat_classes['Alignment Method'] = methods
     df_repeat_classes.to_csv(output_class, sep='\t', index=None)
 
-    # Y: number of biased HETs.
-    alt.Chart(df_repeat_classes).mark_bar().encode(
-        x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
-        y='Number',
-        color='Alignment Method:N',
-        column=alt.Column('Repeat Class:N',
-                        sort=['SINE', 'LINE', 'LTR', 'Satellite', 'Simple repeat'])
-    )
+    if PLOT:
+        # Y: number of biased HETs.
+        alt.Chart(df_repeat_classes).mark_bar().encode(
+            x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
+            y='Number',
+            color='Alignment Method:N',
+            column=alt.Column('Repeat Class:N',
+                            sort=['SINE', 'LINE', 'LTR', 'Satellite', 'Simple repeat'])
+        )
 
 
 def summarize_repeat_families(prefix, alignment_methods, output_family, map_methods):
@@ -97,21 +102,22 @@ def summarize_repeat_families(prefix, alignment_methods, output_family, map_meth
     df_repeat_families['Alignment Method'] = methods
     df_repeat_families.to_csv(output_family, sep='\t', index=None)
 
-    # Y: fraction of all biased HETs using the same method.
-    alt.Chart(df_repeat_families).mark_bar().encode(
-        x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
-        y='Fraction',
-        color='Alignment Method:N',
-        column=alt.Column('Repeat Family:N', sort=repeat_families)
-    )
+    if PLOT:
+        # Y: fraction of all biased HETs using the same method.
+        alt.Chart(df_repeat_families).mark_bar().encode(
+            x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
+            y='Fraction',
+            color='Alignment Method:N',
+            column=alt.Column('Repeat Family:N', sort=repeat_families)
+        )
 
-    # Y: number of biased HETs.
-    alt.Chart(df_repeat_families).mark_bar().encode(
-        x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
-        y='Number',
-        color='Alignment Method:N',
-        column=alt.Column('Repeat Family:N', sort=repeat_families)
-    )
+        # Y: number of biased HETs.
+        alt.Chart(df_repeat_families).mark_bar().encode(
+            x=alt.X('Alignment Method:N', sort=alignment_methods, title=None),
+            y='Number',
+            color='Alignment Method:N',
+            column=alt.Column('Repeat Family:N', sort=repeat_families)
+        )
 
 
 def parse_args():
@@ -133,9 +139,10 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    alignment_methods = ['GRC', 'major', 'randflow_ld', 'vg', 'per']
+    alignment_methods = ['GRC', 'major', 'randflow_ld_26', 'randflow_ld', 'vg', 'per']
     map_methods = {
-        'GRC': 'GRC', 'major': 'Major',
-        'randflow_ld': 'RandFlow-LD', 'vg': 'vg', 'per': 'Personalized'}
+        'GRC': 'GRCh38', 'major': 'Major',
+        'randflow_ld': 'RandFlow-LD', 'randflow_ld_26': 'RandFlow-LD-26',
+        'vg': 'vg', 'per': 'Personalized'}
     summarize_repeat_classes(args.prefix, alignment_methods, args.output_class, map_methods)
     summarize_repeat_families(args.prefix, alignment_methods, args.output_family, map_methods)
