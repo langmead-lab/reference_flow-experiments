@@ -2,11 +2,11 @@ sample_id	1pass-genome	1pass-truepos	2pass-threshold	2pass-genome	2pass-merge	fi
 NA12878	100hapA	0	-1	None	False	data/NA12878-100hapA.log
 NA12878	h37maj	19719900	10	100hapA	False	data/NA12878-h37maj-q10-100hapA.log
 NA12878	h37maj	19719900	10	100dip	False	data/NA12878-h37maj-q10-100dip.log
-NA12878	h37maj	19719900	10	100dip	AS	data/NA12878-h37maj-q10-100dip-merged.log
 NA12878	HG03557_hapA	19691286	10	100dip	False	data/NA12878-HG03557_hapA-q10-100dip.log
-NA12878	HG03557_hapA	19691286	10	100dip	AS	data/NA12878-HG03557_hapA-q10-100dip-merged.log
 NA12878	HG02778_hapA	19706500	10	100dip	False	data/NA12878-HG02278_hapA-q10-100dip.log
-NA12878	HG02778_hapA	19706500	10	100dip	AS	data/NA12878-HG02278_hapA-q10-100dip-merged.log
 HG03518	h37maj	19706590	10	100dip	False	data/HG03518-h37maj-q10-100dip.log
 HG03518	h37maj	19706590	10	100hapA	False	data/HG03518-h37maj-q10-100hapA.log
 HG03518	100hapA	0	-1	None	False	data/HG03518-100hapA.log
+NA12878	HG02778_hapA	19706500	10	100dip	AS	data/NA12878-HG02278_hapA-q10-100dip-merged.log
+NA12878	HG03557_hapA	19691286	10	100dip	AS	data/NA12878-HG03557_hapA-q10-100dip-merged.log
+NA12878	h37maj	19719900	10	100dip	AS	data/NA12878-h37maj-q10-100dip-merged.log
