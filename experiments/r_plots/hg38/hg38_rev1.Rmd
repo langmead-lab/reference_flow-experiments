@@ -1,0 +1,735 @@
+---
+title: "R Notebook"
+output: refflow_revision_one
+---
+
+```{r}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(reshape2)
+library(dplyr)
+library(tables)
+library(hash)
+source("plotting_utils.R")
+```
+
+
+# Revision
+
+```{r boxplot_sensitivity_refflow_prev_reads}
+total <- 2000000
+save = F
+# df_sensitivity <- read.delim("data/map_accuracy/0906_100indiv.tsv", header = TRUE, sep = "\t")
+df_sensitivity <- read.delim("data/map_accuracy/0914_100indiv.tsv", header = TRUE, sep = "\t")
+
+sensitivity_method_name <- c("chr21-hisat_0.1", "chr21-grc", "chr21-major-1kg", "chr21-AFR-chr21_superpop_AFR_thrds0.5_S0_b1_ld0", "chr21-AMR-chr21_superpop_AMR_thrds0.5_S0_b1_ld0", "chr21-SAS-chr21_superpop_SAS_thrds0.5_S0_b1_ld0", "chr21-EAS-chr21_superpop_EAS_thrds0.5_S0_b1_ld0", "chr21-EUR-chr21_superpop_EUR_thrds0.5_S0_b1_ld0", "Matched", "chr21-vg_linear_p13", "chr21-major-10-thrds0.5_S0_b1_ld0-1kg", "chr21-vg_0.01", "chr21-vg_from_randflow_ld_six_p13", "chr21-vg_0.1", "chr21-randflow", "chr21-major-10-thrds0_S1_b1000_ld1-1kg", "chr21-randflow_26", "chr21-randflow_ld_26", "chr21-per", "chr21-per10")
+# previous RandFlow: "chr21-major-10-thrds0_S1_b1_ld0-1kg"
+sensitivity_rmethod_name <- c("HISAT2-10%", "GRCh38", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "vg-GRC", "MajorFlow", "vg-1%", "vg-RandFlow-LD", "vg-10%", "RandFlow", "RandFlow-LD", "RandFlow-26", "RandFlow-LD-26", "Personalized-2", "Personalized")
+dict_method_to_reduced <- hash()
+for (i in seq(1, length(sensitivity_method_name))){
+  dict_method_to_reduced[[sensitivity_method_name[i]]] <- sensitivity_rmethod_name[i]}
+df_sensitivity <- df_sensitivity %>% filter(Method %in% sensitivity_method_name)
+df_sensitivity$Reduced <- values(dict_method_to_reduced, keys=df_sensitivity$Method)
+# df_sensitivity <- df_sensitivity %>% filter(Reduced %in% sensitivity_rmethod_name)
+
+df_sensitivity$Reduced <- factor(df_sensitivity$Reduced, levels = sensitivity_rmethod_name)
+df_sensitivity$Super.Population <- factor(df_sensitivity$Super.Population, levels = levels(df_sensitivity$Reduced))
+df_sensitivity_matched <- df_sensitivity %>% filter(Super.Population==Reduced)
+df_sensitivity_matched$Reduced <- "Matched"
+df_sensitivity <- rbind(df_sensitivity, df_sensitivity_matched)
+
+med <- df_sensitivity %>% group_by(Reduced) %>% summarise_at(vars(True.Positive), ~ median(., na.rm = TRUE))
+map_median_grc <- med[med$Reduced =="GRCh38",]$True.Positive / total
+map_median_per <- med[med$Reduced =="Personalized",]$True.Positive / total
+
+# One-pass methods
+filt_sensitivity_onepass <- c("GRCh38", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "Personalized")
+fig_sensitivity_onepass <- ggplot(df_sensitivity %>% filter(Reduced %in% filt_sensitivity_onepass), aes(x=Reduced, y=True.Positive/total, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "right") +
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "right") + 
+  scale_y_continuous(sec.axis = sec_axis(~(.-map_median_grc)/(map_median_per-map_median_grc), name = "Gain of Personalization"))
+fig_sensitivity_onepass
+
+# Two-pass methods and baselines
+filt_sensitivity_twopass <- c("GRCh38", "Major", "Matched", "MajorFlow", "vg-GRC", "vg-RandFlow-LD", "vg-1%", "vg-10%", "RandFlow", "RandFlow-LD", "Personalized")
+fig_sensitivity_twopass <- ggplot(df_sensitivity %>% filter(Reduced %in% filt_sensitivity_twopass), aes(x=Reduced, y=True.Positive/total, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "right") + 
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "bottom") + 
+  scale_y_continuous(sec.axis = sec_axis(~(.-map_median_grc)/(map_median_per-map_median_grc), name = "Gain of Personalization"))
+fig_sensitivity_twopass
+
+# Graph-related methods
+filt_sensitivity_graph <- c("HISAT2-10%", "GRCh38", "vg-GRC", "vg-RandFlow-LD", "vg-1%", "vg-10%", "RandFlow", "RandFlow-LD", "RandFlow-LD-26", "Personalized-2", "Personalized")
+fig_sensitivity_graph <- ggplot(df_sensitivity %>% filter(Reduced %in% filt_sensitivity_graph), aes(x=Reduced, y=True.Positive/total, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "right") + 
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "bottom") + 
+  scale_y_continuous(sec.axis = sec_axis(~(.-map_median_grc)/(map_median_per-map_median_grc), name = "Gain of Personalization"))
+fig_sensitivity_graph
+
+
+sim21_mapacc <- tabular(Heading('Method') * factor(Reduced) ~
+                  Justify(r) * Heading('Sensitivity') * (I(True.Positive/total) + I((True.Positive/total-map_median_grc)/(map_median_per-map_median_grc))) * Format(sprintf("%0.6f")) * (mean + median + max + min), data=df_sensitivity)
+sim21_mapacc
+
+if (save == T){
+  ggsave("figures/revision1/fig_boxplot_second_pass_vg.pdf", width = 12, height = 6, plot=fig_sensitivity_twopass)
+  ggsave("figures/revision1/graph/fig_boxplot_graph.pdf", width = 12, height = 6, plot=fig_sensitivity_graph)
+}
+```
+
+```{r boxplot_for_summary_bias}
+df_summary_bias <- read.delim("data/allelic_bias/0906_25indiv.bias.tsv", header = T, sep = "\t")
+df_summary_bias$SUM_TAIL <- df_summary_bias$NUM_REFBIAS.0.8. + df_summary_bias$NUM_ALTBIAS.0.2.
+
+
+bias_method_name <- c("hisat_0.1", "grc", "major-1kg", "matched", "vg_linear", "thrds0.5_S0_b1_ld0-1kg", "vg_0.01", "vg_from_randflow_ld_six", "vg_0.1", "thrds0_S1_b1_ld0-1kg", "thrds0_S1_b1000_ld1-1kg", "randflow_ld_26", "per", "per10")
+bias_rmethod_name <- c("HISAT2-10%", "GRCh38", "Major", "Matched", "vg-GRC", "MajorFlow", "vg-1%", "vg-RandFlow-LD", "vg-10%", "RandFlow", "RandFlow-LD", "RandFlow-LD-26", "Personalized-2", "Personalized")
+dict_bias_method_to_reduced <- hash()
+for (i in seq(1,length(bias_method_name))){
+  dict_bias_method_to_reduced[[bias_method_name[i]]] <- bias_rmethod_name[i]}
+df_summary_bias <- df_summary_bias %>% filter(Method %in% bias_method_name)
+df_summary_bias$Reduced <- values(dict_bias_method_to_reduced, keys=df_summary_bias$Method)
+
+# for (i in seq(length(bias_method_name))){
+#   df_summary_bias$Reduced <- gsub(bias_method_name[i], bias_rmethod_name[i], df_summary_bias$Reduced)
+# }
+
+lvl_bias <- bias_rmethod_name
+df_summary_bias$Reduced <- factor(df_summary_bias$Reduced, levels = lvl_bias)
+
+df_summary_bias <- df_summary_bias %>% filter(Reduced %in% bias_rmethod_name)
+
+bias_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(SUM_TAIL, REF_TO_ALT), ~ median(., na.rm = TRUE))
+bias_median_grc <- bias_med[bias_med$Reduced =="GRCh38",]$SUM_TAIL
+bias_median_per <- bias_med[bias_med$Reduced =="Personalized",]$SUM_TAIL
+# bias_r2a_med <- df_summary_bias %>% group_by(Reduced) %>% summarise_at(vars(REF_TO_ALT), ~ median(., na.rm = TRUE))
+bias_r2a_median_grc <- bias_med[bias_med$Reduced =="GRCh38",]$REF_TO_ALT
+bias_r2a_median_per <- bias_med[bias_med$Reduced =="Personalized",]$REF_TO_ALT
+
+p_summary_bias <- ggplot(df_summary_bias, aes(x=Reduced, y=SUM_TAIL, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("Num. strongly biased sites") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(limits=c(0,NA), sec.axis = sec_axis(~(.-bias_median_grc)/(bias_median_per-bias_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_bias
+
+p_summary_r2a <- ggplot(df_summary_bias, aes(x=Reduced, y=REF_TO_ALT, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("REF to ALT ratio") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(sec.axis = sec_axis(~(.-bias_r2a_median_grc)/(bias_r2a_median_per-bias_r2a_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_r2a
+
+p_summary_bias_graph <- ggplot(df_summary_bias %>% filter(Reduced %in% filt_sensitivity_graph), aes(x=Reduced, y=SUM_TAIL, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("Num. strongly biased sites") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(limits=c(0,NA), sec.axis = sec_axis(~(.-bias_median_grc)/(bias_median_per-bias_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_bias_graph
+
+p_summary_r2a_graph <- ggplot(df_summary_bias %>% filter(Reduced %in% filt_sensitivity_graph), aes(x=Reduced, y=REF_TO_ALT, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("REF to ALT ratio") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(sec.axis = sec_axis(~(.-bias_r2a_median_grc)/(bias_r2a_median_per-bias_r2a_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_r2a_graph
+
+
+sim21_bias <- tabular(Heading('Method') * factor(Reduced) ~
+                  Justify(r) * (REF_TO_ALT + SUM_TAIL) * (mean + median + max + min), data=df_summary_bias)
+sim21_bias
+
+if (save == T){
+  ggsave("figures/revision1/fig_boxplot_num_bias_vg_hisat2.pdf", width = 12, height = 6, plot=p_summary_bias)
+  ggsave("figures/revision1/fig_boxplot_r2a_vg_hisat2.pdf", width = 12, height = 6, plot=p_summary_r2a)
+  ggsave("figures/revision1/graph/fig_boxplot_num_bias_graph.pdf", width = 12, height = 6, plot=p_summary_bias_graph)
+  ggsave("figures/revision1/graph/fig_boxplot_r2a_graph.pdf", width = 12, height = 6, plot=p_summary_r2a_graph)
+}
+
+```
+
+```{r randflow_ld_variant_af}
+# Randflow-LD-merged
+df_randflow_ld_variant <- read.delim("data/chr21-randflow_ld.allele_frequencies", header = F, col.names = "AF")
+df_randflow_ld_variant$Method <- "RandFlow-LD"
+
+# Every thing with >= 10% frequency
+df_thrsd0.1 <- read.delim("data/21-0.1.allele_frequencies", header = F, col.names = "AF")
+df_thrsd0.1$Method <- "AF >= 10%"
+# ggplot(df_thrsd0.1, aes(x=AF)) + geom_histogram(binwidth=0.01) + xlim(0, 1)
+
+# AFR frequencies with Randflow-LD (pre-print version)
+# df_af_randflow_ld_variant <- read.delim("data/chr21_superpop_AFR_thrds0_S1_b1000_ld1.allele_frequencies", header = F, col.names = "AF")
+# ggplot(df_af_randflow_ld_variant, aes(x=AF)) + geom_histogram(binwidth=0.01) + xlim(0, 1)
+
+# Combined 10% and Randflow-LD-merged
+df_compare_af <- rbind(df_randflow_ld_variant, df_thrsd0.1)
+fig_af_comp <- ggplot(df_compare_af, aes(x=AF, fill=Method)) + 
+  geom_histogram(binwidth=0.01, alpha=0.4, position="identity") + 
+  xlim(0, 1) + ylab("Count") + xlab("Allele frequency") + theme_bw() + theme(legend.position = "bottom")
+fig_af_comp
+
+if (save == T){
+  ggsave("figures/revision1/chr21_allele_frequency_comparison.pdf", width = 8, height = 6, plot=fig_af_comp)
+}
+
+```
+
+```{r repeat_bars}
+lvl_methods = c("GRCh38", "Major", "RandFlow-LD", "vg", "RandFlow-LD-26", "Personalized")
+
+df_repeat_class <- read.delim("data/repeats/repeat_class.tsv", header = TRUE, sep = "\t")
+df_repeat_class$Alignment.Method <- factor(df_repeat_class$Alignment.Method, levels = lvl_methods)
+lvl_repeats = c("LINE", "SINE", "Simple repeat", "LTR", "Satellite")
+df_repeat_class$Repeat.Class <- factor(df_repeat_class$Repeat.Class, levels = lvl_repeats)
+
+fig_repeat_class <- ggplot(df_repeat_class, aes(x=Repeat.Class, y=Number, fill=Alignment.Method)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour="white") + 
+  xlab("Repeat Class") + labs(fill="Method") +
+  theme_bw() + theme(legend.position = "bottom")
+fig_repeat_class
+
+if (save == T){
+  ggsave("figures/revision1/repeat_class.pdf", width = 8, height = 4, plot=fig_repeat_class)
+}
+
+df_repeat_family <- read.delim("data/repeats/repeat_family.tsv", header = TRUE, sep = "\t")
+# lvl_methods = c("GRC", "Major", "RandFlow-LD", "vg", "Personalized")
+df_repeat_family$Alignment.Method <- factor(df_repeat_family$Alignment.Method, levels = lvl_methods)
+lvl_repeats = c("L1", "Alu", "ERV1", "ERVL", "L2", "MIR")
+df_repeat_family$Repeat.Family <- factor(df_repeat_family$Repeat.Family, levels = lvl_repeats)
+
+df_repeat_family_high <- df_repeat_family %>% filter(Repeat.Family %in% c("Alu", "L1"))
+# df_repeat_family_high <- df_repeat_family %>% filter(Repeat.Family %in% c("Alu", "L1", "ERV1"))
+fig_repeat_family_high <- ggplot(df_repeat_family_high, aes(x=Repeat.Family, y=Number, fill=Alignment.Method)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour="white") + 
+  xlab("Repeat Family") + labs(fill="Method") +
+  theme_bw() + theme(legend.position = "bottom")
+fig_repeat_family_high
+
+df_repeat_family_low <- df_repeat_family %>% filter(!Repeat.Family %in% c("Alu", "L1"))
+# df_repeat_family_low <- df_repeat_family %>% filter(!Repeat.Family %in% c("Alu", "L1" , "ERV1"))
+fig_repeat_family_low <- ggplot(df_repeat_family_low, aes(x=Repeat.Family, y=Number, fill=Alignment.Method)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour="white") + 
+  scale_y_continuous(position = "right") +
+  xlab("Repeat Family") + labs(fill="Method") +
+  theme_bw() + theme(legend.position = "bottom")
+fig_repeat_family_low
+
+fig_repeat_family <- grid_arrange_shared_legend(T, 1, 2, fig_repeat_family_high, fig_repeat_family_low)
+fig_repeat_family
+
+if (save == T){
+  ggsave("figures/revision1/repeat_family.pdf", width = 8, height = 4, plot=fig_repeat_family)
+  # ggsave("figures/revision1/repeat_family_erv1.pdf", width = 8, height = 4, plot=fig_repeat_family)
+}
+```
+
+
+# Histograms of allelic balance
+```{r histogram_load_data}
+df_ht <- read.delim("data/real/rev1/wg-ht2_0.1-NA12878.allele.bias", header=T, sep="\t")
+df_ref <- read.delim("data/real/rev1/wg-GRC-NA12878.allele.bias", header=T, sep="\t")
+df_maj <- read.delim("data/real/rev1/wg-major-liftover-NA12878.allele.bias", header=T, sep="\t")
+df_vg_rf <- read.delim("data/real/rev1/wg-vg-from_randflow_ld-NA12878.allele.bias", header=T, sep="\t")
+df_rf <- read.delim("data/real/rev1/wg-refflow-10-thrds0_S1_b1000_ld1-NA12878.allele.bias", header=T, sep="\t")
+df_rf26 <- read.delim("data/real/rev1/wg-randflow_ld_26-NA12878.allele.bias", header=T, sep="\t")
+df_vg <- read.delim("data/real/rev1/wg-vg_0.1-NA12878.allele.bias", header=T, sep="\t")
+df_per <- read.delim("data/real/rev1/wg-per-merged-liftover-NA12878.allele.bias", header=T, sep="\t")
+```
+```{r histogram_load_data_giab}
+df_ref <- read.delim("data/real/giab/wg-GRC-sorted.bam.giab.allele.bias", header=T, sep="\t")
+df_maj <- read.delim("data/real/giab/wg-major-liftover-sorted.bam.giab.allele.bias", header=T, sep="\t")
+df_vg_rf <- read.delim("data/real/giab/wg-vg-from_randflow_ld-sorted.bam.giab.allele.bias", header=T, sep="\t")
+df_rf <- read.delim("data/real/giab/wg-randflow_ld.bam.giab.allele.bias", header=T, sep="\t")
+df_rf26 <- read.delim("data/real/giab/wg-randflow_ld_26.bam.giab.allele.bias", header=T, sep="\t")
+df_vg <- read.delim("data/real/giab/wg-vg_0.1-sorted.bam.giab.allele.bias", header=T, sep="\t")
+df_per <- read.delim("data/real/giab/wg-per-merged-liftover-sorted.bam.giab.allele.bias", header=T, sep="\t")
+```
+```{r histogram_load_data_1kgp_giab_high_conf}
+df_ht <- read.delim("data/real/giab/high_conf/wg-ht2_0.1-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_ref <- read.delim("data/real/giab/high_conf/wg-GRC-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_maj <- read.delim("data/real/giab/high_conf/wg-major-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_vg_rf <- read.delim("data/real/giab/high_conf/wg-vg-from_randflow_ld-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_rf <- read.delim("data/real/giab/high_conf/wg-randflow_ld-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_rf26 <- read.delim("data/real/giab/high_conf/wg-randflow_ld_26-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_vg <- read.delim("data/real/giab/high_conf/wg-vg_0.1-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+df_per <- read.delim("data/real/giab/high_conf/wg-per-NA12878_het_no_overlaps.giab.high_conf.allele.bias", header=T, sep="\t")
+```
+
+```{r histogram_load_data_1kgp_giab_low_conf}
+df_ht <- read.delim("data/real/giab/low_conf/wg-ht2_0.1-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_ref <- read.delim("data/real/giab/low_conf/wg-GRC-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_maj <- read.delim("data/real/giab/low_conf/wg-major-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_vg_rf <- read.delim("data/real/giab/low_conf/wg-vg-from_randflow_ld-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_rf <- read.delim("data/real/giab/low_conf/wg-randflow_ld-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_rf26 <- read.delim("data/real/giab/low_conf/wg-randflow_ld_26-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_vg <- read.delim("data/real/giab/low_conf/wg-vg_0.1-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+df_per <- read.delim("data/real/giab/low_conf/wg-per-NA12878_het_no_overlaps.giab.low_conf.allele.bias", header=T, sep="\t")
+```
+
+```{r histogram_refbias_major}
+hist_step <- 0.02
+half_step <- hist_step / 2
+
+adjusted_bins <- seq(0, 1+half_step, by=hist_step) - half_step
+adjusted_bins[1] <- 0
+adjusted_bins <- c(adjusted_bins, 1)
+
+df_ht <- filter_df(df_ht)
+df_ref <- filter_df(df_ref)
+df_maj <- filter_df(df_maj)
+df_rf <- filter_df(df_rf)
+df_rf26 <- filter_df(df_rf26)
+df_vg_rf <- filter_df(df_vg_rf)
+df_vg <- filter_df(df_vg)
+df_per <- filter_df(df_per)
+
+hist_ht <- build_hist(df_ht, hist_step)
+hist_vg_rf <- build_hist(df_vg_rf, hist_step)
+hist_ref <- build_hist(df_ref, hist_step)
+hist_maj <- build_hist(df_maj, hist_step)
+hist_rf <- build_hist(df_rf, hist_step)
+hist_rf26 <- build_hist(df_rf26, hist_step)
+hist_vg <- build_hist(df_vg, hist_step)
+hist_per <- build_hist(df_per, hist_step)
+
+p_refbias_primary <- plot_contour_hist(
+  hist_targets = c(hist_ref, hist_maj, hist_rf, hist_rf26, hist_vg, hist_per), 
+  hist_names = c('GRCh38', 'Major', 'RandFlow-LD', 'RandFlow-LD-26', 'vg', 'Personalized'), 
+  prefix= "hist_wg", 
+  ylimits = c(NA,NA),
+  y_tran = F)
+p_refbias_primary
+
+p_refbias_all <- plot_contour_hist(
+  hist_targets = c(hist_ht, hist_ref, hist_maj, hist_rf, hist_vg_rf, hist_vg, hist_per), 
+  hist_names = c('HISAT2', 'GRCh38', 'Major', 'RandFlow-LD', 'vg-RandFlow-LD', 'vg', 'Personalized'), 
+  prefix= "hist_wg", 
+  ylimits = c(NA,NA),
+  y_tran = F)
+p_refbias_all
+
+df_NA12878_wg_bias_summary <- data.frame(
+  get_bias_stats(df_ht, 0.2),
+  get_bias_stats(df_ref, 0.2), 
+  get_bias_stats(df_maj, 0.2), 
+  get_bias_stats(df_rf, 0.2),
+  get_bias_stats(df_rf26, 0.2),
+  get_bias_stats(df_vg_rf, 0.2),
+  get_bias_stats(df_vg, 0.2),
+  get_bias_stats(df_per, 0.2)
+  )
+row.names(df_NA12878_wg_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'SUM_READS', 'REF2ALT')
+names(df_NA12878_wg_bias_summary) <- c('HISAT2', 'GRCh38', 'Major', 'RandFlow-LD', 'RandFlow-LD-26', 'vg-RandFlow-LD', 'vg', 'Personalized')
+# df_NA12878_wg_bias_summary
+format(df_NA12878_wg_bias_summary, digits=5, nsmall=4)
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/histogram_real_wgs_all.pdf", p_refbias_all, width = 8, height = 6)
+  ggsave("figures/revision1/histogram_real_wgs.pdf", p_refbias_primary, width = 8, height = 6)
+  write.table(df_NA12878_wg_bias_summary, file="figures/revision1/histogram_real_wgs_all.tsv", quote=FALSE, sep='\t', col.names = NA)
+  
+  ggsave("figures/revision1/histogram_real_wgs_1kgp_high_conf.pdf", p_refbias_primary, width = 8, height = 6)
+  ggsave("figures/revision1/histogram_real_wgs_1kgp_high_conf_all.pdf", p_refbias_all, width = 8, height = 6)
+  write.table(df_NA12878_wg_bias_summary, file="figures/revision1/histogram_real_wgs_1kgp_high_conf_all.tsv", quote=FALSE, sep='\t', col.names = NA)
+  
+  ggsave("figures/revision1/histogram_real_wgs_1kgp_low_conf.pdf", p_refbias_primary, width = 8, height = 6)
+  ggsave("figures/revision1/histogram_real_wgs_1kgp_low_conf_all.pdf", p_refbias_all, width = 8, height = 6)
+  write.table(df_NA12878_wg_bias_summary, file="figures/revision1/histogram_real_wgs_1kgp_low_conf_all.tsv", quote=FALSE, sep='\t', col.names = NA)
+}
+```
+
+
+```{r chr21_num_unaligned}
+total <- 2000000
+sensitivity_method_name <- c("chr21-hisat_0.1", "chr21-grc", "chr21-major-1kg", "chr21-AFR-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-AMR-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-SAS-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-EAS-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-EUR-thrds0.5_S0_b1_ld0-liftover-sorted", "Matched", "chr21-refflow-10-thrds0.5_S0_b1_ld0-1kg", "chr21-randflow", "chr21-refflow-10-thrds0_S1_b1000_ld1-1kg", "chr21-randflow_26", "chr21-randflow_ld_26", "chr21-per", "chr21-per10", "chr21-vg_linear_p13", "chr21-vg_0.01", "chr21-vg_from_randflow_ld_six_p13", "chr21-vg_0.1")
+sensitivity_rmethod_name <- c("HISAT2-10%", "GRCh38", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "MajorFlow", "RandFlow", "RandFlow-LD", "RandFlow-26", "RandFlow-LD-26", "Personalized-2", "Personalized", "vg-GRCh38", "vg-1%", "vg-RandFlow-LD", "vg-10%")
+dict_method_to_reduced <- hash()
+for (i in seq(1, length(sensitivity_method_name))){
+  dict_method_to_reduced[[sensitivity_method_name[i]]] <- sensitivity_rmethod_name[i]}
+
+df_chr21_num_unaligned <- read.delim("data/chr21-simulated-num_unaligned.tsv", header = T, sep = "\t")
+df_chr21_num_unaligned <- df_chr21_num_unaligned %>% filter(Method %in% sensitivity_method_name)
+df_chr21_num_unaligned$Reduced <- values(dict_method_to_reduced, keys=df_chr21_num_unaligned$Method)
+
+df_chr21_num_unaligned$Reduced <- factor(df_chr21_num_unaligned$Reduced, levels = sensitivity_rmethod_name)
+df_chr21_num_unaligned$Super.Population <- factor(df_chr21_num_unaligned$Super.Population, levels = levels(df_chr21_num_unaligned$Reduced))
+df_chr21_num_unaligned_matched <- df_chr21_num_unaligned %>% filter(Super.Population==Reduced)
+df_chr21_num_unaligned_matched$Reduced <- "Matched"
+df_chr21_num_unaligned <- rbind(df_chr21_num_unaligned, df_chr21_num_unaligned_matched)
+
+fig_unaligned_all <- ggplot(df_chr21_num_unaligned %>% filter(!Reduced %in% c("HISAT2-10%", "AMR", "AFR", "EAS", "EUR", "SAS", "RandFlow-26")), 
+                            aes(x=Reduced, y=Unaligned, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Number of unaligned reads") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "bottom") + 
+  scale_y_continuous(sec.axis = sec_axis(~(./total), name = "Fraction of unaligned reads"))
+fig_unaligned_all
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/chr21_num_unaligned.pdf", fig_unaligned_all, width = 12, height = 5)
+}
+```
+
+
+```{r whole_genome_num_unaligned}
+num_reads_real <- 1436823773
+num_reads_lowq <- 250250503
+real_methods <- c("GRCh38", "Major", "RandFlow-LD", "RandFlow-LD-26", "vg", "Personalized")
+real_num_unaligned <- c(109776679, 109450266, 107206592, 106167349, 60490075, 108171464)
+# "vg", 60490075, 
+df_real_num_unaligned <- data.frame("Method" = real_methods, "Num.Unaligned" = real_num_unaligned)
+fig_real_num_unaligned <- ggplot(df_real_num_unaligned, aes(x=Method, y=Num.Unaligned, fill=Method)) + 
+  geom_bar(stat="identity") + 
+  labs(fill="Method", x="Method", y="Number of unaligned reads") +
+  scale_y_continuous(sec.axis = sec_axis(~(.)/(num_reads_real), name = "Fraction of unaligned reads")) +
+  coord_cartesian(ylim=c(50000000, 110000000)) +
+  theme_bw()  + theme(legend.position = "none")
+fig_real_num_unaligned
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/wg_num_unaligned.pdf", fig_real_num_unaligned, width = 8, height = 6)
+}
+```
+
+
+```{r chr21_num_lowq}
+num_reads_chr21 <- 2000000
+df_chr21_num_reads_lowq <- read.delim("data/chr21-simulated-num_lowq.tsv", header=T, sep="\t")
+df_chr21_num_reads_lowq <- df_chr21_num_reads_lowq[
+  order(df_chr21_num_reads_lowq$Super.Population, -df_chr21_num_reads_lowq$NumUnaligned),]
+df_chr21_num_reads_lowq$Individual <- factor(df_chr21_num_reads_lowq$Individual, levels = unique(df_chr21_num_reads_lowq$Individual))
+
+fig_chr21_num_deferred <- ggplot(df_chr21_num_reads_lowq, aes(x=Individual, y=NumUnaligned, color=Super.Population)) + 
+  geom_boxplot() +
+  labs(x="", y="Number of deferred reads", color="Super Population") +
+  scale_y_continuous(sec.axis = sec_axis(~(.)/(num_reads_chr21), name = "Fraction of deferred reads")) +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")
+fig_chr21_num_deferred
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/chr21-num_deferred_reads.pdf", fig_chr21_num_deferred, width = 12, height = 6)
+}
+```
+
+
+```{r variant_calling}
+df_variant_calling <- read.delim("data/variant_analysis/gatk.tsv", header=T, sep="\t")
+df_variant_calling <- melt(df_variant_calling)
+
+df_variant_calling$Method <- factor(df_variant_calling$Method, levels = c("GRC", "Major", "RandFlow-LD", "Personalized"))
+
+fig_variant_calling <- ggplot(df_variant_calling, aes(x=Type, y=value, fill=Method)) + 
+  geom_bar(stat="identity", position=position_dodge(), colour="white") +
+  facet_grid(cols = vars(variable)) + 
+  labs(fill="Method", x="Type", y="") +
+  coord_cartesian(ylim=c(0.977, 1)) +
+  theme_bw() + theme(legend.position = "bottom")
+fig_variant_calling
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/NA12878_variant_calling.pdf", fig_variant_calling, width = 8, height = 4)
+}
+
+```
+
+
+```{r replicate_mapping_sensitivity}
+total <- 2000000
+save = F
+# df_sensitivity_rep <- read.delim("data/map_accuracy/0906_100indiv.tsv", header = T, sep = "\t")
+df_sensitivity_rep <- read.delim("data/map_accuracy/0914_100indiv.tsv", header = T, sep = "\t")
+
+rand_trials <- c("chr21-randflow_ld-rand0", "chr21-randflow_ld-rand1", "chr21-randflow_ld-rand2",
+  "chr21-randflow_ld-rand3", "chr21-randflow_ld-rand4", "chr21-randflow_ld-rand5",
+  "chr21-randflow_ld-rand6", "chr21-randflow_ld-rand7", "chr21-randflow_ld-rand8",
+  "chr21-randflow_ld-rand9", "chr21-randflow_ld-rand10", "chr21-randflow_ld-rand11",
+  "chr21-randflow_ld-rand12", "chr21-randflow_ld-rand13", "chr21-randflow_ld-rand14")
+df_sensitivity_rand_trails <- df_sensitivity_rep %>% filter(Method %in% rand_trials)
+sensitivity_samples <- unique(df_sensitivity_rand_trails$Individual)
+
+vg_dict <- c()
+for (i in df_sensitivity_rand_trails$Individual){
+  vg_dict <- cbind(vg_dict, filter(df_sensitivity_rep, Individual ==i & Method == 'chr21-vg_0.01')$True.Positive)
+  # vg_dict <- cbind(vg_dict, filter(df_sensitivity_rep, Individual ==i & Method == 'chr21-randflow_ld_26')$True.Positive) 
+}
+vg_dict <- c(vg_dict)
+
+median_tp <- c()
+for (i in df_sensitivity_rand_trails$Individual){
+  median_tp <- cbind(median_tp, median(filter(df_sensitivity_rand_trails, Individual == i)$True.Positive))
+}
+median_tp <- c(median_tp)
+
+df_sensitivity_rand_trails$vg <- vg_dict
+df_sensitivity_rand_trails$median_tp <- median_tp
+df_sensitivity_rand_trails$diff <- df_sensitivity_rand_trails$True.Positive - df_sensitivity_rand_trails$vg
+df_sensitivity_rand_trails$median_diff <- df_sensitivity_rand_trails$median_tp - df_sensitivity_rand_trails$vg
+df_sensitivity_rand_trails <- df_sensitivity_rand_trails[
+  order(df_sensitivity_rand_trails$Super.Population, -df_sensitivity_rand_trails$median_diff),]
+df_sensitivity_rand_trails$Individual <- factor(df_sensitivity_rand_trails$Individual, levels = unique(df_sensitivity_rand_trails$Individual))
+
+fig_sensitivity_rand_vg <- ggplot(df_sensitivity_rand_trails, aes(x=Individual, y=diff, color=Super.Population)) + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot() +
+  # geom_point(size = 0.7) +
+  # geom_jitter(size = 0.7) +
+  labs(x="", y="RandFlow-LD - vg", color="Super Population") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")
+fig_sensitivity_rand_vg
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/chr21_sensitivity_rand15_vg_diff.pdf", fig_sensitivity_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_sensitivity_rand15_vg_diff_jitter.pdf", fig_sensitivity_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_sensitivity_rand15_vg_diff_point.pdf", fig_sensitivity_rand_vg, width = 12, height = 6)
+}
+```
+
+```{r replicate_bias}
+total <- 20000000
+save = F
+df_summary_bias_rep <- read.delim("data/allelic_bias/0906_25indiv.bias.tsv", header = TRUE, sep = "\t")
+df_summary_bias_rep$SUM_TAIL <- df_summary_bias_rep$NUM_REFBIAS.0.8. + df_summary_bias_rep$NUM_ALTBIAS.0.2.
+
+bias_samples <- unique(df_summary_bias_rep$INDIV)
+rand_trials <- c("randflow_ld-rand0", "randflow_ld-rand1", "randflow_ld-rand2",
+  "randflow_ld-rand3", "randflow_ld-rand4", "randflow_ld-rand5",
+  "randflow_ld-rand6", "randflow_ld-rand7", "randflow_ld-rand8",
+  "randflow_ld-rand9", "randflow_ld-rand10", "randflow_ld-rand11",
+  "randflow_ld-rand12", "randflow_ld-rand13", "randflow_ld-rand14")
+df_summary_bias_rand_trails <- df_summary_bias_rep %>% filter(Method %in% rand_trials)
+
+vg_sum_dict <- c()
+vg_r2a_dict <- c()
+for (i in df_summary_bias_rand_trails$INDIV){
+  vg_sum_dict <- cbind(vg_sum_dict, filter(df_summary_bias_rep, INDIV ==i & Method == 'vg_0.01')$SUM_TAIL)
+  vg_r2a_dict <- cbind(vg_r2a_dict, abs(filter(df_summary_bias_rep, INDIV ==i & Method == 'vg_0.01')$REF_TO_ALT - 1))
+}
+vg_sum_dict <- c(vg_sum_dict)
+vg_r2a_dict <- c(vg_r2a_dict)
+
+# Sort INDIVs by median diff with vg
+median_numbias <- c()
+for (i in df_summary_bias_rand_trails$INDIV){
+  median_numbias <- cbind(median_numbias, median(filter(df_summary_bias_rep, INDIV == i)$SUM_TAIL))
+}
+median_numbias <- c(median_numbias)
+
+df_summary_bias_rand_trails$diff_sum <- -df_summary_bias_rand_trails$SUM_TAIL + vg_sum_dict
+df_summary_bias_rand_trails$median_diff_sum <- -median_numbias + vg_sum_dict
+df_summary_bias_rand_trails <- df_summary_bias_rand_trails[
+  order(df_summary_bias_rand_trails$Super_Population, -df_summary_bias_rand_trails$median_diff_sum),]
+df_summary_bias_rand_trails$INDIV <- factor(df_summary_bias_rand_trails$INDIV, levels = unique(df_summary_bias_rand_trails$INDIV))
+
+df_summary_bias_rand_trails$diff_r2a <- -(abs(df_summary_bias_rand_trails$REF_TO_ALT - 1)) + vg_r2a_dict[df_summary_bias_rand_trails$INDIV]
+
+fig_numbias_rand_vg <- ggplot(df_summary_bias_rand_trails, aes(x=INDIV, y=diff_sum, color=Super_Population)) + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot() +
+  # geom_jitter(size = 1) +
+  # geom_point(size = 1) +
+  labs(x="", y="-(RandFlow-LD - vg)", color="Super Population") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")
+fig_numbias_rand_vg
+
+fig_r2a_rand_vg <- ggplot(df_summary_bias_rand_trails, aes(x=INDIV, y=diff_r2a, color=Super_Population)) + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot() +
+  # geom_jitter(size = 1) +
+  # geom_point(size = 1) +
+  labs(x="", y="-(RandFlow-LD - vg)", color="Super Population") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")
+fig_r2a_rand_vg
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/chr21_numbias_rand15_vg_diff.pdf", fig_numbias_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_numbias_rand15_vg_diff_jitter.pdf", fig_numbias_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_numbias_rand15_vg_diff_point.pdf", fig_numbias_rand_vg, width = 12, height = 6)
+  
+  ggsave("figures/revision1/chr21_r2a_rand15_vg_diff.pdf", fig_r2a_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_r2a_rand15_vg_diff_jitter.pdf", fig_r2a_rand_vg, width = 12, height = 6)
+  ggsave("figures/revision1/chr21_r2a_rand15_vg_diff_point.pdf", fig_r2a_rand_vg, width = 12, height = 6)
+}
+```
+
+```{r using_26_population_refs}
+filt_sensitivity_rf <- c("GRCh38", "Major", "Matched", "MajorFlow", "vg-1%", "RandFlow", "RandFlow-LD", "RandFlow-LD-26", "Personalized") #, "Personalized10")
+# filt_sensitivity_rf <- c("GRC", "vg-1%", "RandFlow", "RandFlow-LD", "RandFlow-26", "RandFlow-LD-26", "Personalized")
+
+fig_sensitivity_rf26 <- ggplot(df_sensitivity %>% filter(Reduced %in% filt_sensitivity_rf), aes(x=Reduced, y=True.Positive/total, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Sensitivity") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "right") + 
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "bottom") + 
+  scale_y_continuous(sec.axis = sec_axis(~(.-map_median_grc)/(map_median_per-map_median_grc), name = "Gain of Personalization"))
+fig_sensitivity_rf26
+
+p_summary_bias_rf26 <- ggplot(df_summary_bias %>% filter(Reduced %in% filt_sensitivity_rf), aes(x=Reduced, y=SUM_TAIL, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("Num. strongly biased sites") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(limits=c(0,NA), sec.axis = sec_axis(~(.-bias_median_grc)/(bias_median_per-bias_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_bias_rf26
+
+p_summary_r2a_rf26 <- ggplot(df_summary_bias %>% filter(Reduced %in% filt_sensitivity_rf), aes(x=Reduced, y=REF_TO_ALT, color = Super_Population)) + 
+  geom_boxplot() +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) +
+  ylab("REF to ALT ratio") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() +
+  scale_y_continuous(sec.axis = sec_axis(~(.-bias_r2a_median_grc)/(bias_r2a_median_per-bias_r2a_median_grc), name = "Gain of Personalization")) +
+  theme(legend.position = "bottom")
+  # theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+p_summary_r2a_rf26
+
+
+fig_rf26_combined_three_rows <- grid_arrange_shared_legend(
+  T, 3, 1,
+  fig_sensitivity_rf26 + labs(tag = "(a)") + xlab(""),
+  p_summary_bias_rf26 + labs(tag = "(b)") + xlab(""),
+  p_summary_r2a_rf26 + labs(tag = "(c)")
+)
+fig_rf26_combined_three_rows
+
+
+total <- 2000000
+save = F
+# df_sensitivity_rep <- read.delim("data/map_accuracy/0906_100indiv.tsv", header = TRUE, sep = "\t")
+df_sensitivity_rep <- read.delim("data/map_accuracy/0914_100indiv.tsv", header = TRUE, sep = "\t")
+
+rand_trials <- c("chr21-randflow_ld-rand0", "chr21-randflow_ld-rand1", "chr21-randflow_ld-rand2",
+  "chr21-randflow_ld-rand3", "chr21-randflow_ld-rand4", "chr21-randflow_ld-rand5",
+  "chr21-randflow_ld-rand6", "chr21-randflow_ld-rand7", "chr21-randflow_ld-rand8",
+  "chr21-randflow_ld-rand9", "chr21-randflow_ld-rand10", "chr21-randflow_ld-rand11",
+  "chr21-randflow_ld-rand12", "chr21-randflow_ld-rand13", "chr21-randflow_ld-rand14")
+df_sensitivity_rand_trails <- df_sensitivity_rep %>% filter(Method %in% rand_trials)
+sensitivity_samples <- unique(df_sensitivity_rand_trails$Individual)
+
+rf26_dict <- c()
+for (i in df_sensitivity_rand_trails$Individual){
+  rf26_dict <- cbind(rf26_dict, filter(df_sensitivity_rep, Individual ==i & Method == 'chr21-randflow_ld_26')$True.Positive) 
+}
+rf26_dict <- c(rf26_dict)
+
+median_tp <- c()
+for (i in df_sensitivity_rand_trails$Individual){
+  median_tp <- cbind(median_tp, median(filter(df_sensitivity_rand_trails, Individual == i)$True.Positive))
+}
+median_tp <- c(median_tp)
+
+df_sensitivity_rand_trails$rf26 <- rf26_dict
+df_sensitivity_rand_trails$median_tp <- median_tp
+df_sensitivity_rand_trails$diff <- df_sensitivity_rand_trails$True.Positive - df_sensitivity_rand_trails$rf26
+df_sensitivity_rand_trails$median_diff <- df_sensitivity_rand_trails$median_tp - df_sensitivity_rand_trails$rf26
+df_sensitivity_rand_trails <- df_sensitivity_rand_trails[
+  order(df_sensitivity_rand_trails$Super.Population, -df_sensitivity_rand_trails$median_diff),]
+df_sensitivity_rand_trails$Individual <- factor(df_sensitivity_rand_trails$Individual, levels = unique(df_sensitivity_rand_trails$Individual))
+
+fig_sensitivity_rand_rf26 <- ggplot(df_sensitivity_rand_trails, aes(x=Individual, y=diff, color=Super.Population)) + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot() +
+  # geom_point(size = 0.7) +
+  # geom_jitter(size = 0.7) +
+  labs(x="", y="RandFlow-LD-5 - RandFlow-LD-26", color="Super Population") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")
+fig_sensitivity_rand_rf26
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/26populations/fig_boxplot_rf26.pdf", fig_rf26_combined_three_rows, width = 12, height = 12)
+  ggsave("figures/revision1/26populations/fig_boxplot_sensitivity_rf26.pdf", fig_sensitivity_rf26, width = 12, height = 6)
+  ggsave("figures/revision1/26populations/fig_boxplot_num_bias_rf26.pdf", p_summary_bias_rf26, width = 12, height = 6)
+  ggsave("figures/revision1/26populations/fig_boxplot_r2a_rf26.pdf", p_summary_r2a_rf26, width = 12, height = 6)
+  ggsave("figures/revision1/26populations/chr21_sensitivity_rand15_rf26.pdf", fig_sensitivity_rand_rf26, width = 12, height = 6)
+}
+```
+
+
+# Analysis of theoretical allelic distribution using error-free reads
+
+```{r poisson}
+avg_cov = 1436823773* 101 / 3144056708
+total_num_het <- 2068262
+p_poisson <- ppois(avg_cov*0.2, lambda = avg_cov*0.5) + ppois(avg_cov*0.8, lambda = avg_cov*0.5, lower.tail = F)
+p_poisson
+total_num_het * p_poisson
+
+poisson_het <- function(K, N){
+  lambda = N / 2
+  sum = 0
+  for (i in seq(0, K)){
+    sum = sum + (lambda ^ i) / factorial(i)
+  }
+  return (sum * exp(-lambda))
+}
+
+poisson_noise <- function(K, N){
+  lambda = N * 0.01
+  sum = 0
+  for (i in seq(0, K)){
+    sum = sum + (lambda ^ i) / factorial(i)
+  }
+  return (sum * exp(-lambda))
+}
+```
+
+
+```{r simulation}
+sim_binom <- rbinom(total_num_het, round(avg_cov), 0.5)
+sum(sim_binom <= avg_cov * 0.2) + sum(sim_binom >= avg_cov * 0.8)
+
+num_random_pois_bias <- function(total_num_het, avg_cov){
+  sim_pois <- rpois(total_num_het, round(avg_cov) / 2)
+  return (sum(sim_pois <= avg_cov * 0.2) + sum(sim_pois >= avg_cov * 0.8))
+}
+rep_num_random_pois_bias <- replicate(
+  50,
+  num_random_pois_bias(total_num_het, avg_cov)
+)
+hist(rep_num_random_pois_bias)
+
+num_random_pois_bias_het <- function(num_replica, avg_cov){
+  biased <- function(avg_cov){
+    num_a <- rpois(1, round(avg_cov) / 2)
+    num_b <- rpois(1, round(avg_cov) / 2)
+    balance_a <- num_a / (num_a + num_b)
+    return (as.integer(balance_a <= 0.2 | balance_a >= 0.8))
+  }
+  return (sum(replicate(num_replica, biased(avg_cov))))
+}
+
+```
