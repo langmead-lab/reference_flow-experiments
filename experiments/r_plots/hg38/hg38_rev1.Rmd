@@ -258,6 +258,8 @@ df_rf <- read.delim("data/real/rev1/wg-refflow-10-thrds0_S1_b1000_ld1-NA12878.al
 df_rf26 <- read.delim("data/real/rev1/wg-randflow_ld_26-NA12878.allele.bias", header=T, sep="\t")
 df_vg <- read.delim("data/real/rev1/wg-vg_0.1-NA12878.allele.bias", header=T, sep="\t")
 df_per <- read.delim("data/real/rev1/wg-per-merged-liftover-NA12878.allele.bias", header=T, sep="\t")
+
+df_rf_chm13 <- read.delim("data/real/rev1/wg-randflow_ld_5_t2t-NA12878.allele.bias", header=T, sep="\t")
 ```
 ```{r histogram_load_data_giab}
 df_ref <- read.delim("data/real/giab/wg-GRC-sorted.bam.giab.allele.bias", header=T, sep="\t")
@@ -363,6 +365,34 @@ if (save == T){
 }
 ```
 
+```{r including_chm13}
+df_rf_chm13 <- filter_df(df_rf_chm13)
+hist_rf_chm13 <- build_hist(df_rf_chm13, hist_step)
+p_refbias_chm13 <- plot_contour_hist(
+  hist_targets = c(hist_ref, hist_maj, hist_rf, hist_rf26, hist_vg, hist_rf_chm13, hist_per), 
+  hist_names = c('GRCh38', 'Major', 'RandFlow-LD', 'RandFlow-LD-26', 'vg', 'RandFlow-LD-CHM13', 'Personalized'), 
+  prefix= "hist_wg", 
+  ylimits = c(NA,NA),
+  y_tran = F)
+p_refbias_chm13
+
+df_NA12878_wg_bias_summary <- data.frame(
+  get_bias_stats(df_ht, 0.2),
+  get_bias_stats(df_ref, 0.2), 
+  get_bias_stats(df_maj, 0.2), 
+  get_bias_stats(df_rf, 0.2),
+  get_bias_stats(df_rf26, 0.2),
+  get_bias_stats(df_rf_chm13, 0.2),
+  get_bias_stats(df_vg_rf, 0.2),
+  get_bias_stats(df_vg, 0.2),
+  get_bias_stats(df_per, 0.2)
+  )
+row.names(df_NA12878_wg_bias_summary) <- c('REF_bias', 'ALT_bias', 'ALL_bias', 'SUM_READS', 'REF2ALT')
+names(df_NA12878_wg_bias_summary) <- c('HISAT2', 'GRCh38', 'Major', 'RandFlow-LD', 'RandFlow-LD-26', 'RandFlow-LD-CHM13', 'vg-RandFlow-LD', 'vg', 'Personalized')
+format(df_NA12878_wg_bias_summary, digits=5, nsmall=4)
+```
+
+
 
 ```{r chr21_num_unaligned}
 total <- 2000000
@@ -372,7 +402,8 @@ dict_method_to_reduced <- hash()
 for (i in seq(1, length(sensitivity_method_name))){
   dict_method_to_reduced[[sensitivity_method_name[i]]] <- sensitivity_rmethod_name[i]}
 
-df_chr21_num_unaligned <- read.delim("data/chr21-simulated-num_unaligned.tsv", header = T, sep = "\t")
+df_chr21_num_unaligned <- read.delim("data/map_accuracy/0916_100indiv.num_unaligned.tsv", header = T, sep = "\t")
+# df_chr21_num_unaligned <- read.delim("data/chr21-simulated-num_unaligned.tsv", header = T, sep = "\t")
 df_chr21_num_unaligned <- df_chr21_num_unaligned %>% filter(Method %in% sensitivity_method_name)
 df_chr21_num_unaligned$Reduced <- values(dict_method_to_reduced, keys=df_chr21_num_unaligned$Method)
 
@@ -393,7 +424,49 @@ fig_unaligned_all
 
 save = F
 if (save == T){
-  ggsave("figures/revision1/chr21_num_unaligned.pdf", fig_unaligned_all, width = 12, height = 5)
+  ggsave("figures/revision1/chr21_num_unaligned.pdf", fig_unaligned_all, width = 14, height = 5)
+}
+```
+
+```{r chr21_num_incorrect}
+total <- 2000000
+sensitivity_method_name <- c("chr21-hisat_0.1", "chr21-grc", "chr21-major-1kg", "chr21-AFR-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-AMR-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-SAS-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-EAS-thrds0.5_S0_b1_ld0-liftover-sorted", "chr21-EUR-thrds0.5_S0_b1_ld0-liftover-sorted", "Matched", "chr21-refflow-10-thrds0.5_S0_b1_ld0-1kg", "chr21-randflow", "chr21-refflow-10-thrds0_S1_b1000_ld1-1kg", "chr21-randflow_26", "chr21-randflow_ld_26", "chr21-per", "chr21-per10", "chr21-vg_linear_p13", "chr21-vg_0.01", "chr21-vg_from_randflow_ld_six_p13", "chr21-vg_0.1")
+sensitivity_rmethod_name <- c("HISAT2-10%", "GRCh38", "Major", "AFR", "AMR", "SAS", "EAS", "EUR", "Matched", "MajorFlow", "RandFlow", "RandFlow-LD", "RandFlow-26", "RandFlow-LD-26", "Personalized-2", "Personalized", "vg-GRCh38", "vg-1%", "vg-RandFlow-LD", "vg-10%")
+dict_method_to_reduced <- hash()
+for (i in seq(1, length(sensitivity_method_name))){
+  dict_method_to_reduced[[sensitivity_method_name[i]]] <- sensitivity_rmethod_name[i]}
+
+df_chr21_num_incorrect <- read.delim("data/map_accuracy/0916_100indiv.num_incorrect.tsv", header = T, sep = "\t")
+df_chr21_num_incorrect <- df_chr21_num_incorrect %>% filter(Method %in% sensitivity_method_name)
+df_chr21_num_incorrect$Reduced <- values(dict_method_to_reduced, keys=df_chr21_num_incorrect$Method)
+
+df_chr21_num_incorrect$Reduced <- factor(df_chr21_num_incorrect$Reduced, levels = sensitivity_rmethod_name)
+df_chr21_num_incorrect$Super.Population <- factor(df_chr21_num_incorrect$Super.Population, levels = levels(df_chr21_num_incorrect$Reduced))
+df_chr21_num_incorrect_matched <- df_chr21_num_incorrect %>% filter(Super.Population==Reduced)
+df_chr21_num_incorrect_matched$Reduced <- "Matched"
+df_chr21_num_incorrect <- rbind(df_chr21_num_incorrect, df_chr21_num_incorrect_matched)
+
+med <- df_chr21_num_incorrect %>% group_by(Reduced) %>% summarise_at(vars(Num.Incorrect), ~ median(., na.rm = TRUE))
+num_incorrect_median_grc <- med[med$Reduced =="GRCh38",]$Num.Incorrect / total
+num_incorrect_median_per <- med[med$Reduced =="Personalized",]$Num.Incorrect / total
+
+fig_incorrect_all <- ggplot(df_chr21_num_incorrect %>% filter(!Reduced %in% c("HISAT2-10%", "AMR", "AFR", "EAS", "EUR", "SAS", "RandFlow-26", "Personalized-2")), 
+                            aes(x=Reduced, y=Num.Incorrect/total, color = Super.Population)) + 
+  geom_boxplot() + 
+  ylab("Fraction of incorrect alignments") + xlab("Method") + labs(color="Super Population") +
+  theme_bw() + 
+  theme(axis.title.x=element_text(vjust=0, hjust=0.45), legend.position = "bottom") + 
+  scale_y_continuous(sec.axis = sec_axis(~(.-num_incorrect_median_grc) / (num_incorrect_median_per - num_incorrect_median_grc), name = "Gain of Personalization"))
+  # scale_y_continuous(sec.axis = sec_axis(~(./total), name = "Fraction of incorrect alignments"))
+fig_incorrect_all
+
+sim21_num_incorrect <- tabular(Heading('Method') * factor(Reduced) ~
+                  Justify(r) * Heading('Fraction of incorrect alignments') * (I(Num.Incorrect/total) + I((Num.Incorrect/total-num_incorrect_median_grc)/(num_incorrect_median_per-num_incorrect_median_grc))) * Format(sprintf("%0.6f")) * (mean + median + max + min), data=df_chr21_num_incorrect)
+sim21_num_incorrect
+
+save = F
+if (save == T){
+  ggsave("figures/revision1/chr21_num_incorrect.pdf", fig_incorrect_all, width = 14, height = 5)
 }
 ```
 
@@ -404,6 +477,7 @@ num_reads_lowq <- 250250503
 real_methods <- c("GRCh38", "Major", "RandFlow-LD", "RandFlow-LD-26", "vg", "Personalized")
 real_num_unaligned <- c(109776679, 109450266, 107206592, 106167349, 60490075, 108171464)
 # "vg", 60490075, 
+# HISAT 161385662
 df_real_num_unaligned <- data.frame("Method" = real_methods, "Num.Unaligned" = real_num_unaligned)
 fig_real_num_unaligned <- ggplot(df_real_num_unaligned, aes(x=Method, y=Num.Unaligned, fill=Method)) + 
   geom_bar(stat="identity") + 
